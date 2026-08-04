@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use App\Models\User;
 use App\Models\Role;
+use App\Models\Project;
 use App\Models\Erp\ErpApprovalConfig;
 use App\Models\Erp\Uom;
 use App\Models\Erp\ProductFamily;
@@ -22,6 +23,21 @@ class ErpSetupSeeder extends Seeder
 {
     public function run(): void
     {
+        /* =======================================================
+           0. DEFAULT PROJECT
+        ======================================================= */
+        $project = Project::updateOrCreate(
+            ['db_name' => env('TENANT_DB_DATABASE', 'mandau_db')],
+            [
+                'name'        => 'Mangga ERP (Mandau)',
+                'db_host'     => env('TENANT_DB_HOST', env('DB_HOST', '127.0.0.1')),
+                'db_port'     => env('TENANT_DB_PORT', env('DB_PORT', '3306')),
+                'db_username' => env('TENANT_DB_USERNAME', env('DB_USERNAME', 'root')),
+                'db_password' => env('TENANT_DB_PASSWORD', env('DB_PASSWORD', '')),
+                'is_active'   => true,
+            ]
+        );
+
         /* =======================================================
            1. ROLES
         ======================================================= */
@@ -72,6 +88,8 @@ class ErpSetupSeeder extends Seeder
             if ($ud['role'] && isset($roles[$ud['role']])) {
                 $u->roles()->sync([$roles[$ud['role']]]);
             }
+
+            $u->projects()->syncWithoutDetaching([$project->id]);
         }
 
         /* =======================================================
