@@ -69,18 +69,6 @@ class ErpSetupSeeder extends Seeder
                 ]
             );
 
-            // Sync user to tenant database to satisfy foreign keys in role_user and activity_logs
-            DB::connection('tenant')->table('users')->updateOrInsert(
-                ['id' => $u->id],
-                [
-                    'name' => $u->name,
-                    'username' => $u->username,
-                    'email' => $u->email,
-                    'password' => $u->password,
-                    'status' => $u->status,
-                ]
-            );
-
             if ($ud['role'] && isset($roles[$ud['role']])) {
                 $u->roles()->sync([$roles[$ud['role']]]);
             }
@@ -96,7 +84,7 @@ class ErpSetupSeeder extends Seeder
         $u_febri = User::where('username', 'febri')->first()?->id;
         $u_barry = User::where('username', 'barry')->first()?->id;
 
-        DB::table('erp_approval_configs')->truncate();
+        ErpApprovalConfig::truncate();
 
         $configs = [
             // Project RF Approval
