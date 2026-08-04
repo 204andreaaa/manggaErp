@@ -10,35 +10,38 @@ $rl = function (string $name, array $params = []) {
     return R::has($name) ? route($name, $params) : '#';
 };
 
-// config menu
-$groupsConfig = config('menu.groups');
-$items        = collect(config('menu.items'));
-
 // keys yang boleh (dari role)
 $allowed = $u ? $u->allowedMenuKeys() : [];
 
-// filter item sesuai allowed
-$visibleItems = $items->filter(fn ($it) => in_array($it['key'], $allowed, true));
+$dashboardRoute = 'dashboard';
 
-// group by 'group' => inventory, warehouse, dll
-$grouped = $visibleItems->groupBy('group');
-
-// route dashboard sesuai role
-$dashboardRoute = match ($role) {
-    'admin'     => 'admin.dashboard',
-    'warehouse' => 'warehouse.dashboard',
-    'sales'     => 'sales.dashboard',
-    default     => 'login',
-};
-
-// helper: cek apakah group sedang aktif (ada child yg route-nya aktif)
-$isGroupActive = function ($groupKey, $list) {
-    return $list->contains(function ($it) {
-        return request()->routeIs(($it['route'] ?? '').'*');
-    });
-};
+// Check if user has access to products menu
+$hasErp = in_array('products', $allowed, true) || in_array('po', $allowed, true);
+$erpMasterOpen = request()->routeIs('erp.uoms.*')
+    || request()->routeIs('erp.product-families.*')
+    || request()->routeIs('erp.product-types.*')
+    || request()->routeIs('erp.brands.*')
+    || request()->routeIs('erp.product-models.*')
+    || request()->routeIs('erp.currencies.*')
+    || request()->routeIs('erp.suppliers.*')
+    || request()->routeIs('erp.warehouses.*')
+    || request()->routeIs('erp.payment-terms.*')
+    || request()->routeIs('erp.stocks.*');
+$erpOpen = request()->routeIs('erp.products.*') || request()->routeIs('erp.request-form.*') || request()->routeIs('erp.procurement.dashboard') || request()->routeIs('erp.purchase-orders.*') || $erpMasterOpen;
 @endphp
-
+<style>
+    /* Hide bullets for 3rd level submenus */
+    .menu-sub .menu-sub .menu-item .menu-link::before {
+        display: none !important;
+    }
+    /* Indent 3rd level submenus and make font size smaller */
+    .menu-sub .menu-sub .menu-item {
+        padding-left: 1.25rem !important;
+    }
+    .menu-sub .menu-sub .menu-item .menu-link {
+        font-size: 0.78rem !important;
+    }
+</style>
 
 <aside id="layout-menu" class="layout-menu menu-vertical menu bg-menu-theme">
     <div class="app-brand demo">
@@ -77,32 +80,159 @@ $isGroupActive = function ($groupKey, $list) {
             </a>
         </li>
 
-        {{-- Loop per GROUP sebagai DROPDOWN --}}
-        @foreach($grouped as $gKey => $list)
-            @php
-                $meta      = $groupsConfig[$gKey] ?? ['label' => ucfirst($gKey), 'icon' => 'bx bx-folder'];
-                $parentLbl = $meta['label'] ?? $meta;
-                $parentIco = $meta['icon']  ?? 'bx bx-folder';
-                $open      = $isGroupActive($gKey, $list);
-            @endphp
-
-            <li class="menu-item {{ $open ? 'active open' : '' }}">
-                <a href="javascript:void(0);" class="menu-link menu-toggle">
-                    <i class="menu-icon tf-icons {{ $parentIco }}"></i>
-                    <div>{{ $parentLbl }}</div>
+        {{-- ERP Menu Items --}}
+        @if($hasErp || true)
+            {{-- Products --}}
+            <li id="menu-item-erp-products" class="menu-item {{ request()->routeIs('erp.products.*') ? 'active' : '' }}">
+                <a href="{{ $rl('erp.products.index') }}" class="menu-link d-flex align-items-center">
+                    <i class="menu-icon tf-icons bx bx-package"></i>
+                    <div class="text-truncate">Products</div>
                 </a>
+            </li>
 
+            {{-- Master Data sub-dropdown --}}
+            <li class="menu-item {{ $erpMasterOpen ? 'active open' : '' }}">
+                <a href="javascript:void(0);" class="menu-link menu-toggle">
+                    <i class="menu-icon tf-icons bx bx-data"></i>
+                    <div>Master Data ERP</div>
+                </a>
                 <ul class="menu-sub">
-                    @foreach($list as $it)
-                        <li id="menu-item-{{ $it['key'] }}" class="menu-item {{ request()->routeIs($it['route'].'*') ? 'active' : '' }}">
-                            <a href="{{ $rl($it['route']) }}" class="menu-link d-flex align-items-center">
-                                <div class="text-truncate">{{ $it['label'] }}</div>
-                                <div class="badge-container ms-auto d-flex align-items-center"></div> {{-- Tempat angka real-time --}}
-                            </a>
-                        </li>
-                    @endforeach
+                    <li id="menu-item-erp-uoms" class="menu-item {{ request()->routeIs('erp.uoms.*') ? 'active' : '' }}">
+                        <a href="{{ $rl('erp.uoms.index') }}" class="menu-link">
+                            <div class="text-truncate">Units of Measure</div>
+                        </a>
+                    </li>
+                    <li id="menu-item-erp-families" class="menu-item {{ request()->routeIs('erp.product-families.*') ? 'active' : '' }}">
+                        <a href="{{ $rl('erp.product-families.index') }}" class="menu-link">
+                            <div class="text-truncate">Product Families</div>
+                        </a>
+                    </li>
+                    <li id="menu-item-erp-types" class="menu-item {{ request()->routeIs('erp.product-types.*') ? 'active' : '' }}">
+                        <a href="{{ $rl('erp.product-types.index') }}" class="menu-link">
+                            <div class="text-truncate">Product Types</div>
+                        </a>
+                    </li>
+                    <li id="menu-item-erp-brands" class="menu-item {{ request()->routeIs('erp.brands.*') ? 'active' : '' }}">
+                        <a href="{{ $rl('erp.brands.index') }}" class="menu-link">
+                            <div class="text-truncate">Brands</div>
+                        </a>
+                    </li>
+                    <li id="menu-item-erp-models" class="menu-item {{ request()->routeIs('erp.product-models.*') ? 'active' : '' }}">
+                        <a href="{{ $rl('erp.product-models.index') }}" class="menu-link">
+                            <div class="text-truncate">Product Models</div>
+                        </a>
+                    </li>
+                    <li id="menu-item-erp-currencies" class="menu-item {{ request()->routeIs('erp.currencies.*') ? 'active' : '' }}">
+                        <a href="{{ $rl('erp.currencies.index') }}" class="menu-link">
+                            <div class="text-truncate">Currencies</div>
+                        </a>
+                    </li>
+                    <li id="menu-item-erp-suppliers" class="menu-item {{ request()->routeIs('erp.suppliers.*') ? 'active' : '' }}">
+                        <a href="{{ route('erp.suppliers.index') }}" class="menu-link">
+                            <div class="text-truncate">ERP Suppliers</div>
+                        </a>
+                    </li>
+                    <li id="menu-item-erp-warehouses" class="menu-item {{ request()->routeIs('erp.warehouses.*') ? 'active' : '' }}">
+                        <a href="{{ route('erp.warehouses.index') }}" class="menu-link">
+                            <div class="text-truncate">ERP Destinations / Warehouses</div>
+                        </a>
+                    </li>
+                    <li id="menu-item-erp-payment-terms" class="menu-item {{ request()->routeIs('erp.payment-terms.*') ? 'active' : '' }}">
+                        <a href="{{ route('erp.payment-terms.index') }}" class="menu-link">
+                            <div class="text-truncate">Payment Terms (TOP)</div>
+                        </a>
+                    </li>
+                    <li id="menu-item-erp-stocks" class="menu-item {{ request()->routeIs('erp.stocks.*') ? 'active' : '' }}">
+                        <a href="{{ route('erp.stocks.index') }}" class="menu-link">
+                            <div class="text-truncate">Inventory Stocks</div>
+                        </a>
+                    </li>
                 </ul>
             </li>
-        @endforeach
+
+            {{-- Divider --}}
+            <li class="menu-item">
+                <div style="border-top: 1px solid rgba(67,89,113,0.15); margin: 4px 16px;"></div>
+            </li>
+
+            {{-- Request Form --}}
+            <li id="menu-item-erp-request-form" class="menu-item {{ request()->routeIs('erp.request-form.*') ? 'active' : '' }}">
+                <a href="{{ $rl('erp.request-form.index') }}" class="menu-link d-flex align-items-center">
+                    <i class="menu-icon tf-icons bx bx-file"></i>
+                    <div class="text-truncate">Request Form</div>
+                </a>
+            </li>
+
+            {{-- Master Purchase Orders List --}}
+            <li id="menu-item-erp-po-list" class="menu-item {{ request()->routeIs('erp.purchase-orders.index') ? 'active' : '' }}">
+                <a href="{{ route('erp.purchase-orders.index') }}" class="menu-link d-flex align-items-center">
+                    <i class="menu-icon tf-icons bx bx-list-check"></i>
+                    <div class="text-truncate">Purchase Orders List</div>
+                </a>
+            </li>
+
+            {{-- PO Request --}}
+            @if(auth()->user()->hasRole(['procurement', 'ceo', 'superadmin']))
+            <li id="menu-item-erp-po-request" class="menu-item {{ request()->routeIs('erp.procurement.dashboard') ? 'active' : '' }}">
+                <a href="{{ $rl('erp.procurement.dashboard') }}" class="menu-link d-flex align-items-center">
+                    <i class="menu-icon tf-icons bx bx-cart"></i>
+                    <div class="text-truncate">PO Request</div>
+                </a>
+            </li>
+            @endif
+
+            {{-- Payment Advice --}}
+            <li id="menu-item-erp-payment-advice" class="menu-item {{ request()->routeIs('erp.payment-advices.*') || request()->routeIs('erp.payment-advice-details.*') ? 'active' : '' }}">
+                <a href="{{ route('erp.payment-advices.index') }}" class="menu-link d-flex align-items-center">
+                    <i class="menu-icon tf-icons bx bx-credit-card-front"></i>
+                    <div class="text-truncate">Payment Advice</div>
+                </a>
+            </li>
+            
+            @if(auth()->user()->hasRole('superadmin'))
+            {{-- Approval Configs --}}
+            <li id="menu-item-erp-approval-configs" class="menu-item {{ request()->routeIs('erp.approval-configs.*') ? 'active' : '' }}">
+                <a href="{{ $rl('erp.approval-configs.index') }}" class="menu-link d-flex align-items-center">
+                    <i class="menu-icon tf-icons bx bx-cog"></i>
+                    <div class="text-truncate">Approval Configs</div>
+                </a>
+            </li>
+            
+            {{-- Projects (Tenants) --}}
+            <li id="menu-item-erp-projects" class="menu-item {{ request()->routeIs('erp.projects.*') ? 'active' : '' }}">
+                <a href="{{ $rl('erp.projects.index') }}" class="menu-link d-flex align-items-center">
+                    <i class="menu-icon tf-icons bx bx-buildings"></i>
+                    <div class="text-truncate">Projects</div>
+                </a>
+            </li>
+            
+            {{-- Users & Roles --}}
+            <li class="menu-item {{ request()->routeIs('erp.users.*') || request()->routeIs('erp.roles.*') ? 'active open' : '' }}">
+                <a href="javascript:void(0);" class="menu-link menu-toggle">
+                    <i class="menu-icon tf-icons bx bx-group"></i>
+                    <div>User Management</div>
+                </a>
+                <ul class="menu-sub">
+                    <li id="menu-item-erp-users" class="menu-item {{ request()->routeIs('erp.users.*') ? 'active' : '' }}">
+                        <a href="{{ $rl('erp.users.index') }}" class="menu-link">
+                            <div class="text-truncate">Users</div>
+                        </a>
+                    </li>
+                    <li id="menu-item-erp-roles" class="menu-item {{ request()->routeIs('erp.roles.*') ? 'active' : '' }}">
+                        <a href="{{ $rl('erp.roles.index') }}" class="menu-link">
+                            <div class="text-truncate">Roles</div>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+            @endif
+        @endif
     </ul>
 </aside>
+
+<style>
+/* Sembunyikan bullet dots pada submenu yang memiliki icon */
+.layout-menu .menu-sub > .menu-item > .menu-link:has(.menu-icon):before {
+    display: none !important;
+}
+</style>

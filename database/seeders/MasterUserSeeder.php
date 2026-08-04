@@ -69,6 +69,18 @@ class MasterUserSeeder extends Seeder
                         'status'         => $data['status'] ?? 'active',
                     ]
                 );
+
+                // Sync user to tenant database to satisfy foreign keys
+                DB::connection('tenant')->table('users')->updateOrInsert(
+                    ['id' => $user->id],
+                    [
+                        'name' => $user->name,
+                        'username' => $user->username,
+                        'email' => $user->email,
+                        'password' => $user->password,
+                        'status' => $user->status,
+                    ]
+                );
  
                 // Pasang Role-nya (Berupa comma separated slug)
                 if (!empty($data['role_slugs'])) {

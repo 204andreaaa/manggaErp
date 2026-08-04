@@ -74,6 +74,29 @@
                 color: var(--text) !important;
                 border-color: var(--border) !important;
             }
+
+            /* Full Width Fluid Layout (No empty side gaps on zoom out / wide screens) */
+            .container-xxl,
+            .container-xl,
+            .container-lg,
+            .container-md,
+            .container-sm,
+            .container {
+                max-width: 100% !important;
+                width: 100% !important;
+                padding-left: 1.5rem !important;
+                padding-right: 1.5rem !important;
+            }
+
+            .layout-page,
+            .content-wrapper {
+                width: 100% !important;
+            }
+
+            .card,
+            .table-responsive {
+                width: 100% !important;
+            }
         </style>
 
         {{-- Helpers & Config --}}
@@ -301,177 +324,6 @@
                 });
 
                 // Initialize Echo Listeners
-                if (typeof Echo !== 'undefined') {
-                    const me = @json(auth()->user());
-                    const isManagement = {{ auth()->user()->hasRole(['admin', 'superadmin', 'warehouse']) ? 'true' : 'false' }};
-                    const myWhId = Number(@json(auth()->user()->warehouse_id));
-
-                    if (me) {
-                        // 1. Sales Channel
-                        Echo.channel('sales-channel')
-                            .listen('.handover-updated', (e) => {
-                                console.log('📡 [Signal] Handover:', e);
-
-                                const isRelevant = (e.salesId == me.id) ||
-                                    (isManagement && e.warehouseId == myWhId) ||
-                                    ({{ auth()->user()->hasRole(['admin', 'superadmin']) ? 'true' : 'false' }});
-
-                                if (isRelevant) {
-                                    // 🔊 Play sound IMMEDIATELY for responsiveness
-                                    playNotificationSound();
-
-                                    refreshSidebarBadges();
-                                    fetchNavbarNotifications();
-
-                                    // Update Tables/Modals dynamically if needed
-                                    if (e.salesId == me.id) {
-                                        if (e.updateType === 'otp_sent' && window.triggerOtpModal) window
-                                            .triggerOtpModal();
-                                        
-                                        if (e.updateType === 'cancelled' || e.updateType === 'deleted' || e.updateType === 'payment_decided' || e.updateType === 'verified') {
-                                            // 🕵️ Ambil handover_id dari URL (kalau ada)
-                                            const urlParams = new URLSearchParams(window.location.search);
-                                            const currentHandoverId = urlParams.get('handover_id');
-
-                                            // Jika di-cancel atau di-delete oleh admin, redirect ke list utama
-                                            if ((e.updateType === 'cancelled' || e.updateType === 'deleted') && currentHandoverId == e.handoverId) {
-                                                Swal.fire({
-                                                    icon: 'info',
-                                                    title: 'Transaction Deleted',
-                                                    text: 'The handover you are working on has been deleted by Admin.',
-                                                    timer: 3000,
-                                                    showConfirmButton: false
-                                                }).then(() => {
-                                                    window.location.href = "{{ route('sales.otp.items') }}";
-                                                });
-                                            } else {
-                                                // 🔥 ULTRA REAL-TIME: Gak perlu reload satu halaman
-                                                // Jika ada fungsi refresh tabel (di Sales OTP Items), panggil itu aja
-                                                if (window.refreshHandoverTable) {
-                                                    console.log('🔄 [Reverb] Updating table dynamically...');
-                                                    window.refreshHandoverTable();
-                                                } else {
-                                                    // Fallback jika di halaman lain yang gak punya fungsi refresh parsial
-                                                    location.reload();
-                                                }
-                                            }
-                                        }
-                                    }
-                                    if (isManagement) {
-                                        if (e.updateType === 'payment_submitted' && window.refreshEveningList)
-                                            window.refreshEveningList();
-                                        if (e.updateType === 'verified' && window.refreshMorningStatus) window
-                                            .refreshMorningStatus();
-                                    }
-
-                                    // Global Event Bus for any page to hook into
-                                    window.dispatchEvent(new CustomEvent('reverb:handover-updated', {
-                                        detail: e
-                                    }));
-                                }
-                            })
-                            .listen('.sales-return-updated', (e) => {
-                                console.log('📡 [Signal] Sales Return:', e);
-
-                                const isRelevant = (e.salesId == me.id) ||
-                                    (isManagement && e.warehouseId == myWhId) ||
-                                    ({{ auth()->user()->hasRole(['admin', 'superadmin']) ? 'true' : 'false' }});
-
-                                if (isRelevant) {
-                                    playNotificationSound();
-
-                                    refreshSidebarBadges();
-                                    fetchNavbarNotifications();
-                                    if (window.refreshReturnTable) window.refreshReturnTable();
-
-                                    // Global Event Bus
-                                    window.dispatchEvent(new CustomEvent('reverb:sales-return-updated', {
-                                        detail: e
-                                    }));
-                                }
-                            })
-                            .listen('.stock-request-updated', (e) => {
-                                console.log('📡 [Signal] Stock Request:', e);
-
-                                // Simple logic for stock request (refresh UI if relevant)
-                                // Play sound if management/relevant
-                                playNotificationSound();
-                                refreshSidebarBadges();
-                                fetchNavbarNotifications();
-
-                                // Dispatch for pages like approval list to reload their table
-                                window.dispatchEvent(new CustomEvent('reverb:stock-request-updated', {
-                                    detail: e
-                                }));
-                            });
-
-                        // 2. Warehouse Transfer Channel (PISAH CHANNEL COK!)
-                        Echo.channel('warehouse-transfer-channel')
-                            .listen('.warehouse-transfer-updated', (e) => {
-                                console.log('📡 [Signal] Warehouse Transfer Received:', e);
-
-                                // Paksa jadi Number biar nggak salah bandingin '1' vs 1
-                                const myWhId = Number(@json(auth()->user()->warehouse_id));
-                                const isManagement = @json(auth()->user()->hasRole(['admin', 'superadmin']));
-                                
-                                const sourceWhId = Number(e.sourceWarehouseId);
-                                const destWhId = Number(e.destinationWarehouseId);
-
-                                // Relevan jika:
-                                // 1. Saya Management (Admin/Superadmin) - Harus liat SEMUA.
-                                // 2. Saya Gudang Asal (Source)
-                                // 3. Saya Gudang Tujuan (Destination)
-                                const isRelevant = isManagement ||
-                                    (sourceWhId === myWhId) ||
-                                    (destWhId === myWhId);
-
-                                if (isRelevant) {
-                                    // Jalankan UI Update dulu (Prioritas)
-                                    refreshSidebarBadges();
-                                    fetchNavbarNotifications();
-
-                                    // Trigger reload buat halaman index transfer
-                                    window.dispatchEvent(new CustomEvent('reverb:warehouse-transfer-updated', {
-                                        detail: e
-                                    }));
-
-                                    // Coba putar suara, kalau gagal (misal 404 atau diblokir browser) jangan bikin error se-script
-                                    try {
-                                        playNotificationSound();
-                                    } catch (err) {
-                                        console.warn('🔇 Gagal putar suara notif:', err.message);
-                                    }
-                                }
-                            });
-
-                        // 3. Settlement Channel
-                        Echo.channel('settlement-channel')
-                            .listen('.settlement-updated', (e) => {
-                                console.log('📡 [Signal] Settlement Updated:', e);
-                                // 🔥 Relevan buat Finance (Pusat) dan Warehouse (Gudang Asal)
-                                const me = @json(auth()->user());
-                                const isRelevant = {{ auth()->user()->hasRole(['admin', 'superadmin', 'finance', 'warehouse']) ? 'true' : 'false' }};
-                                
-                                if (isRelevant) {
-                                    playNotificationSound();
-                                    fetchNavbarNotifications();
-                                    refreshSidebarBadges();
-
-                                    // Refresh Tabel secara dinamis kalau fungsinya ada (Gak perlu reload halaman!)
-                                    if (window.applyFilters) {
-                                        console.log('🔄 [Reverb] Updating settlement table dynamically...');
-                                        window.applyFilters(1);
-                                    }
-
-                                    // Global Event Bus
-                                    window.dispatchEvent(new CustomEvent('reverb:settlement-updated', {
-                                        detail: e
-                                    }));
-                                }
-                            });
-                    }
-                }
-
                 // Mark All Read Handler
                 const markAllBtn = document.getElementById('markAllReadBtn');
                 if (markAllBtn) {
@@ -564,6 +416,10 @@
                 box-shadow: 0 0 0 2px #fff;
             }
         </style>
+
+        {{-- DataTables CSS --}}
+        <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
+
         @stack('styles')
     </head>
 
@@ -613,6 +469,10 @@
         <script src="{{ asset('sneat/assets/vendor/js/menu.js') }}"></script>
         {{-- <script src="{{ asset('sneat/assets/vendor/libs/apex-charts/apex-charts.js') }}"></script> --}}
         <script src="{{ asset('sneat/assets/js/main.js') }}"></script>
+
+        {{-- DataTables JS --}}
+        <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+        <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
 
         @stack('scripts')
 

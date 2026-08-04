@@ -6,12 +6,13 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Models\Role;
-use App\Models\Warehouse;
-use App\Models\Company;
 
 class User extends Authenticatable
 {
     use HasFactory, Notifiable;
+
+    /** User login selalu dibaca dari database master. */
+    protected $connection = 'master';
 
     protected $fillable = [
         'name',
@@ -39,15 +40,11 @@ class User extends Authenticatable
         return $this->belongsToMany(Role::class, 'role_user', 'user_id', 'role_id');
     }
 
-    public function warehouse()
+    public function projects()
     {
-        return $this->belongsTo(Warehouse::class, 'warehouse_id');
+        return $this->belongsToMany(Project::class, 'project_user', 'user_id', 'project_id');
     }
 
-    public function company()
-    {
-        return $this->belongsTo(Company::class);
-    }
 
     /* ================== HELPER ROLE ================== */
 
@@ -98,6 +95,10 @@ class User extends Authenticatable
 
     public function hasPermission(string $permission): bool
     {
+        if ($this->hasRole(['superadmin', 'admin'])) {
+            return true;
+        }
+
         foreach ($this->roles as $role) {
             if (in_array($permission, $role->permissions ?? [])) {
                 return true;

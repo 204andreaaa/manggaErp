@@ -35,6 +35,7 @@ class Kernel extends HttpKernel
             \Illuminate\Session\Middleware\StartSession::class,
             \Illuminate\View\Middleware\ShareErrorsFromSession::class,
             \App\Http\Middleware\VerifyCsrfToken::class,
+            \App\Http\Middleware\SetTenantConnection::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
         ],
 
@@ -87,6 +88,7 @@ class Kernel extends HttpKernel
         \App\Http\Middleware\Authenticate::class,
         \App\Http\Middleware\EnsureUserIsActive::class,
         \App\Http\Middleware\MenuKey::class,
+        \App\Http\Middleware\SetTenantConnection::class,
         \Illuminate\Routing\Middleware\SubstituteBindings::class,
     ];
     

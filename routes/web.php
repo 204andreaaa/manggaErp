@@ -1,34 +1,7 @@
 <?php
 
-use App\Http\Controllers\Admin\AdminController;
-use App\Http\Controllers\Admin\CategoryController;
-use App\Http\Controllers\Admin\CompanyController;
-use App\Http\Controllers\Admin\GoodReceivedController;
-use App\Http\Controllers\Admin\PackageController;
-use App\Http\Controllers\Admin\PreOController;
-use App\Http\Controllers\Admin\ProductController;
-use App\Http\Controllers\Admin\RestockApprovalController;
-use App\Http\Controllers\Admin\RoleController;
-use App\Http\Controllers\Admin\StockAdjustmentController;
-use App\Http\Controllers\Admin\SupplierController;
-use App\Http\Controllers\Admin\UserController;
-use App\Http\Controllers\Admin\WarehouseController;
 use App\Http\Controllers\Auth\LoginController;
-use App\Http\Controllers\BomController;
-use App\Http\Controllers\Finance\FinanceTransferController;
-use App\Http\Controllers\Sales\HandoverOtpItemsController;
-use App\Http\Controllers\Sales\SalesController;
-use App\Http\Controllers\Sales\SalesReturnController;
-use App\Http\Controllers\Sales\StockRequestController;
-use App\Http\Controllers\StockLevelController;
-use App\Http\Controllers\Warehouse\SalesHandoverController;
-use App\Http\Controllers\Warehouse\StockRequestApprovalController;
-use App\Http\Controllers\Warehouse\StockWhController;
-use App\Http\Controllers\Warehouse\WarehouseDashboardController;
-use App\Http\Controllers\Warehouse\WarehouseTransferController;
-use App\Models\Warehouse;
 use Illuminate\Support\Facades\Route;
-
 
 /* ===== Auth ===== */
 
@@ -40,770 +13,149 @@ Route::middleware('guest')->group(function () {
 Route::get('/dashboard', function () {
     $u = auth()->user();
     if (!$u) return redirect()->route('login');
-
-    $home = $u->roles()->whereNotNull('home_route')->value('home_route') ?: 'admin.dashboard';
-
-    // anti infinite redirect kalau home_route salah
-    if ($home === 'dashboard' || !\Illuminate\Support\Facades\Route::has($home)) {
-        $home = 'admin.dashboard';
-    }
-
-    return redirect()->route($home);
+    return redirect()->route('erp.procurement.dashboard');
 })->middleware(['auth', 'active'])->name('dashboard');
 
-
-
 Route::get('/', fn() => redirect()->route('dashboard'))->middleware(['auth', 'active']);
-
-
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout')->middleware(['auth', 'active']);
 
-
-/* ===== Protected by menu keys ===== */
+/* ===== Protected by auth ===== */
 Route::middleware(['auth', 'active'])->group(function () {
-
-    // ===== Dashboard (cukup auth, TIDAK pakai menu:xxx) =====
-    Route::get('/admin',     [AdminController::class, 'index'])->name('admin.dashboard');
-    Route::get('/admin/top-selling', [AdminController::class, 'topSelling'])->name('admin.dashboard.top_selling');
-    Route::get('/warehouse', [WarehouseDashboardController::class, 'index'])->name('warehouse.dashboard');
-    Route::get('/warehouse/dashboard/kpi', [WarehouseDashboardController::class, 'kpiAjax'])->name('wh.dashboard.kpi');
-    Route::get('/warehouse/dashboard/inout', [WarehouseDashboardController::class, 'inoutAjax'])
-        ->name('warehouse.dashboard.inoutAjax');
-    Route::get('/sales',     [SalesController::class, 'dashboard'])->name('sales.dashboard');
-
-    /* === Master Data (ADMIN KEYS) === */
-
-
-    // key: roles
-    Route::resource('roles', RoleController::class)
-        ->except(['show', 'create', 'edit'])
-        ->middleware('menu:roles');
-
-    // key: warehouses
-    Route::get('warehouses/seeder-csv', [WarehouseController::class, 'exportSeeder'])
-        ->name('warehouses.export.seeder')
-        ->middleware('menu:warehouses');
-    Route::resource('warehouses', WarehouseController::class)
-        ->only(['index', 'store', 'update', 'destroy'])
-        ->middleware('menu:warehouses');
-
-    // key: categories
-    Route::get('categories/datatable', [CategoryController::class, 'datatable'])
-        ->name('categories.datatable')
-        ->middleware('menu:categories');
-    Route::resource('categories', CategoryController::class)
-        ->only(['index', 'store', 'update', 'destroy'])
-        ->middleware('menu:categories');
-
-    // key: products
-    Route::get('products/datatable', [ProductController::class, 'datatable'])
-        ->name('products.datatable')
-        ->middleware('menu:products');
-    Route::get('products/next-code', [ProductController::class, 'nextCode'])
-        ->name('products.next_code')
-        ->middleware('menu:products');
-    Route::get('products/export-seeder', [ProductController::class, 'exportSeeder'])
-        ->name('products.export.seeder')
-        ->middleware('menu:products');
-    Route::get('products/{product}/warehouse-targets', [ProductController::class, 'warehouseTargets'])
-        ->name('products.warehouse_targets')
-        ->middleware('menu:products');
-    Route::resource('products', ProductController::class)
-        ->except(['create', 'edit', 'show'])
-        ->middleware('menu:products');
-
-    // Stock Adjustments
-    Route::get('stock-adjustments', [StockAdjustmentController::class, 'index'])
-        ->name('stock-adjustments.index')
-        ->middleware('menu:stock_adjustments');
-
-    Route::get('stock-adjustments/datatable', [StockAdjustmentController::class, 'datatable'])
-        ->name('stock-adjustments.datatable')
-        ->middleware('menu:stock_adjustments');
-
-    Route::get('stock-adjustments/products', [StockAdjustmentController::class, 'products'])
-        ->name('stock-adjustments.products')
-        ->middleware('menu:stock_adjustments');
-
-    Route::get('stock-adjustments/{adjustment}/detail', [StockAdjustmentController::class, 'detail'])
-        ->name('stock-adjustments.detail')
-        ->middleware('menu:stock_adjustments');
-
-    Route::get('stock-adjustments/ajax-products', [StockAdjustmentController::class, 'ajaxProducts'])
-        ->name('stock-adjustments.ajax-products')
-        ->middleware('menu:stock_adjustments');
-
-    Route::post('stock-adjustments', [StockAdjustmentController::class, 'store'])
-        ->name('stock-adjustments.store')
-        ->middleware('menu:stock_adjustments');
-
-    Route::get('/stock-adjustments/export/excel', [StockAdjustmentController::class, 'exportIndexExcel'])
-        ->name('stock-adjustments.exportIndexExcel')
-        ->middleware('menu:stock_adjustments');
-
-
-    // key: suppliers
-    Route::get('suppliers/datatable', [SupplierController::class, 'datatable'])
-        ->name('suppliers.datatable')
-        ->middleware('menu:suppliers');
-    Route::get('suppliers/next-code', [SupplierController::class, 'nextCode'])
-        ->name('suppliers.next_code')
-        ->middleware('menu:suppliers');
-    Route::resource('suppliers', SupplierController::class)
-        ->only(['index', 'store', 'update', 'destroy'])
-        ->middleware('menu:suppliers');
-
-    // key: packages
-    Route::get('packages/datatable', [PackageController::class, 'datatable'])
-        ->name('packages.datatable')
-        ->middleware('menu:packages');
-    Route::resource('packages', PackageController::class)
-        ->except(['create', 'edit', 'show'])
-        ->middleware('menu:packages');
-
-    // key: users
-    Route::resource('users', UserController::class)
-        ->except(['show', 'create', 'edit'])
-        ->middleware('menu:users');
-    Route::post('users/bulk-destroy', [UserController::class, 'bulkDestroy'])
-        ->name('users.bulk-destroy')
-        ->middleware('menu:users');
-    Route::get('users/export/excel', [UserController::class, 'exportExcel'])
-        ->name('users.exportExcel')
-        ->middleware('menu:users');
-    Route::get('users/seeder-csv', [UserController::class, 'exportSeeder'])
-        ->name('users.export.seeder')
-        ->middleware('menu:users');
-
-    /* === Stock Level (shared) – key: wh_stocklevel === */
-    Route::get('/stock-level',           [StockLevelController::class, 'index'])
-        ->name('stocklevel.index')
-        ->middleware('menu:wh_stocklevel');
-    Route::get('/stock-level/datatable', [StockLevelController::class, 'datatable'])
-        ->name('stocklevel.datatable')
-        ->middleware('menu:wh_stocklevel');
-
-    Route::get('/stock-level/export/excel', [StockLevelController::class, 'exportExcel'])
-        ->name('stocklevel.exportExcel')
-        ->middleware('menu:wh_stocklevel');
-
-
-    /* === Purchase Orders === */
-    // key: po
-    Route::get('/po/datatable',       [PreOController::class, 'datatable'])
-        ->name('po.datatable')
-        ->middleware('menu:po');
-
-    Route::get('/po/modal-gr/{po}',   [PreOController::class, 'modalGr'])
-        ->name('po.modal-gr')
-        ->middleware('menu:po');
-
-    Route::get('/po',                 [PreOController::class, 'index'])
-        ->name('po.index')
-        ->middleware('menu:po');
-
-    Route::post('/po/create', [PreOController::class, 'create'])
-        ->name('po.create')
-        ->middleware('menu:po');
-
-    Route::post('/po',                [PreOController::class, 'store'])
-        ->name('po.store')
-        ->middleware('menu:po');
-
-    Route::post('/po/from-requests',  [PreOController::class, 'createFromRequests'])
-        ->name('po.fromRequests')
-        ->middleware('menu:po');
-
-    Route::get('/po/{po}',            [PreOController::class, 'edit'])
-        ->name('po.edit')
-        ->middleware('menu:po');
-
-    Route::put('/po/{po}',            [PreOController::class, 'update'])
-        ->name('po.update')
-        ->middleware('menu:po');
-
-    Route::put('/po/{po}/receive',    [PreOController::class, 'receive'])
-        ->name('po.receive')
-        ->middleware('menu:po');
-
-    Route::post('/po/{po}/order',     [PreOController::class, 'order'])
-        ->name('po.order')
-        ->middleware('menu:po');
-
-    Route::post('/po/{po}/cancel',    [PreOController::class, 'cancel'])
-        ->name('po.cancel')
-        ->middleware('menu:po');
-
-    Route::delete('/po/{po}',          [PreOController::class, 'destroy'])
-        ->name('po.destroy')
-        ->middleware('menu:po');
-
-    Route::post('/po/{po}/approve', [PreOController::class, 'approve'])
-        ->name('po.approve')
-        ->middleware('menu:po');
-
-
-    Route::post('/po/{po}/approve-proc', [PreOController::class, 'approveProcurement'])
-        ->name('po.approve.proc')
-        ->middleware('menu:po');
-
-    Route::post('/po/{po}/reject-proc', [PreOController::class, 'rejectProcurement'])
-        ->name('po.reject.proc')
-        ->middleware('menu:po');
-
-    // CEO
-    Route::post('/po/{po}/approve-ceo', [PreOController::class, 'approveCeo'])
-        ->name('po.approve.ceo')
-        ->middleware('menu:po');
-
-    Route::post('/po/{po}/reject-ceo', [PreOController::class, 'rejectCeo'])
-        ->name('po.reject.ceo')
-        ->middleware('menu:po');
-
-    Route::get('/po/{po}/pdf',        [PreOController::class, 'exportPdf'])
-        ->name('po.pdf')
-        ->middleware('menu:po');
-
-    Route::get('/po/{po}/excel',      [PreOController::class, 'exportExcel'])
-        ->name('po.excel')
-        ->middleware('menu:po');
-
-    Route::get('/po/table', [PreOController::class, 'table'])
-        ->name('po.table')
-        ->middleware('menu:po');
-
-    Route::get('/po/export/index', [PreOController::class, 'exportIndexExcel'])
-        ->name('po.export.index')
-        ->middleware('menu:po');
-
-    Route::get('/po/export/monthly', [PreOController::class, 'exportMonthlyExcel'])
-        ->name('po.export.monthly')
-        ->middleware('menu:po');
-
-    Route::post('/po/{po}/gr', [GoodReceivedController::class, 'storeFromPo'])
-        ->name('po.gr.store')
-        ->middleware('menu:po');
-
-    /* === Goods Received LIST (monitoring) – key: goodreceived === */
-    Route::get('/good-received', [GoodReceivedController::class, 'index'])
-        ->name('goodreceived.index')
-        ->middleware('menu:goodreceived');
-
-    Route::get('/good-received/export/excel', [GoodReceivedController::class, 'exportExcel'])
-        ->name('goodreceived.export')
-        ->middleware('menu:goodreceived');
-
-
-    // Ajukan permohonan delete GR untuk 1 GR (bukan PO)        
-    Route::post('/good-received/{code}/cancel', [GoodReceivedController::class, 'cancelFromGr'])
-        ->name('good-received.cancel')
-        ->middleware('menu:goodreceived');
-
-
-    Route::get('/good-received/{code}/detail', [GoodReceivedController::class, 'detail'])
-        ->name('goodreceived.detail')
-        ->middleware('menu:goodreceived');
-
-    Route::get('/good-received/{code}/print', [GoodReceivedController::class, 'printGr'])
-        ->name('goodreceived.print')
-        ->middleware('menu:goodreceived');
-
-    // Halaman daftar permohonan
-    // ================== MASTER COMPANY ==================
-
-    // Halaman list + form tambah / edit via modal
-    Route::get('/companies', [CompanyController::class, 'index'])
-        ->name('companies.index')
-        ->middleware('menu:company');
-
-    // Simpan company baru
-    Route::post('/companies', [CompanyController::class, 'store'])
-        ->name('companies.store')
-        ->middleware('menu:company');
-
-    // Update company (form di modal)
-    Route::put('/companies/{company}', [CompanyController::class, 'update'])
-        ->name('companies.update')
-        ->middleware('menu:company');
-
-    // Hapus (soft delete) company
-    Route::delete('/companies/{company}', [CompanyController::class, 'destroy'])
-        ->name('companies.destroy')
-        ->middleware('menu:company');
-
-
-
-
-    // APPROVE
-
-
-
-    /* === Restock Approval – key: restock_request_ap === */
-    Route::get('stockRequest',               [RestockApprovalController::class, 'index'])
-        ->name('stockRequest.index')
-        ->middleware('menu:restock_request_ap');
-    Route::get('stockRequest/json',          [RestockApprovalController::class, 'json'])
-        ->name('stockRequest.json')
-        ->middleware('menu:restock_request_ap');
-    Route::post('stockRequest/{id}/approve', [RestockApprovalController::class, 'approve'])
-        ->name('stockRequest.approve')
-        ->middleware('menu:restock_request_ap');
-    Route::post('stockRequest/{id}/reject',  [RestockApprovalController::class, 'reject'])
-        ->name('stockRequest.reject')
-        ->middleware('menu:restock_request_ap');
-    Route::post('stockRequest/bulk-po',      [RestockApprovalController::class, 'bulkPO'])
-        ->name('stockRequest.bulkpo')
-        ->middleware('menu:restock_request_ap');
-
-    Route::get('/restocks/{restock}/items',   [StockWhController::class, 'items'])
-        ->name('restocks.items')
-        ->middleware('menu:wh_restock');
-
-    /* === Warehouse – Restock + Sales Handover === */
-
-    // key: wh_restock
-    Route::get('/restocks',                   [StockWhController::class, 'index'])
-        ->name('restocks.index')
-        ->middleware('menu:wh_restock');
-    Route::get('/restocks/datatable',         [StockWhController::class, 'datatable'])
-        ->name('restocks.datatable')
-        ->middleware('menu:wh_restock');
-    Route::post('/restocks',                  [StockWhController::class, 'store'])
-        ->name('restocks.store')
-        ->middleware('menu:wh_restock');
-    Route::post('/restocks/{restock}/receive', [StockWhController::class, 'receive'])
-        ->name('restocks.receive')
-        ->middleware('menu:wh_restock');
-    Route::get('/restocks/export/excel', [StockWhController::class, 'exportExcel'])
-        ->name('restocks.export.excel')
-        ->middleware('menu:wh_restock');
-
-
-    Route::get('/sales/handover/morning', [SalesHandoverController::class, 'morningForm'])
-        ->name('sales.handover.morning')
-        ->middleware('menu:wh_issue');
-
-    Route::get('/sales/handover/ajax-sales', [SalesHandoverController::class, 'ajaxSalesByWarehouse'])
-        ->name('sales.handover.ajax-sales')
-        ->middleware('menu:wh_issue');
-
-    Route::get('/sales/handover/ajax-products', [SalesHandoverController::class, 'ajaxProductsByWarehouse'])
-        ->name('sales.handover.ajax-products')
-        ->middleware('menu:wh_issue');
-
-    Route::post('/sales/handover/morning/store', [SalesHandoverController::class, 'morningStoreAndSendOtp'])
-        ->name('sales.handover.morning.store')
-        ->middleware('menu:wh_issue');
-
-    Route::post('/sales/handover/morning/verify', [SalesHandoverController::class, 'verifyMorningOtp'])
-        ->name('sales.handover.morning.verify')
-        ->middleware('menu:wh_issue');
-
-    Route::post('/sales/handover/morning/cancel', [SalesHandoverController::class, 'cancelMorningHandover'])
-        ->name('sales.handover.morning.cancel')
-        ->middleware('menu:wh_issue');
-
-    // SORE
-    Route::get('/sales/handover/evening', [SalesHandoverController::class, 'eveningForm'])
-        ->name('sales.handover.evening')
-        ->middleware('menu:wh_reconcile');
-
-    Route::get('/sales/handover/{handover}/items', [SalesHandoverController::class, 'eveningItems'])
-        ->name('sales.handover.items')
-        ->middleware('menu:wh_reconcile');
-
-    Route::post('/sales/handover/{handover}/evening/save', [SalesHandoverController::class, 'eveningSave'])
-        ->name('sales.handover.evening.save')
-        ->middleware('menu:wh_reconcile');
-
-
-    Route::post('/sales/handover/evening/verify', [SalesHandoverController::class, 'verifyEveningOtp'])
-        ->name('sales.handover.evening.verify')
-        ->middleware('menu:wh_reconcile');
-
-    // GENERATE OTP SORE (untuk closing handover)
-    Route::post('/warehouse/handovers/{handover}/evening/generate-otp', [SalesHandoverController::class, 'generateEveningOtp'])
-        ->name('warehouse.handovers.evening.generate-otp')
-        ->middleware('menu:wh_sales_reports');
-
-
-    // === NEW: DIRECT SALES (POS GUDANG) - key: wh_direct_sales ===
-    Route::get('/warehouse/direct-sales', [\App\Http\Controllers\Warehouse\DirectSalesController::class, 'index'])
-        ->name('warehouse.direct_sales.index')
-        ->middleware('menu:wh_direct_sales');
-
-    Route::post('/warehouse/direct-sales', [\App\Http\Controllers\Warehouse\DirectSalesController::class, 'store'])
-        ->name('warehouse.direct_sales.store')
-        ->middleware('menu:wh_direct_sales');
-
-    /* === Damaged & Expired Stocks === */
-    // Admin WH View
-    Route::get('/admin/warehouse/damaged-stocks', [\App\Http\Controllers\Admin\DamagedStockController::class, 'index'])
-        ->name('damaged-stocks.index')
-        ->middleware('menu:wh_damaged_stocks');
-
-    Route::match(['get', 'post'], '/admin/warehouse/damaged-stocks/data', [\App\Http\Controllers\Admin\DamagedStockController::class, 'indexData'])
-        ->name('damaged-stocks.data')
-        ->middleware('menu:wh_damaged_stocks');
-
-    // Superadmin Approval View
-    Route::get('/admin/operations/approval-stock-damage', [\App\Http\Controllers\Admin\DamagedStockController::class, 'approval'])
-        ->name('damaged-stocks.approval')
-        ->middleware('menu:approval_stock_damage');
-
-    Route::match(['get', 'post'], '/admin/operations/approval-stock-damage/data', [\App\Http\Controllers\Admin\DamagedStockController::class, 'approvalData'])
-        ->name('damaged-stocks.approval-data')
-        ->middleware('menu:approval_stock_damage');
-
-    // Shared Actions
-    Route::post('/admin/warehouse/damaged-stocks/bulk-request', [\App\Http\Controllers\Admin\DamagedStockController::class, 'bulkRequestAction'])
-        ->name('damaged-stocks.bulk-request')
-        ->middleware('menu:wh_damaged_stocks');
-
-    Route::post('/admin/warehouse/damaged-stocks/{damagedStock}/request', [\App\Http\Controllers\Admin\DamagedStockController::class, 'requestAction'])
-        ->name('damaged-stocks.request')
-        ->middleware('menu:wh_damaged_stocks');
-    Route::post('/admin/warehouse/damaged-stocks/{damagedStock}/approve', [\App\Http\Controllers\Admin\DamagedStockController::class, 'approveAction'])
-        ->name('damaged-stocks.approve')
-        ->middleware('menu:approval_stock_damage');
-    Route::post('/admin/warehouse/damaged-stocks/{damagedStock}/resolve', [\App\Http\Controllers\Admin\DamagedStockController::class, 'resolveAction'])
-        ->name('damaged-stocks.resolve')
-        ->middleware('menu:wh_damaged_stocks');
-
-    /* === Warehouse Transfer === */
-    Route::get('/warehouse/transfers', [WarehouseTransferController::class, 'index'])
-        ->name('warehouse-transfers.index')
-        ->middleware('menu:wh_transfers');
-
-    Route::get('/warehouse/transfer-forms/create', [WarehouseTransferController::class, 'create'])
-        ->name('warehouse-transfer-forms.create')
-        ->middleware('menu:wh_transfers');
-
-    Route::get('/warehouse/transfer-forms/{transfer}', [WarehouseTransferController::class, 'show'])
-        ->name('warehouse-transfer-forms.show')
-        ->middleware('menu:wh_transfers');
-
-    Route::get('/warehouse/transfers/data', [WarehouseTransferController::class, 'data'])
-        ->name('warehouse-transfers.data')
-        ->middleware('menu:wh_transfers');
-
-    Route::get('/warehouse/transfer-products', [WarehouseTransferController::class, 'products'])
-        ->name('warehouse.products.search')
-        ->middleware('menu:wh_transfers');
-
-    /* === AJAX / ACTION (TETAP FORM MENU) === */
-    Route::post('/warehouse/transfer-forms', [WarehouseTransferController::class, 'store'])
-        ->name('warehouse-transfer-forms.store')
-        ->middleware('menu:wh_transfers');
-
-
-    Route::post('/warehouse/transfer-forms/{transfer}/items', [WarehouseTransferController::class, 'addItem'])
-        ->name('warehouse-transfer-forms.items.add')
-        ->middleware('menu:wh_transfers');
-
-    Route::delete('/warehouse/transfer-forms/{transfer}/items/{item}', [WarehouseTransferController::class, 'removeItem'])
-        ->name('warehouse-transfer-forms.items.remove')
-        ->middleware('menu:wh_transfers');
-    /* === Sales pages (SALES KEYS) === */
-    Route::post('/warehouse/transfer-forms/{transfer}/submit', [WarehouseTransferController::class, 'submit'])
-        ->name('warehouse-transfer-forms.submit')
-        ->middleware('menu:wh_transfers');
-
-    Route::post('/warehouse/transfer-forms/{transfer}/reject-destination', [WarehouseTransferController::class, 'rejectDestination'])
-        ->name('warehouse-transfer-forms.reject.destination')
-        ->middleware('menu:wh_transfers');
-
-    Route::post('/warehouse/transfer-forms/{transfer}/gr-source', [WarehouseTransferController::class, 'grSource'])
-        ->name('warehouse-transfer-forms.gr.source')
-        ->middleware('menu:wh_transfers');
-
-    Route::post('/warehouse/transfer-forms/{transfer}/approve-destination', [WarehouseTransferController::class, 'approveDestination'])
-        ->name('warehouse-transfer-forms.approve.destination')
-        ->middleware('menu:wh_transfers');
-
-    Route::post('/warehouse/transfer-forms/{transfer}/cancel', [WarehouseTransferController::class, 'cancel'])
-        ->name('warehouse-transfer-forms.cancel')
-        ->middleware('menu:wh_transfers');
-
-    Route::get('/warehouse-transfer/{transfer}/print-sj', [WarehouseTransferController::class, 'printSJ'])
-        ->name('warehouse-transfer.print-sj')
-        ->middleware('menu:wh_transfers');
-
-    // routes/web.php
-    Route::get('/warehouse/transfer/export',[WarehouseTransferController::class, 'exportIndexExcel'])
-        ->name('warehouse-transfer.export')
-        ->middleware('menu:wh_transfers');
-
-    Route::get('/warehouse/stock-requests', [StockRequestApprovalController::class, 'indexWarehouse'])
-    ->name('warehouse.stock-requests.index')
-    ->middleware('menu:sales_request_approval');
-
-Route::post('/warehouse/stock-requests/{id}/approve', [StockRequestApprovalController::class, 'approve'])
-    ->name('warehouse.stock-requests.approve')
-    ->middleware('menu:sales_request_approval');
-
-Route::post('/warehouse/stock-requests/{id}/reject', [StockRequestApprovalController::class, 'reject'])
-    ->name('warehouse.stock-requests.reject')
-    ->middleware('menu:sales_request_approval');
-
-    //SALES RETURN
-    Route::get('/sales/returns', [SalesReturnController::class,'index'])
-        ->name('sales.returns.index')
-        ->middleware('menu:sales_return');
-
-    Route::post('/sales/returns', [SalesReturnController::class,'store'])
-        ->name('sales.returns.store')
-        ->middleware('menu:sales_return');
-
-    Route::get('/sales/returns/load/{handoverId}',[SalesReturnController::class,'loadItems'])
-        ->name('sales.returns.load')
-        ->middleware('menu:sales_return');
-
-    // Halaman approval retur sales untuk WAREHOUSE (bukan SALES)
-    Route::get('/warehouse/returns', [SalesReturnController::class,'approvalList'])
-        ->name('warehouse.returns.index')
-        ->middleware('menu:sales_return_approval');
-
-    Route::post('/warehouse/returns/{salesReturn}/approve',
-        [SalesReturnController::class,'approve'])
-        ->name('warehouse.returns.approve')
-        ->middleware('menu:sales_return_approval');
-
-    Route::post('/warehouse/returns/{salesReturn}/reject',
-        [SalesReturnController::class,'reject'])
-        ->name('warehouse.returns.reject')
-        ->middleware('menu:sales_return_approval');
-
-    Route::post('/warehouse/returns/{handover}/approve-all', [SalesReturnController::class, 'approveAll'])
-        ->name('warehouse.returns.approve-all')
-        ->middleware('menu:sales_return_approval');
-
-    Route::post('/warehouse/returns/{handover}/reject-all', [SalesReturnController::class, 'rejectAll'])
-        ->name('warehouse.returns.reject-all')
-        ->middleware('menu:sales_return_approval');
-
-    Route::post('/sales/returns/{salesReturn}/resubmit',[SalesReturnController::class,'resubmit'])
-        ->name('sales.returns.resubmit')
-        ->middleware('menu:sales_return');
-
-    Route::get('/sales/returns/rejected/{handover}', [SalesReturnController::class,'getRejected'])
-        ->name('sales.returns.rejected')
-        ->middleware('menu:sales_return');
-
-    Route::post('/sales/returns/{handover}/update-rejected',[SalesReturnController::class, 'updateRejected'])
-        ->name('sales.returns.update_rejected')
-        ->middleware('menu:sales_return');
-
-    Route::get('/sales/returns/hdo/{id}', [SalesReturnController::class, 'getHdoDetails'])
-        ->name('sales.returns.hdo.details')
-        ->middleware('menu:sales_return');
-
-    Route::get('/sales/returns/filter', [SalesReturnController::class, 'filterAjax'])
-        ->name('sales.returns.filter')
-        ->middleware('menu:sales_return');
-
-    Route::get('/warehouse/returns/filter', [SalesReturnController::class, 'filterAjaxWhApproved'])
-        ->name('warehouse.returns.filter')
-        ->middleware('menu:sales_return_approval');
-
-    Route::get('/warehouse/returns/hdo/{handover}',[SalesReturnController::class, 'getHdoDetails'])
-        ->name('warehouse.returns.hdo.details')
-        ->middleware('menu:sales_return_approval');
-    
-    Route::get('/sales/by-warehouse/{id}', [SalesReturnController::class,'getSalesByWarehouse'])
-        ->name('sales.returns.by_warehouse')
-        ->middleware('menu:sales_return');
-
-    // SALES REQUEST
-    Route::get('/sales/stock-requests', [StockRequestController::class, 'index'])
-        ->name('sales-request.index')
-        ->middleware('menu:sales_request');
-
-    Route::get('/sales/stock-requests/filter', [StockRequestController::class, 'filter'])
-        ->name('sales-requests.filter')
-        ->middleware('menu:sales_request');
-
-    Route::post('/sales/stock-requests', [StockRequestController::class, 'store'])
-        ->name('sales-requests.store')
-        ->middleware('menu:sales_request');
-
-    Route::get('/warehouse/stock-requests', [StockRequestApprovalController::class, 'index'])
-        ->name('warehouse.stock-requests.index')
-        ->middleware('menu:sales_request_approval');
-
-    Route::post('/warehouse/stock-requests/{id}/approve', [StockRequestApprovalController::class, 'approve'])
-        ->name('warehouse.stock-requests.approve')
-        ->middleware('menu:sales_request_approval');
-
-    Route::get('/warehouse/stock-requests/detail', [StockRequestApprovalController::class, 'detail'])
-        ->name('warehouse.stock-requests.detail');
-    
-    Route::post('/warehouse/stock-requests/{id}/reject', [StockRequestApprovalController::class, 'reject'])
-        ->name('warehouse.stock-requests.reject')
-        ->middleware('menu:sales_request_approval');
-
-    Route::get('/warehouse/stock-requests/filter', [StockRequestApprovalController::class, 'filter'])
-        ->name('warehouse.stock-requests.filter')
-        ->middleware('menu:sales_request_approval');
-
-    // === Sales pages (SALES & WAREHOUSE) ===
-    Route::get('/sales/{sales}/active-handover-count', [SalesHandoverController::class, 'getActiveCount'])
-        ->middleware('menu:wh_issue');
-
-    // === FINANCE & SETTLEMENTS ===
-    Route::get('/finance/settlements', [FinanceTransferController::class, 'settlementsIndex'])
-        ->name('finance.settlements.index')
-        ->middleware('menu:finance_settlements');
+    // Switch Project Routes
+    Route::get('/projects/switch', [\App\Http\Controllers\ProjectSwitchController::class, 'showSwitchForm'])->name('projects.switch');
+    Route::post('/projects/switch', [\App\Http\Controllers\ProjectSwitchController::class, 'processSwitch'])->name('projects.switch.process');
+
+    /* ===== ERP ROUTES ===== */
+    Route::prefix('erp')->name('erp.')->group(function () {
+        // Products
+        Route::get('products/export', [\App\Http\Controllers\Erp\ErpProductController::class, 'exportExcel'])->name('products.export');
+        Route::post('products/datatable', [\App\Http\Controllers\Erp\ErpProductController::class, 'datatable'])->name('products.datatable');
+        Route::get('products/next-code', [\App\Http\Controllers\Erp\ErpProductController::class, 'nextCode'])->name('products.next_code');
+        Route::resource('products', \App\Http\Controllers\Erp\ErpProductController::class)->except(['create', 'edit', 'show']);
+
+        // Product Families
+        Route::post('product-families/datatable', [\App\Http\Controllers\Erp\ProductFamilyController::class, 'datatable'])->name('product-families.datatable');
+        Route::resource('product-families', \App\Http\Controllers\Erp\ProductFamilyController::class)->except(['create', 'edit', 'show']);
+
+        // Product Types
+        Route::post('product-types/datatable', [\App\Http\Controllers\Erp\ProductTypeController::class, 'datatable'])->name('product-types.datatable');
+        Route::resource('product-types', \App\Http\Controllers\Erp\ProductTypeController::class)->except(['create', 'edit', 'show']);
+
+        // Brands
+        Route::post('brands/datatable', [\App\Http\Controllers\Erp\BrandController::class, 'datatable'])->name('brands.datatable');
+        Route::resource('brands', \App\Http\Controllers\Erp\BrandController::class)->except(['create', 'edit', 'show']);
+
+        // Product Models
+        Route::post('product-models/datatable', [\App\Http\Controllers\Erp\ProductModelController::class, 'datatable'])->name('product-models.datatable');
+        Route::resource('product-models', \App\Http\Controllers\Erp\ProductModelController::class)->except(['create', 'edit', 'show']);
+
+        // Currencies
+        Route::post('currencies/datatable', [\App\Http\Controllers\Erp\CurrencyController::class, 'datatable'])->name('currencies.datatable');
+        Route::resource('currencies', \App\Http\Controllers\Erp\CurrencyController::class)->except(['create', 'edit', 'show']);
+
+        // UOMs
+        Route::post('uoms/datatable', [\App\Http\Controllers\Erp\UomController::class, 'datatable'])->name('uoms.datatable');
+        Route::resource('uoms', \App\Http\Controllers\Erp\UomController::class)->except(['create', 'edit', 'show']);
+
+        // Request Form
+        Route::post('request-form/datatable', [\App\Http\Controllers\Erp\RequestFormController::class, 'datatable'])->name('request-form.datatable');
+        Route::get('request-form/create', [\App\Http\Controllers\Erp\RequestFormController::class, 'create'])->name('request-form.create');
+        Route::post('request-form', [\App\Http\Controllers\Erp\RequestFormController::class, 'store'])->name('request-form.store');
+        Route::get('request-form', [\App\Http\Controllers\Erp\RequestFormController::class, 'index'])->name('request-form.index');
+        Route::get('request-form/{requestForm}/edit', [\App\Http\Controllers\Erp\RequestFormController::class, 'edit'])->name('request-form.edit');
+        Route::put('request-form/{requestForm}', [\App\Http\Controllers\Erp\RequestFormController::class, 'update'])->name('request-form.update');
+        Route::get('request-form/{requestForm}', [\App\Http\Controllers\Erp\RequestFormController::class, 'show'])->name('request-form.show');
+        Route::post('request-form/{requestForm}/unlock', [\App\Http\Controllers\Erp\RequestFormController::class, 'unlock'])->name('request-form.unlock');
+        // Request Form - Notes & Attachments
+        Route::post('request-form/{requestForm}/notes', [\App\Http\Controllers\Erp\RequestFormNoteController::class, 'storeNote'])->name('request-form.notes.store');
+        Route::post('request-form/{requestForm}/attachments', [\App\Http\Controllers\Erp\RequestFormNoteController::class, 'storeAttachment'])->name('request-form.attachments.store');
+
+        // Request Form - Purchase Requests
+        Route::get('purchase-requests/{purchaseRequest}', [\App\Http\Controllers\Erp\PurchaseRequestController::class, 'show'])->name('purchase-requests.show');
+        Route::post('request-form/{requestForm}/purchase-requests', [\App\Http\Controllers\Erp\PurchaseRequestController::class, 'store'])->name('purchase-requests.store');
+        Route::delete('purchase-requests/{purchaseRequest}', [\App\Http\Controllers\Erp\PurchaseRequestController::class, 'destroy'])->name('purchase-requests.destroy');
+
+        // Request Form Items
+        Route::get('request-form-items/{requestFormItem}', [\App\Http\Controllers\Erp\RequestFormItemController::class, 'show'])->name('request-form-items.show');
+
+        // Purchase Request Items
+        Route::get('purchase-request-items/{purchaseRequestItem}', [\App\Http\Controllers\Erp\PurchaseRequestItemController::class, 'show'])->name('purchase-request-items.show');
+
+        // Request Form - Purchase Orders
+        Route::get('procurement/dashboard', [\App\Http\Controllers\Erp\ErpPurchaseOrderController::class, 'dashboard'])->name('procurement.dashboard');
+        Route::get('purchase-orders', [\App\Http\Controllers\Erp\ErpPurchaseOrderController::class, 'index'])->name('purchase-orders.index');
+        Route::get('purchase-orders/create/{requestForm}', [\App\Http\Controllers\Erp\ErpPurchaseOrderController::class, 'create'])->name('purchase-orders.create');
+        Route::post('purchase-orders', [\App\Http\Controllers\Erp\ErpPurchaseOrderController::class, 'store'])->name('purchase-orders.store');
+        Route::get('purchase-orders/{purchaseOrder}', [\App\Http\Controllers\Erp\ErpPurchaseOrderController::class, 'show'])->name('purchase-orders.show');
+        Route::get('purchase-orders/{purchaseOrder}/edit', [\App\Http\Controllers\Erp\ErpPurchaseOrderController::class, 'edit'])->name('purchase-orders.edit');
+        Route::put('purchase-orders/{purchaseOrder}', [\App\Http\Controllers\Erp\ErpPurchaseOrderController::class, 'update'])->name('purchase-orders.update');
+        Route::post('purchase-orders/{purchaseOrder}/submit', [\App\Http\Controllers\Erp\ErpPurchaseOrderController::class, 'submit'])->name('purchase-orders.submit');
+        Route::post('purchase-orders/{purchaseOrder}/approve', [\App\Http\Controllers\Erp\ErpPurchaseOrderController::class, 'approve'])->name('purchase-orders.approve');
+        Route::delete('purchase-orders/{purchaseOrder}', [\App\Http\Controllers\Erp\ErpPurchaseOrderController::class, 'destroy'])->name('purchase-orders.destroy');
+        Route::post('purchase-orders/{purchaseOrder}/reject', [\App\Http\Controllers\Erp\ErpPurchaseOrderController::class, 'reject'])->name('purchase-orders.reject');
+        Route::get('purchase-orders/{purchaseOrder}/print', [\App\Http\Controllers\Erp\ErpPurchaseOrderController::class, 'print'])->name('purchase-orders.print');
+        Route::post('purchase-orders/{purchaseOrder}/verify', [\App\Http\Controllers\Erp\ErpPurchaseOrderController::class, 'verify'])->name('purchase-orders.verify');
+
+        // Goods Receipts (Delivery Orders)
+        Route::get('goods-receipts/create/{purchaseOrder}', [\App\Http\Controllers\Erp\ErpGoodsReceiptController::class, 'create'])->name('goods-receipts.create');
+        Route::post('goods-receipts/{purchaseOrder}', [\App\Http\Controllers\Erp\ErpGoodsReceiptController::class, 'store'])->name('goods-receipts.store');
+        Route::get('goods-receipts/{goodsReceipt}', [\App\Http\Controllers\Erp\ErpGoodsReceiptController::class, 'show'])->name('goods-receipts.show');
+        Route::post('goods-receipts/{goodsReceipt}/receive', [\App\Http\Controllers\Erp\ErpGoodsReceiptController::class, 'receive'])->name('goods-receipts.receive');
+        Route::get('goods-receipts/{goodsReceipt}/print', [\App\Http\Controllers\Erp\ErpGoodsReceiptController::class, 'print'])->name('goods-receipts.print');
+        Route::delete('goods-receipts/{goodsReceipt}', [\App\Http\Controllers\Erp\ErpGoodsReceiptController::class, 'destroy'])->name('goods-receipts.destroy');
+
+        // Payment Advices & Supplier Invoices
+        Route::get('payment-advices', [\App\Http\Controllers\Erp\ErpPaymentAdviceController::class, 'index'])->name('payment-advices.index');
+        Route::post('payment-advices/datatable', [\App\Http\Controllers\Erp\ErpPaymentAdviceController::class, 'datatable'])->name('payment-advices.datatable');
+        Route::get('payment-advices/create', [\App\Http\Controllers\Erp\ErpPaymentAdviceController::class, 'create'])->name('payment-advices.create');
+        Route::post('payment-advices', [\App\Http\Controllers\Erp\ErpPaymentAdviceController::class, 'store'])->name('payment-advices.store');
+        Route::get('payment-advices/{paymentAdvice}', [\App\Http\Controllers\Erp\ErpPaymentAdviceController::class, 'show'])->name('payment-advices.show');
+        Route::post('payment-advices/{paymentAdvice}/details', [\App\Http\Controllers\Erp\ErpPaymentAdviceController::class, 'storeDetail'])->name('payment-advice-details.store');
+        Route::get('payment-advice-details/{paymentAdviceDetail}', [\App\Http\Controllers\Erp\ErpPaymentAdviceController::class, 'showDetail'])->name('payment-advice-details.show');
+        Route::delete('payment-advice-details/{paymentAdviceDetail}', [\App\Http\Controllers\Erp\ErpPaymentAdviceController::class, 'destroyDetail'])->name('payment-advice-details.destroy');
+        Route::post('payment-advices/{paymentAdvice}/submit', [\App\Http\Controllers\Erp\ErpPaymentAdviceController::class, 'submit'])->name('payment-advices.submit');
+        Route::post('payment-advices/{paymentAdvice}/approve', [\App\Http\Controllers\Erp\ErpPaymentAdviceController::class, 'approve'])->name('payment-advices.approve');
+        Route::post('payment-advices/{paymentAdvice}/reject', [\App\Http\Controllers\Erp\ErpPaymentAdviceController::class, 'reject'])->name('payment-advices.reject');
+        Route::post('payment-advices/{paymentAdvice}/mark-paid', [\App\Http\Controllers\Erp\ErpPaymentAdviceController::class, 'markPaid'])->name('payment-advices.mark-paid');
+        Route::delete('payment-advices/{paymentAdvice}', [\App\Http\Controllers\Erp\ErpPaymentAdviceController::class, 'destroy'])->name('payment-advices.destroy');
+
+        // Request Form - Approvals
+        Route::post('request-form/{requestForm}/approvals/submit', [\App\Http\Controllers\Erp\ApprovalController::class, 'submit'])->name('approvals.submit');
+        Route::post('approvals/{approval}/approve', [\App\Http\Controllers\Erp\ApprovalController::class, 'approve'])->name('approvals.approve');
+
+        // Approval Configs (Superadmin Only)
+        Route::resource('approval-configs', \App\Http\Controllers\Erp\ApprovalConfigController::class)->only(['index', 'store', 'destroy']);
+
+        // Dedicated ERP Suppliers
+        Route::get('suppliers/datatable', [\App\Http\Controllers\Erp\ErpSupplierController::class, 'datatable'])->name('suppliers.datatable');
+        Route::get('suppliers/next-code', [\App\Http\Controllers\Erp\ErpSupplierController::class, 'nextCode'])->name('suppliers.next_code');
+        Route::post('suppliers/{supplier}/contacts', [\App\Http\Controllers\Erp\ErpSupplierController::class, 'storeContact'])->name('suppliers.contacts.store');
+        Route::delete('supplier-contacts/{contact}', [\App\Http\Controllers\Erp\ErpSupplierController::class, 'destroyContact'])->name('suppliers.contacts.destroy');
+        Route::post('suppliers/{supplier}/attachments', [\App\Http\Controllers\Erp\ErpSupplierController::class, 'storeAttachment'])->name('suppliers.attachments.store');
+        Route::delete('supplier-attachments/{attachment}', [\App\Http\Controllers\Erp\ErpSupplierController::class, 'destroyAttachment'])->name('suppliers.attachments.destroy');
+        Route::resource('suppliers', \App\Http\Controllers\Erp\ErpSupplierController::class);
+
+        // Dedicated ERP Warehouses / Destinations
+        Route::get('warehouses/datatable', [\App\Http\Controllers\Erp\ErpWarehouseController::class, 'datatable'])->name('warehouses.datatable');
+        Route::get('warehouses/next-code', [\App\Http\Controllers\Erp\ErpWarehouseController::class, 'nextCode'])->name('warehouses.next_code');
+        Route::resource('warehouses', \App\Http\Controllers\Erp\ErpWarehouseController::class);
+
+        // Dedicated ERP Payment Terms
+        Route::resource('payment-terms', \App\Http\Controllers\Erp\ErpPaymentTermController::class)->only(['index', 'store']);
+
+        // Inventory Stocks
+        Route::post('stocks/datatable', [\App\Http\Controllers\Erp\ErpStockController::class, 'datatable'])->name('stocks.datatable');
+        Route::get('stocks', [\App\Http\Controllers\Erp\ErpStockController::class, 'index'])->name('stocks.index');
+
+        // Users & Roles
+        Route::get('users/export', [\App\Http\Controllers\Erp\UserController::class, 'exportExcel'])->name('users.exportExcel');
+        Route::get('users/export-seeder', [\App\Http\Controllers\Erp\UserController::class, 'exportSeeder'])->name('users.export.seeder');
+        Route::post('users/bulk-destroy', [\App\Http\Controllers\Erp\UserController::class, 'bulkDestroy'])->name('users.bulk-destroy');
+        Route::resource('users', \App\Http\Controllers\Erp\UserController::class)->except(['create', 'edit', 'show']);
+        Route::resource('roles', \App\Http\Controllers\Erp\RoleController::class)->except(['create', 'edit', 'show']);
         
-    Route::get('/finance/settlements/{id}/detail', [FinanceTransferController::class, 'settlementDetail'])
-        ->name('finance.settlements.detail')
-        ->middleware('menu:finance_settlements');
-
-    Route::get('/finance/settlements/export', [FinanceTransferController::class, 'exportSettlements'])
-        ->name('finance.settlements.export')
-        ->middleware('menu:finance_settlements');
-
-    Route::get('/warehouse/settlements', [App\Http\Controllers\Warehouse\WarehouseSettlementController::class, 'index'])
-        ->name('warehouse.settlements.index')
-        ->middleware('menu:wh_settlements');
-
-    Route::get('/warehouse/settlements/{id}/detail', [App\Http\Controllers\Warehouse\WarehouseSettlementController::class, 'showDetail'])
-        ->name('warehouse.settlements.detail')
-        ->middleware('menu:wh_settlements');
-
-    Route::get('/warehouse/settlements/create', [App\Http\Controllers\Warehouse\WarehouseSettlementController::class, 'create'])
-        ->name('warehouse.settlements.create')
-        ->middleware('menu:wh_settlements');
-
-    Route::get('/warehouse/settlements/export-history', [App\Http\Controllers\Warehouse\WarehouseSettlementController::class, 'exportHistory'])
-        ->name('warehouse.settlements.export.history')
-        ->middleware('menu:wh_settlements');
-
-    Route::get('/warehouse/settlements/export-pending', [App\Http\Controllers\Warehouse\WarehouseSettlementController::class, 'exportPending'])
-        ->name('warehouse.settlements.export.pending')
-        ->middleware('menu:wh_settlements');
-
-    Route::post('/warehouse/settlements', [App\Http\Controllers\Warehouse\WarehouseSettlementController::class, 'store'])
-        ->name('warehouse.settlements.store')
-        ->middleware('menu:wh_settlements');
-
-    Route::get('/warehouse/sales-reports', [SalesHandoverController::class, 'warehouseSalesReport'])
-        ->name('sales.report')
-        ->middleware('menu:wh_sales_reports');
-
-    Route::get('/warehouse/sales-reports/{handover}', [SalesHandoverController::class, 'warehouseSalesReportDetail'])
-        ->name('sales.report.detail')
-        ->middleware('menu:wh_sales_reports');
-
-    Route::delete('/warehouse/sales-reports/{handover}', [SalesHandoverController::class, 'destroy'])
-        ->name('sales.report.destroy')
-        ->middleware('menu:wh_sales_reports');
-
-    Route::get('/sales/report', [SalesHandoverController::class, 'salesReport'])
-        ->name('daily.sales.report')
-        ->middleware('menu:sales_daily');
-
-    Route::get('/sales/report/{handover}', [SalesHandoverController::class, 'salesReportDetail'])
-        ->name('daily.report.detail')
-        ->middleware('menu:sales_daily');
-
-    Route::get('/reports/sales/export', [SalesHandoverController::class,'exportSalesExcel'])
-        ->name('sales.report.export')
-        ->middleware('menu:wh_sales_reports');
-    
-    Route::get('/sales/{id}/draft-handover', [SalesHandoverController::class, 'draftBySales'])
-        ->name('sales.handover.draft')
-        ->middleware('menu:wh_issue');
-
-    // key: sales_otp
-    Route::get('/sales/otp-items', [HandoverOtpItemsController::class, 'index'])
-        ->name('sales.otp.items')
-        ->middleware('menu:sales_otp');
-
-    Route::post('/sales/otp-items/verify', [HandoverOtpItemsController::class, 'verify'])
-        ->name('sales.otp.items.verify')
-        ->middleware('menu:sales_otp');
-
-    Route::get('/sales/handover/otps', [SalesHandoverController::class, 'salesOtpIndex'])
-        ->name('sales.handover.otps')
-        ->middleware('menu:sales-handover-otp');
-
-    Route::post('/sales/otp-items/payments', [HandoverOtpItemsController::class, 'savePayments'])
-        ->name('sales.otp.items.payments.save')
-        ->middleware('menu:sales_otp');
-
-    // ====== WAREHOUSE: APPROVAL PEMBAYARAN HANDOVER ======
-    // FORM APPROVAL (GET) – sudah benar
-    Route::get('/warehouse/handovers/{handover}/payments', [SalesHandoverController::class, 'paymentApprovalForm'])
-        ->name('warehouse.handovers.payments.form')
-        ->middleware('menu:wh_sales_reports');
-
-    // SIMPAN APPROVAL (POST)
-    Route::post('/warehouse/handovers/{handover}/payments', [SalesHandoverController::class, 'paymentApprovalSave'])
-        ->name('warehouse.handovers.payments.approve')
-        ->middleware('menu:wh_sales_reports');
-
-    Route::get('/warehouse/handover-items/{item}/payment-proofs/{index}', [SalesHandoverController::class, 'paymentProofFile'])
-        ->name('warehouse.handover-items.payment-proof')
-        ->middleware('menu:wh_sales_reports');
-
-    Route::post('/warehouse/returns/{handover}/approve-all',[SalesReturnController::class,'approveAll'])
-        ->name('warehouse.returns.approveAll')
-        ->middleware('menu:sales_return_approval');
-
-    // Reject 1 item payment (dipanggil via AJAX dari tabel item)
-    Route::post('/warehouse/handovers/{handover}/payments/reject', [SalesHandoverController::class, 'rejectPayment'])
-        ->name('warehouse.handovers.payments.reject')
-        ->middleware('menu:wh_sales_reports');
-        
-    /* === Reports (umum) – key: reports === */
-    Route::get('/bom', [BomController::class, 'index'])
-        ->name('bom.index')
-        ->middleware('menu:bom');
-    Route::get('/bom/datatable', [BomController::class, 'datatable'])
-        ->name('bom.datatable')
-        ->middleware('menu:bom');
-
-    Route::post('/bom', [BomController::class, 'store'])
-        ->name('bom.store')
-        ->middleware('menu:bom');
-
-    Route::put('/bom/{bom}', [BomController::class, 'update'])
-        ->name('bom.update')
-        ->middleware('menu:bom');
-
-    Route::delete('/bom/{bom}', [BomController::class, 'destroy'])
-        ->name('bom.destroy')
-        ->middleware('menu:bom');
-
-    Route::get('/bom/{bom}/delete-preview', [BomController::class, 'destroyPreview'])
-        ->name('bom.destroy_preview')
-        ->middleware('menu:bom');
-
-    Route::get('/bom/next-code', [BomController::class,'nextCode'])
-        ->name('bom.next_code')
-        ->middleware('menu:bom');
-
-    Route::get('/bom/{bom}/edit', [BomController::class, 'edit'])
-        ->name('bom.edit')
-        ->middleware('menu:bom');
-
-    Route::post('/bom/{bom}/produce', [BomController::class, 'produce'])
-        ->name('bom.produce')
-        ->middleware('menu:bom');
-
-    Route::get('/bom/{bom}/page', [BomController::class, 'showPage'])
-        ->name('bom.show.page')
-        ->middleware('menu:bom');
-
-    /* ===== NOTIFICATIONS ===== */
-    Route::prefix('notifications')->group(function () {
-        Route::get('/unread-count',       [\App\Http\Controllers\NotificationController::class, 'unreadCount'])->name('notifications.unread_count');
-        Route::get('/',                   [\App\Http\Controllers\NotificationController::class, 'index'])->name('notifications.index');
-        Route::post('/mark-all-read',     [\App\Http\Controllers\NotificationController::class, 'markAllRead'])->name('notifications.mark_all_read');
-        Route::post('/mark-read-by-type', [\App\Http\Controllers\NotificationController::class, 'markReadByType'])->name('notifications.mark_read_by_type');
-        Route::get('/badge',              [\App\Http\Controllers\NotificationController::class, 'badgeByType'])->name('notifications.badge');
-        Route::post('/{id}/read',         [\App\Http\Controllers\NotificationController::class, 'markRead'])->name('notifications.mark_read');
+        // Projects (Tenants)
+        Route::resource('projects', \App\Http\Controllers\Erp\ProjectController::class)->except(['create', 'edit', 'show']);
     });
 
 });

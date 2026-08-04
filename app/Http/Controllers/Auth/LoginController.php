@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 
 
+
 class LoginController extends Controller
 {
     public function showLoginForm()
@@ -30,25 +31,7 @@ class LoginController extends Controller
 
             $user = Auth::user();
 
-            // role utama via pivot (prioritas admin > warehouse > sales)
-            $role = $user->roles()
-                ->select('slug', 'home_route')
-                ->orderByRaw("FIELD(slug,'admin','warehouse','sales')")
-                ->first();
-
-            if (!$role) {
-                Auth::logout();
-                return redirect()->route('login')->with('error', 'Akun belum memiliki role.');
-            }
-
-            $fallback = [
-                'admin'     => 'admin.dashboard',
-                'warehouse' => 'warehouse.dashboard',
-                'sales'     => 'sales.dashboard',
-            ];
-            $target = $role->home_route ?: ($fallback[$role->slug] ?? 'dashboard');
-
-            return redirect()->route($target);
+            return redirect()->intended('dashboard');
         }
 
         throw ValidationException::withMessages([

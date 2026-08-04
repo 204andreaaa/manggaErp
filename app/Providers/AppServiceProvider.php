@@ -22,3 +22,4 @@ class AppServiceProvider extends ServiceProvider
         \Illuminate\Pagination\Paginator::useBootstrapFour();
     }
 }
+

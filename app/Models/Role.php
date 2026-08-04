@@ -10,6 +10,8 @@ class Role extends Model
 {
     use HasFactory;
 
+    protected $connection = 'tenant';
+
     protected $fillable = [
         'name',
         'slug',

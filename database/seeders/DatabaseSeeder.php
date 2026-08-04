@@ -19,7 +19,6 @@ use Database\Seeders\Inventory\StockAdjustmentSeeder;
 use Database\Seeders\Inventory\StockLevelSeeder;
 use Database\Seeders\Inventory\StockMovementSeeder;
 use Database\Seeders\Inventory\StockRequestSeeder;
-use Database\Seeders\Inventory\StockSnapshotSeeder;
 use Database\Seeders\Purchase\PurchaseOrderSeeder;
 use Database\Seeders\Purchase\RestockReceiptSeeder;
 use Database\Seeders\Sales\SalesHandoverItemSeeder;
@@ -42,6 +41,7 @@ class DatabaseSeeder extends Seeder
             // 1. CORE BASIC
             CompanySeeder::class,
             RoleSeeder::class,
+            \Database\Seeders\Erp\ErpSetupSeeder::class,
  
             // 2. MASTER DATA (CORE BASE)
             // WarehouseSeeder::class,
@@ -63,7 +63,6 @@ class DatabaseSeeder extends Seeder
             /* 
             // INVENTORY
             StockLevelSeeder::class,
-            StockSnapshotSeeder::class,
             StockMovementSeeder::class,
             StockRequestSeeder::class,
             RequestRestockSeeder::class,
