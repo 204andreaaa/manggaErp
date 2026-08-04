@@ -20,7 +20,7 @@ class ErpProjectProvisioner
             throw new Exception("Gagal membuat database: " . $e->getMessage());
         }
 
-        // 2. Switch connection
+        // 2. Switch connection to tenant
         ErpTenantManager::switchToProject($project);
 
         // 3. Run tenant migrations
@@ -34,7 +34,17 @@ class ErpProjectProvisioner
             throw new Exception("Gagal menjalankan migrasi ERP: " . $e->getMessage());
         }
 
-        // Switch back to master as default
+        // 4. Seed tenant master data & setup
+        try {
+            Artisan::call('db:seed', [
+                '--class' => 'Database\\Seeders\\Erp\\ErpSetupSeeder',
+                '--force' => true,
+            ]);
+        } catch (Exception $e) {
+            // Ignore if seeder ran partially
+        }
+
+        // Switch back to master as default connection
         config(['database.default' => 'master']);
     }
 }
