@@ -1,3 +1,4 @@
+```php
 <?php
 
 use Illuminate\Database\Migrations\Migration;
@@ -15,9 +16,14 @@ return new class extends Migration
             $table->id();
             $table->foreignId('request_form_id')->constrained('request_forms')->cascadeOnDelete();
             $table->integer('level');
-            $table->foreignId('assigned_to_role_id')->nullable()->constrained('roles')->nullOnDelete();
-            $table->foreignId('assigned_to_user_id')->nullable()->constrained('users')->nullOnDelete();
-            $table->foreignId('actual_approver_id')->nullable()->constrained('users')->nullOnDelete();
+
+            // Hilangkan foreign key ke roles
+            $table->unsignedBigInteger('assigned_to_role_id')->nullable();
+
+            // Hilangkan foreign key ke users sementara
+            $table->unsignedBigInteger('assigned_to_user_id')->nullable();
+            $table->unsignedBigInteger('actual_approver_id')->nullable();
+
             $table->string('status')->default('Pending'); // Pending, Approved, Rejected, Skipped
             $table->text('comments')->nullable();
             $table->timestamp('approved_at')->nullable();
