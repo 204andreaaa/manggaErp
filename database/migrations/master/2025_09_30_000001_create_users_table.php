@@ -22,10 +22,7 @@ return new class extends Migration {
             $t->string('password');
 
             // Relasi ke master gudang (kalau dipakai)
-            $t->foreignId('warehouse_id')
-                ->nullable()
-                ->constrained('warehouses')
-                ->cascadeOnDelete();
+            $t->unsignedBigInteger('warehouse_id')->nullable();
 
             $t->enum('status', ['active','inactive'])->default('active');
 
