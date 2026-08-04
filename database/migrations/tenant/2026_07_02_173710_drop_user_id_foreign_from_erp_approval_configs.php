@@ -11,9 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('erp_approval_configs', function (Blueprint $table) {
-            $table->dropForeign(['user_id']);
-        });
+        try {
+            Schema::table('erp_approval_configs', function (Blueprint $table) {
+                $table->dropForeign(['user_id']);
+            });
+        } catch (\Throwable $e) {}
     }
 
     /**
@@ -21,8 +23,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('erp_approval_configs', function (Blueprint $table) {
-            // Re-adding it is tricky because of cross database if it existed
-        });
+        //
     }
 };
