@@ -38,27 +38,11 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            // 1. CORE BASIC
+            // CORE ERP SEEDERS
             CompanySeeder::class,
             RoleSeeder::class,
             \Database\Seeders\Erp\ErpSetupSeeder::class,
- 
-            // 2. MASTER DATA (CORE BASE)
-            // WarehouseSeeder::class,
-            CategorySeeder::class,
-            SupplierSeeder::class,
-            PackageSeeder::class,
- 
-            // 3. MASTER DATA (CSV OVERRIDES/SYNC)
-            MasterWarehouseSeeder::class,
- 
-            // 4. TRANSACTIONAL MASTER (RESOLVES FK BY CODE)
-            MasterUserSeeder::class,    // Resolves Wh by code
-            MasterProductSeeder::class, // Resolves Cat, Sup, Pkg by code
- 
-            // 5. SYSTEM
-            OperationAdminSeeder::class,
-            ActivityLogSeeder::class,
+        ]);
 
             /* 
             // INVENTORY
