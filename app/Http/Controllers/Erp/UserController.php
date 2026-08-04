@@ -45,14 +45,14 @@ class UserController extends Controller
 
         $data = $request->validate([
             'name'         => ['required','string','max:150'],
-            'username'     => ['required','alpha_dash','max:150','unique:users,username'],
-            'email'        => ['required','email','max:190','unique:users,email'],
-            'phone'        => ['nullable','string','max:20','unique:users,phone'],
+            'username'     => ['required','alpha_dash','max:150','unique:master.users,username'],
+            'email'        => ['required','email','max:190','unique:master.users,email'],
+            'phone'        => ['nullable','string','max:20','unique:master.users,phone'],
             'position'     => ['nullable','string','max:100'],
             'signature'    => ['nullable','image','mimes:jpg,jpeg,png,webp','max:2048'],
             'password'     => ['required','confirmed','min:6'],
             'roles'        => ['array','min:1'],
-            'roles.*'      => ['string','exists:roles,slug'],
+            'roles.*'      => ['string','exists:master.roles,slug'],
             
             'status'       => ['required', Rule::in(['active','inactive'])],
         ]);
@@ -116,14 +116,14 @@ class UserController extends Controller
 
         $data = $request->validate([
             'name'         => ['required','string','max:150'],
-            'username'     => ['required','alpha_dash','max:150', Rule::unique('users','username')->ignore($user->id)],
-            'email'        => ['required','email','max:190', Rule::unique('users','email')->ignore($user->id)],
-            'phone'        => ['nullable','string','max:20', Rule::unique('users','phone')->ignore($user->id)],
+            'username'     => ['required','alpha_dash','max:150', Rule::unique('master.users','username')->ignore($user->id)],
+            'email'        => ['required','email','max:190', Rule::unique('master.users','email')->ignore($user->id)],
+            'phone'        => ['nullable','string','max:20', Rule::unique('master.users','phone')->ignore($user->id)],
             'position'     => ['nullable','string','max:100'],
             'signature'    => ['nullable','image','mimes:jpg,jpeg,png,webp','max:2048'],
             'password'     => ['nullable','confirmed','min:6'],
             'roles'        => ['array','min:1'],
-            'roles.*'      => ['string','exists:roles,slug'],
+            'roles.*'      => ['string','exists:master.roles,slug'],
             
             'status'       => ['required', Rule::in(['active','inactive'])],
         ]);
@@ -207,7 +207,7 @@ class UserController extends Controller
 
         $ids = $request->validate([
             'ids'   => ['required','array','min:1'],
-            'ids.*' => ['integer','distinct','exists:users,id'],
+            'ids.*' => ['integer','distinct','exists:master.users,id'],
         ])['ids'];
 
         $ids = array_values(array_filter($ids, fn ($id) => $id !== $me->id));

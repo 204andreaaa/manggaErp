@@ -57,7 +57,7 @@ class RoleController extends Controller
         $allowedRoutes = array_values(array_unique(array_merge($menuRoutes, $homeRoutes)));
 
         $data = $r->validate([
-            'slug'          => ['required','alpha_dash','max:60','unique:roles,slug'],
+            'slug'          => ['required','alpha_dash','max:60','unique:master.roles,slug'],
             'name'          => ['required','string','max:120'],
             'home_route'    => ['nullable','string', Rule::in($allowedRoutes)],
             'menu_keys'     => ['required','array','min:1'],

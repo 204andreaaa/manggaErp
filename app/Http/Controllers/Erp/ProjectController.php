@@ -30,7 +30,7 @@ class ProjectController extends Controller
         
         $data = $request->validate([
             'name' => 'required|string|max:255',
-            'db_name' => 'required|string|unique:projects,db_name|regex:/^[a-zA-Z0-9_]+$/',
+            'db_name' => 'required|string|unique:master.projects,db_name|regex:/^[a-zA-Z0-9_]+$/',
         ]);
 
         DB::beginTransaction();
