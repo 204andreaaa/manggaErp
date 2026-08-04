@@ -16,8 +16,8 @@ return new class extends Migration
             $table->string('record_type'); // 'project' or 'non_project'
             $table->integer('level');
             $table->string('name')->nullable(); // e.g., 'Step 1', 'Step 2'
-            $table->foreignId('role_id')->nullable()->constrained('roles')->nullOnDelete();
-            $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->unsignedBigInteger('role_id')->nullable();
+            $table->unsignedBigInteger('user_id')->nullable();
             $table->timestamps();
         });
     }
