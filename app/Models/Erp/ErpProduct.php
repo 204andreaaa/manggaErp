@@ -8,6 +8,7 @@ use App\Models\Package;
 
 class ErpProduct extends Model
 {
+    protected $connection = 'tenant';
     use SoftDeletes;
 
     protected $fillable = [

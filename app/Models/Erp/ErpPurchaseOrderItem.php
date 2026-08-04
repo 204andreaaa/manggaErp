@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class ErpPurchaseOrderItem extends Model
 {
+    protected $connection = 'tenant';
     protected $table = 'erp_purchase_order_items';
 
     protected $fillable = [

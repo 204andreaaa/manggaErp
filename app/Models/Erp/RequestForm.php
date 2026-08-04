@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class RequestForm extends Model
 {
+    protected $connection = 'tenant';
     use SoftDeletes;
 
     protected $fillable = [

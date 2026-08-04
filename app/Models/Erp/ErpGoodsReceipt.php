@@ -8,6 +8,7 @@ use App\Models\User;
 
 class ErpGoodsReceipt extends Model
 {
+    protected $connection = 'tenant';
     use HasFactory;
 
     protected $guarded = [];

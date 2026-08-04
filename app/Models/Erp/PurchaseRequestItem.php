@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class PurchaseRequestItem extends Model
 {
+    protected $connection = 'tenant';
     protected $table = 'erp_purchase_request_items';
 
     protected $fillable = [

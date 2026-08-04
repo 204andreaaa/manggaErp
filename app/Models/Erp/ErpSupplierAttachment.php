@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class ErpSupplierAttachment extends Model
 {
+    protected $connection = 'tenant';
     protected $table = 'erp_supplier_attachments';
 
     protected $fillable = [

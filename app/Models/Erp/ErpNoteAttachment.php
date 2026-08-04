@@ -9,6 +9,7 @@ use App\Models\User;
 
 class ErpNoteAttachment extends Model
 {
+    protected $connection = 'tenant';
     use HasFactory, SoftDeletes;
 
     protected $table = 'erp_notes_attachments';

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class ErpSupplierContact extends Model
 {
+    protected $connection = 'tenant';
     protected $table = 'erp_supplier_contacts';
 
     protected $fillable = [

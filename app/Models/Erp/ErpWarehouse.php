@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class ErpWarehouse extends Model
 {
+    protected $connection = 'tenant';
     protected $table = 'erp_warehouses';
 
     protected $fillable = [

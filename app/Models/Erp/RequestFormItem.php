@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class RequestFormItem extends Model
 {
+    protected $connection = 'tenant';
     protected $fillable = [
         'request_form_id',
         'rf_detail_no',

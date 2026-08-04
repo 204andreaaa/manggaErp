@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class ErpStock extends Model
 {
+    protected $connection = 'tenant';
     protected $table = 'erp_stocks';
 
     protected $fillable = [

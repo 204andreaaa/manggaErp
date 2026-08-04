@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PurchaseRequest extends Model
 {
+    protected $connection = 'tenant';
     use SoftDeletes;
 
     protected $table = 'erp_purchase_requests';

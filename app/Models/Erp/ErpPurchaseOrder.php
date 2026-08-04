@@ -7,6 +7,7 @@ use App\Models\User;
 
 class ErpPurchaseOrder extends Model
 {
+    protected $connection = 'tenant';
     protected $table = 'erp_purchase_orders';
 
     protected $fillable = [
