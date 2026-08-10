@@ -34,10 +34,14 @@ class ErpProjectProvisioner
             throw new Exception("Gagal menjalankan migrasi ERP: " . $e->getMessage());
         }
 
-        // 4. Seed tenant master data & setup
+        // 4. Seed tenant master data & products
         try {
             Artisan::call('db:seed', [
                 '--class' => 'Database\\Seeders\\Erp\\ErpSetupSeeder',
+                '--force' => true,
+            ]);
+            Artisan::call('db:seed', [
+                '--class' => 'Database\\Seeders\\ErpProductSeeder',
                 '--force' => true,
             ]);
         } catch (Exception $e) {
