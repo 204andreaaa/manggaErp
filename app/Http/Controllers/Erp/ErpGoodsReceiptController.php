@@ -38,6 +38,7 @@ class ErpGoodsReceiptController extends Controller
 
         $data = $request->validate([
             'date' => 'required|date',
+            'supplier_do_no' => 'nullable|string',
             'remarks' => 'nullable|string',
             'items' => 'required|array',
             'items.*.po_item_id' => 'required|exists:erp_purchase_order_items,id',
@@ -54,7 +55,8 @@ class ErpGoodsReceiptController extends Controller
             $gr->supplier_id = $purchaseOrder->supplier_id;
             $gr->warehouse_id = $purchaseOrder->erp_warehouse_id;
             $gr->date = $data['date'];
-            $gr->remarks = $data['remarks'];
+            $gr->supplier_do_no = $data['supplier_do_no'] ?? null;
+            $gr->remarks = $data['remarks'] ?? null;
             $gr->owner_id = auth()->id();
             $gr->status = 'Draft';
             $gr->save();
@@ -63,21 +65,29 @@ class ErpGoodsReceiptController extends Controller
             $totalReceived = 0;
 
             foreach ($data['items'] as $item) {
-                if ($item['delivered_qty'] > 0 || $item['received_qty'] > 0) {
-                    $poItem = \App\Models\Erp\ErpPurchaseOrderItem::find($item['po_item_id']);
-                    
-                    $gr->items()->create([
-                        'do_detail_no' => $this->generateDoDetailNo(),
-                        'erp_purchase_order_item_id' => $poItem->id,
-                        'request_form_item_id' => $poItem->request_form_item_id,
-                        'delivered_qty' => $item['delivered_qty'],
-                        'received_qty' => $item['received_qty'],
-                        'remark' => $item['remark'],
-                    ]);
+                $poItem = \App\Models\Erp\ErpPurchaseOrderItem::find($item['po_item_id']);
+                if (!$poItem) continue;
 
-                    $totalDelivered += $item['delivered_qty'];
-                    $totalReceived += $item['received_qty'];
+                $delQty = floatval($item['delivered_qty']);
+                $recQty = floatval($item['received_qty']);
+
+                // Fallback to PO item qty if 0 was passed
+                if ($delQty == 0 && $recQty == 0 && $poItem->qty > 0) {
+                    $delQty = $poItem->qty;
+                    $recQty = $poItem->qty;
                 }
+
+                $gr->items()->create([
+                    'do_detail_no' => $this->generateDoDetailNo(),
+                    'erp_purchase_order_item_id' => $poItem->id,
+                    'request_form_item_id' => $poItem->request_form_item_id,
+                    'delivered_qty' => $delQty,
+                    'received_qty' => $recQty,
+                    'remark' => $item['remark'] ?? $poItem->remarks,
+                ]);
+
+                $totalDelivered += $delQty;
+                $totalReceived += $recQty;
             }
 
             $gr->update([
@@ -130,29 +140,31 @@ class ErpGoodsReceiptController extends Controller
             return redirect()->back()->with('error', 'Goods Receipt is already received.');
         }
 
-        $request->validate([
-            'verified_by_id' => 'required|exists:master.users,id'
-        ]);
+        $verifiedById = $request->input('verified_by_id', auth()->id());
 
         $goodsReceipt->update([
             'status' => 'Received',
             'status_receive_date' => now(),
             'document_complete_date' => now(),
-            'verified_by_id' => $request->verified_by_id,
+            'verified_by_id' => $verifiedById,
+            'receive_verified_by_id' => $verifiedById,
             'verification_timestamp' => now(),
+            'receive_verification_timestamp' => now(),
+            'remarks' => $request->input('remarks', $goodsReceipt->remarks),
         ]);
 
-        // Option to mark PO as GR if all items are fully received could be implemented here
         $po = $goodsReceipt->purchaseOrder;
-        if ($po && !$po->gr) {
-            $po->update(['gr' => true]);
-            $po->update(['status' => 'Completed']); // Optionally mark PO as Completed too
+        if ($po) {
+            $po->update([
+                'gr' => true,
+                'status' => 'Completed',
+            ]);
         }
 
-        // Update associated RF items, PR items to Completed & Update Physical Inventory Stocks
         $warehouseId = $goodsReceipt->warehouse_id 
-            ?: ($goodsReceipt->purchaseOrder?->erp_warehouse_id 
+            ?: ($po?->erp_warehouse_id 
                 ?: \Illuminate\Support\Facades\DB::table('erp_warehouses')->value('id'));
+
         foreach ($goodsReceipt->items as $grItem) {
             $rfItem = $grItem->requestFormItem;
             if ($rfItem) {
@@ -161,9 +173,9 @@ class ErpGoodsReceiptController extends Controller
                     $prItem->update(['status' => 'Completed']);
                 }
 
-                // Inventory Stock Update (Only for Physical products)
                 $product = $rfItem->erpProduct;
-                if ($product && $product->is_physical && $warehouseId && $grItem->received_qty > 0) {
+                $receivedQty = $grItem->received_qty > 0 ? $grItem->received_qty : $grItem->delivered_qty;
+                if ($product && ($product->is_physical ?? true) && $warehouseId && $receivedQty > 0) {
                     $stock = \App\Models\Erp\ErpStock::firstOrCreate(
                         [
                             'erp_product_id' => $product->id,
@@ -171,12 +183,12 @@ class ErpGoodsReceiptController extends Controller
                         ],
                         ['qty_on_hand' => 0]
                     );
-                    $stock->increment('qty_on_hand', $grItem->received_qty);
+                    $stock->increment('qty_on_hand', $receivedQty);
                 }
             }
         }
 
-        return redirect()->back()->with('success', 'Goods Receipt marked as Received and physical inventory stock updated.');
+        return redirect()->back()->with('success', 'Goods Receipt / DO successfully verified and marked as Received. Physical inventory stock updated.');
     }
 
     public function destroy(ErpGoodsReceipt $goodsReceipt)
@@ -192,28 +204,26 @@ class ErpGoodsReceiptController extends Controller
                 ?: ($po?->erp_warehouse_id 
                     ?: \Illuminate\Support\Facades\DB::table('erp_warehouses')->value('id'));
 
-            // Rollback stocks if GR was Received
             if ($goodsReceipt->status === 'Received') {
                 foreach ($goodsReceipt->items as $grItem) {
                     $product = $grItem->requestFormItem?->erpProduct;
-                    if ($product && ($product->is_physical ?? true) && $warehouseId && $grItem->received_qty > 0) {
+                    $receivedQty = $grItem->received_qty > 0 ? $grItem->received_qty : $grItem->delivered_qty;
+                    if ($product && ($product->is_physical ?? true) && $warehouseId && $receivedQty > 0) {
                         $stock = \App\Models\Erp\ErpStock::where('erp_product_id', $product->id)
                             ->where('erp_warehouse_id', $warehouseId)
                             ->first();
                         if ($stock) {
-                            $newQty = max(0, $stock->qty_on_hand - $grItem->received_qty);
+                            $newQty = max(0, $stock->qty_on_hand - $receivedQty);
                             $stock->update(['qty_on_hand' => $newQty]);
                         }
                     }
 
-                    // Reset RF Item status back to Approved
                     if ($grItem->requestFormItem) {
                         $grItem->requestFormItem->update(['status' => 'Approved']);
                     }
                 }
             }
 
-            // Reset PO status back to Approved
             if ($po) {
                 $po->update([
                     'gr' => false,

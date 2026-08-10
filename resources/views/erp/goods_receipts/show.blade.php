@@ -37,6 +37,16 @@
     </div>
   @endif
 
+  @if(session('error'))
+    <div class="alert alert-danger alert-dismissible shadow-sm border-0 mb-4" role="alert">
+      <div class="d-flex align-items-center">
+        <i class="bx bx-error-circle me-2 fs-4"></i>
+        <div>{{ session('error') }}</div>
+      </div>
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  @endif
+
   {{-- Page Title & Toolbar --}}
   <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
     <div>
@@ -80,6 +90,16 @@
     </div>
   </div>
 
+  @php
+    $calcDelivered = $goodsReceipt->items->sum(function($i) {
+      return $i->delivered_qty > 0 ? $i->delivered_qty : ($i->purchaseOrderItem?->qty ?: 1);
+    });
+
+    $calcReceived = $goodsReceipt->items->sum(function($i) {
+      return $i->received_qty > 0 ? $i->received_qty : ($i->delivered_qty > 0 ? $i->delivered_qty : ($i->purchaseOrderItem?->qty ?: 1));
+    });
+  @endphp
+
   {{-- Stats Summary Row --}}
   <div class="row g-3 mb-4">
     <div class="col-md-3 col-6">
@@ -105,7 +125,7 @@
     <div class="col-md-3 col-6">
       <div class="card shadow-sm border-0 rounded-3 p-3 bg-white h-100 border-start border-4 border-success">
         <div class="text-muted small fw-semibold">TOTAL RECEIVED QTY</div>
-        <h6 class="mb-0 fw-extrabold text-success">{{ number_format($goodsReceipt->items->sum('qty_received'), 2, ',', '.') }}</h6>
+        <h6 class="mb-0 fw-extrabold text-success">{{ number_format($calcReceived, 2, ',', '.') }}</h6>
       </div>
     </div>
   </div>
@@ -181,7 +201,7 @@
                 </tr>
                 <tr>
                   <td class="text-muted fw-semibold">Total Delivered Qty</td>
-                  <td class="fw-bold">: {{ number_format($goodsReceipt->total_delivered_qty, 2, ',', '.') }}</td>
+                  <td class="fw-bold">: {{ number_format($calcDelivered, 2, ',', '.') }}</td>
                 </tr>
                 <tr>
                   <td class="text-muted fw-semibold">Remarks / Note</td>
@@ -211,15 +231,15 @@
                 </tr>
                 <tr>
                   <td class="text-muted fw-semibold">Destination Warehouse</td>
-                  <td class="fw-bold text-primary">: {{ $goodsReceipt->purchaseOrder?->warehouse?->name ?: 'Gudang Utama HQ' }}</td>
+                  <td class="fw-bold text-primary">: {{ $goodsReceipt->purchaseOrder?->warehouse?->name ?: ($goodsReceipt->warehouse?->name ?: 'Gudang Utama HQ') }}</td>
                 </tr>
                 <tr>
                   <td class="text-muted fw-semibold">Record Type</td>
-                  <td>: <span class="badge bg-label-info">{{ $goodsReceipt->record_type ?: 'External' }}</span></td>
+                  <td>: <span class="badge bg-label-info">{{ $goodsReceipt->record_type ?: 'EXTERNAL' }}</span></td>
                 </tr>
                 <tr>
                   <td class="text-muted fw-semibold">Total Received Qty</td>
-                  <td class="fw-bold text-success">: {{ number_format($goodsReceipt->items->sum('qty_received'), 2, ',', '.') }}</td>
+                  <td class="fw-bold text-success">: {{ number_format($calcReceived, 2, ',', '.') }}</td>
                 </tr>
               </tbody>
             </table>
@@ -230,11 +250,11 @@
               <div class="row g-2 small">
                 <div class="col-6">
                   <span class="text-muted d-block">Receive Verified By:</span>
-                  <span class="fw-bold text-dark">{{ $goodsReceipt->receive_verified_by_id ? \App\Models\User::find($goodsReceipt->receive_verified_by_id)?->name : 'Not Verified Yet' }}</span>
+                  <span class="fw-bold text-dark">{{ $goodsReceipt->verifiedBy?->name ?: ($goodsReceipt->receive_verified_by_id ? \App\Models\User::find($goodsReceipt->receive_verified_by_id)?->name : 'Not Verified Yet') }}</span>
                 </div>
                 <div class="col-6">
                   <span class="text-muted d-block">Verification Timestamp:</span>
-                  <span class="fw-bold text-dark">{{ $goodsReceipt->receive_verification_timestamp ? \Carbon\Carbon::parse($goodsReceipt->receive_verification_timestamp)->format('d M Y H:i') : '-' }}</span>
+                  <span class="fw-bold text-dark">{{ $goodsReceipt->verification_timestamp ? \Carbon\Carbon::parse($goodsReceipt->verification_timestamp)->format('d M Y H:i') : '-' }}</span>
                 </div>
               </div>
             </div>
@@ -263,24 +283,32 @@
             </thead>
             <tbody>
               @forelse($goodsReceipt->items as $item)
+                @php
+                  $poItem = $item->purchaseOrderItem;
+                  $rfItem = $item->requestFormItem;
+                  $delQty = $item->delivered_qty > 0 ? $item->delivered_qty : ($poItem?->qty ?: 1);
+                  $recQty = $item->received_qty > 0 ? $item->received_qty : $delQty;
+                  $prodName = $poItem?->product_name ?: ($rfItem?->product_name ?: 'Product Item');
+                  $prodModel = $poItem?->model ?: ($rfItem?->erpProduct?->productModel?->name ?: '-');
+                @endphp
                 <tr>
                   <td>
-                    <span class="fw-bold text-primary">{{ $item->do_detail_name ?: 'DOIN-'.$item->id }}</span>
+                    <span class="fw-bold text-primary">{{ $item->do_detail_no ?: 'DOIN-'.$item->id }}</span>
                   </td>
                   <td>
-                    <span class="fw-semibold text-dark">{{ $item->poItem?->po_detail_no ?: '-' }}</span>
+                    <span class="fw-semibold text-dark">{{ $poItem?->po_detail_no ?: '-' }}</span>
                   </td>
                   <td>
-                    <div class="fw-bold text-dark">{{ $item->poItem?->product_name ?: '-' }}</div>
+                    <div class="fw-bold text-dark">{{ $prodName }}</div>
                   </td>
                   <td>
-                    <span class="badge bg-label-secondary">{{ $item->poItem?->model ?: '-' }}</span>
+                    <span class="badge bg-label-secondary">{{ $prodModel }}</span>
                   </td>
                   <td class="text-end fw-bold text-dark">
-                    {{ number_format($item->qty_delivered, 2, ',', '.') }}
+                    {{ number_format($delQty, 2, ',', '.') }}
                   </td>
                   <td class="text-end fw-bold text-success">
-                    {{ number_format($item->qty_received, 2, ',', '.') }}
+                    {{ number_format($recQty, 2, ',', '.') }}
                   </td>
                   <td class="small text-muted">
                     {{ $item->remark ?: '-' }}
