@@ -171,14 +171,98 @@ class ErpSetupSeeder extends Seeder
             Currency::updateOrCreate(['code' => $curr['code']], $curr);
         }
 
-        // ERP Suppliers
-        $suppliers = [
-            ['supplier_code' => 'SUP-001', 'name' => 'PT. Aneka Makmur', 'address' => 'Jakarta Pusat', 'phone' => '021-123456'],
-            ['supplier_code' => 'SUP-002', 'name' => 'CV. Bina Usaha', 'address' => 'Bandung', 'phone' => '022-765432'],
-            ['supplier_code' => 'SUP-003', 'name' => 'Anugrah Mandiri Telepower. PT', 'address' => 'Jakarta Utara', 'phone' => '021-998877'],
+        // Payment Terms (TOP)
+        $paymentTerms = [
+            ['name' => 'Cash On Delivery'],
+            ['name' => 'Net 15 Days'],
+            ['name' => 'Net 30 Days'],
+            ['name' => 'Net 45 Days'],
         ];
-        foreach ($suppliers as $sup) {
-            ErpSupplier::updateOrCreate(['supplier_code' => $sup['supplier_code']], $sup);
+        foreach ($paymentTerms as $pt) {
+            ErpPaymentTerm::updateOrCreate(['name' => $pt['name']], $pt);
+        }
+
+        $ptNet30 = ErpPaymentTerm::where('name', 'Net 30 Days')->first()?->id;
+        $ptNet15 = ErpPaymentTerm::where('name', 'Net 15 Days')->first()?->id;
+        $ptCOD   = ErpPaymentTerm::where('name', 'Cash On Delivery')->first()?->id;
+
+        // ERP Suppliers with full details & contacts
+        $suppliersData = [
+            [
+                'supplier_code'    => 'SUP-001',
+                'name'             => 'PT. Aneka Makmur',
+                'address'          => 'Jl. Jendral Sudirman No. 45, Lantai 8, Jakarta Pusat 10210',
+                'phone'            => '021-57901234',
+                'bank_name'        => 'BCA',
+                'bank_account'     => '1234567890 a/n PT Aneka Makmur',
+                'payment_terms_id' => $ptNet30,
+                'contacts'         => [
+                    ['contact_name' => 'Budi Santoso', 'title' => 'Account Manager', 'email' => 'budi@anekamakmur.co.id', 'phone' => '081298765432'],
+                    ['contact_name' => 'Siti Rahmawati', 'title' => 'Finance & Billing', 'email' => 'finance@anekamakmur.co.id', 'phone' => '081311223344'],
+                ]
+            ],
+            [
+                'supplier_code'    => 'SUP-002',
+                'name'             => 'CV. Bina Usaha',
+                'address'          => 'Jl. Asia Afrika No. 112, Bandung, Jawa Barat 40112',
+                'phone'            => '022-4235678',
+                'bank_name'        => 'Bank Mandiri',
+                'bank_account'     => '1310009876543 a/n CV Bina Usaha',
+                'payment_terms_id' => $ptNet15,
+                'contacts'         => [
+                    ['contact_name' => 'Hendra Wijaya', 'title' => 'Sales Executive', 'email' => 'hendra@binausaha.com', 'phone' => '081809090909'],
+                    ['contact_name' => 'Dewi Anggraini', 'title' => 'Customer Service', 'email' => 'cs@binausaha.com', 'phone' => '081912345678'],
+                ]
+            ],
+            [
+                'supplier_code'    => 'SUP-003',
+                'name'             => 'Anugrah Mandiri Telepower. PT',
+                'address'          => 'Kawasan Industri Pulogadung Block B No. 9, Jakarta Utara 13920',
+                'phone'            => '021-4609988',
+                'bank_name'        => 'BNI',
+                'bank_account'     => '0987654321 a/n PT Anugrah Mandiri Telepower',
+                'payment_terms_id' => $ptNet30,
+                'contacts'         => [
+                    ['contact_name' => 'Irwan Kurniawan', 'title' => 'Technical Sales Manager', 'email' => 'irwan@telepower.co.id', 'phone' => '081122334455'],
+                    ['contact_name' => 'Rina Marlina', 'title' => 'Admin Logistics', 'email' => 'logistics@telepower.co.id', 'phone' => '081233445566'],
+                ]
+            ],
+            [
+                'supplier_code'    => 'SUP-004',
+                'name'             => 'PT. Cisco Systems Indonesia',
+                'address'          => 'World Trade Centre 3, Lt. 18, Jl. Jend. Sudirman Kav 29-31, Jakarta Selatan 12920',
+                'phone'            => '021-29955000',
+                'bank_name'        => 'Bank Permata',
+                'bank_account'     => '4101928374 a/n PT Cisco Systems Indonesia',
+                'payment_terms_id' => $ptNet30,
+                'contacts'         => [
+                    ['contact_name' => 'Alex Chandra', 'title' => 'Enterprise Partner Manager', 'email' => 'achandra@cisco.com', 'phone' => '081700998877'],
+                ]
+            ],
+            [
+                'supplier_code'    => 'SUP-005',
+                'name'             => 'PT. Data Komputindo Utama',
+                'address'          => 'Ruko Mangga Dua Mall No. 34, Jakarta Pusat 10730',
+                'phone'            => '021-6123456',
+                'bank_name'        => 'BCA',
+                'bank_account'     => '8800112233 a/n PT Data Komputindo Utama',
+                'payment_terms_id' => $ptCOD,
+                'contacts'         => [
+                    ['contact_name' => 'Kevin Pratama', 'title' => 'Senior Procurement Specialist', 'email' => 'kevin@datakomputindo.co.id', 'phone' => '081555667788'],
+                ]
+            ]
+        ];
+
+        foreach ($suppliersData as $supData) {
+            $contacts = $supData['contacts'] ?? [];
+            unset($supData['contacts']);
+
+            $supplier = ErpSupplier::updateOrCreate(['supplier_code' => $supData['supplier_code']], $supData);
+
+            $supplier->contacts()->delete();
+            foreach ($contacts as $contact) {
+                $supplier->contacts()->create($contact);
+            }
         }
 
         // ERP Destinations / Warehouses
@@ -189,17 +273,6 @@ class ErpSetupSeeder extends Seeder
         ];
         foreach ($warehouses as $wh) {
             ErpWarehouse::updateOrCreate(['warehouse_code' => $wh['warehouse_code']], $wh);
-        }
-
-        // Payment Terms (TOP)
-        $paymentTerms = [
-            ['name' => 'Cash On Delivery'],
-            ['name' => 'Net 15 Days'],
-            ['name' => 'Net 30 Days'],
-            ['name' => 'Net 45 Days'],
-        ];
-        foreach ($paymentTerms as $pt) {
-            ErpPaymentTerm::updateOrCreate(['name' => $pt['name']], $pt);
         }
     }
 }
