@@ -626,7 +626,10 @@
               </tr>
             </thead>
             <tbody>
-              @forelse($purchaseOrder->paymentAdvices as $pa)
+              @php
+                $paymentAdvices = $purchaseOrder->paymentAdvices ?? collect();
+              @endphp
+              @forelse($paymentAdvices as $pa)
                 @foreach($pa->details as $pad)
                   <tr>
                     <td class="fw-bold text-primary">{{ $pad->supplier_detail_no }}</td>

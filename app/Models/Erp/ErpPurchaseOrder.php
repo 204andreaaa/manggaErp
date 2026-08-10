@@ -112,6 +112,11 @@ class ErpPurchaseOrder extends Model
         return $this->hasMany(ErpGoodsReceipt::class, 'erp_purchase_order_id');
     }
 
+    public function paymentAdvices()
+    {
+        return $this->hasMany(ErpPaymentAdvice::class, 'erp_purchase_order_id');
+    }
+
     public function approvals()
     {
         return $this->hasMany(ErpApproval::class, 'purchase_order_id');
