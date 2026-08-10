@@ -229,6 +229,79 @@
             </tbody>
           </table>
         </div>
+      {{-- Section 4: Linked Purchase Orders (PO) --}}
+      <div class="mt-4 pt-3 border-top">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <div class="d-flex align-items-center gap-2">
+            <div class="bg-success bg-opacity-10 rounded p-1">
+              <i class="bx bx-cart text-success fs-5"></i>
+            </div>
+            <h6 class="fw-bold mb-0 text-success">Purchase Orders (PO) Terkait</h6>
+          </div>
+
+          @php
+            $pos = $purchaseRequest->requestForm->purchaseOrders ?? collect();
+          @endphp
+
+          @if(auth()->user()->hasRole(['procurement', 'superadmin']) && $purchaseRequest->requestForm->status === 'Approved')
+            <a href="{{ route('erp.purchase-orders.create', $purchaseRequest->requestForm) }}" class="btn btn-sm btn-success rounded-pill px-3">
+              <i class="bx bx-plus me-1"></i>Create New PO Request
+            </a>
+          @endif
+        </div>
+
+        <div class="table-responsive border rounded-3 overflow-hidden shadow-sm">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="bg-light">
+              <tr class="small text-uppercase text-muted">
+                <th>PO Number</th>
+                <th>Supplier</th>
+                <th>PO Date</th>
+                <th class="text-end">Total Amount (Inc Tax)</th>
+                <th>Status</th>
+                <th class="text-center">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              @forelse($pos as $po)
+                <tr>
+                  <td>
+                    <a href="{{ route('erp.purchase-orders.show', $po) }}" class="fw-bold text-primary text-decoration-none">
+                      <i class="bx bx-receipt me-1"></i>{{ $po->po_no }}
+                    </a>
+                  </td>
+                  <td>
+                    <span class="fw-bold text-dark">{{ $po->supplier?->name ?: '-' }}</span>
+                  </td>
+                  <td>{{ $po->date ? \Carbon\Carbon::parse($po->date)->format('Y-m-d') : '-' }}</td>
+                  <td class="text-end fw-extrabold text-success">IDR {{ number_format($po->total_po_amount_with_tax, 0, ',', '.') }}</td>
+                  <td>
+                    @php
+                      $poStBadge = match($po->status) {
+                        'Approved', 'Completed' => 'bg-success',
+                        'Submitted' => 'bg-warning',
+                        'Rejected' => 'bg-danger',
+                        default => 'bg-secondary',
+                      };
+                    @endphp
+                    <span class="badge {{ $poStBadge }} px-3 py-1 fw-bold">{{ $po->status }}</span>
+                  </td>
+                  <td class="text-center">
+                    <a href="{{ route('erp.purchase-orders.show', $po) }}" class="btn btn-xs btn-label-primary rounded-pill px-3">
+                      <i class="bx bx-show me-1"></i>Detail PO
+                    </a>
+                  </td>
+                </tr>
+              @empty
+                <tr>
+                  <td colspan="6" class="text-center text-muted py-4">
+                    <i class="bx bx-info-circle me-1"></i>Belum ada Purchase Order (PO) yang diterbitkan untuk RF/PR ini.
+                  </td>
+                </tr>
+              @endforelse
+            </tbody>
+          </table>
+        </div>
       </div>
 
     </div>
