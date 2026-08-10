@@ -147,9 +147,7 @@ class ErpGoodsReceiptController extends Controller
             'status_receive_date' => now(),
             'document_complete_date' => now(),
             'verified_by_id' => $verifiedById,
-            'receive_verified_by_id' => $verifiedById,
             'verification_timestamp' => now(),
-            'receive_verification_timestamp' => now(),
             'remarks' => $request->input('remarks', $goodsReceipt->remarks),
         ]);
 
