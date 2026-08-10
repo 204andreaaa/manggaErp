@@ -3,439 +3,363 @@
 @section('title', 'DO Detail: ' . $goodsReceipt->do_no)
 
 @section('content')
+<style>
+  .gr-nav-tabs .nav-link {
+    color: #64748b;
+    border: none;
+    border-bottom: 3px solid transparent;
+    border-radius: 0;
+    font-weight: 500;
+    transition: all 0.2s ease;
+  }
+  .gr-nav-tabs .nav-link:hover {
+    color: #4f46e5;
+    background: #f8fafc;
+  }
+  .gr-nav-tabs .nav-link.active {
+    color: #4f46e5 !important;
+    background: #ffffff !important;
+    border-bottom-color: #4f46e5 !important;
+    font-weight: 700 !important;
+  }
+</style>
+
 <div class="container-xxl flex-grow-1 container-p-y">
+  
+  {{-- Flash Alerts --}}
   @if(session('success'))
-    <div class="alert alert-success alert-dismissible" role="alert">
-      {{ session('success') }}
+    <div class="alert alert-success alert-dismissible shadow-sm border-0 mb-4" role="alert">
+      <div class="d-flex align-items-center">
+        <i class="bx bx-check-circle me-2 fs-4"></i>
+        <div>{{ session('success') }}</div>
+      </div>
       <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
   @endif
 
-  <!-- Title Section -->
-  <div class="d-flex align-items-center mb-2">
+  {{-- Page Title & Toolbar --}}
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
     <div>
-      <div class="text-muted small">DO</div>
-      <h4 class="mb-0 fw-bold d-flex align-items-center">
-        <i class="bx bxs-flag-alt text-warning me-2 fs-3"></i> {{ $goodsReceipt->do_no }}
-      </h4>
-    </div>
-    <div class="ms-auto">
-      <a href="{{ route('erp.purchase-orders.show', $goodsReceipt->purchaseOrder) }}" class="small">« Back to List: Custom Object Definitions</a>
-    </div>
-  </div>
-
-  <div class="mb-3 small d-flex gap-2">
-    <a href="#do-detail" class="text-primary">DO Details [{{ $goodsReceipt->items->count() }}]</a> | 
-    <a href="#notes-attachments" class="text-primary">Notes & Attachments [0]</a> | 
-    <a href="#payment-advice" class="text-primary">Payment Advice Detail [0]</a>
-  </div>
-
-  <!-- DO Detail Card -->
-  <div class="card mb-4" id="do-detail">
-    <div class="card-header border-bottom py-2 d-flex justify-content-between align-items-center bg-light">
-      <h6 class="mb-0 fw-bold">DO Detail</h6>
-      <div class="d-flex gap-1 align-items-center">
-        <button class="btn btn-xs btn-outline-secondary" disabled>Edit</button>
-        <button class="btn btn-xs btn-outline-secondary" disabled>1. Bypass Verification GR</button>
-        <button class="btn btn-xs btn-outline-secondary" disabled>2. Create Inventory Usage</button>
-        <button class="btn btn-xs btn-outline-secondary" disabled>3. Change Record Type</button>
-        
-        @if($goodsReceipt->status !== 'Received')
-          <button type="button" class="btn btn-xs btn-primary" data-bs-toggle="modal" data-bs-target="#receiveModal">Receive Verification</button>
-        @else
-          <button class="btn btn-xs btn-outline-secondary" disabled>Receive Verification</button>
-        @endif
-        
-        <a href="{{ route('erp.goods-receipts.print', $goodsReceipt) }}" target="_blank" class="btn btn-xs btn-outline-secondary me-1">Print GR</a>
-
-        @if(auth()->user()->hasRole('superadmin'))
-          <form action="{{ route('erp.goods-receipts.destroy', $goodsReceipt) }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin menghapus Goods Receipt (DO) ini? Stok fisik yang pernah diterima akan dikurangi kembali dan PO akan dikembalikan ke status Approved.');">
-            @csrf
-            @method('DELETE')
-            <button type="submit" class="btn btn-xs btn-outline-danger">
-              <i class="bx bx-trash me-1"></i>Delete GR
-            </button>
-          </form>
-        @endif
+      <h4 class="mb-1 fw-bold text-dark"><i class="bx bx-truck text-primary me-2"></i>Goods Receipt / Delivery Order</h4>
+      <div class="text-muted small">
+        DO No: <span class="fw-bold text-dark me-2">{{ $goodsReceipt->do_no }}</span>
+        Reference PO: 
+        <a href="{{ route('erp.purchase-orders.show', $goodsReceipt->purchaseOrder) }}" class="badge bg-label-primary fs-7 text-decoration-none">
+          {{ $goodsReceipt->purchaseOrder?->po_no }}
+        </a>
       </div>
     </div>
+
+    {{-- Action Buttons --}}
+    <div class="d-flex align-items-center flex-wrap gap-2">
+      <a href="{{ route('erp.purchase-orders.show', $goodsReceipt->purchaseOrder) }}" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+        <i class="bx bx-arrow-back me-1"></i>Back to PO
+      </a>
+
+      <a href="{{ route('erp.goods-receipts.print', $goodsReceipt) }}" target="_blank" class="btn btn-outline-primary btn-sm rounded-pill px-3">
+        <i class="bx bx-printer me-1"></i>Print GR
+      </a>
+
+      @if($goodsReceipt->status !== 'Received')
+        <button type="button" class="btn btn-success btn-sm rounded-pill px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#receiveModal">
+          <i class="bx bx-check-double me-1"></i>Receive Verification
+        </button>
+      @else
+        <span class="badge bg-success px-3 py-2 fs-7"><i class="bx bx-check-circle me-1"></i>Verification Completed</span>
+      @endif
+
+      @if(auth()->user()->hasRole('superadmin'))
+        <form action="{{ route('erp.goods-receipts.destroy', $goodsReceipt) }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin menghapus Goods Receipt (DO) ini? Stok fisik yang pernah diterima akan dikurangi kembali dan PO akan dikembalikan ke status Approved.');">
+          @csrf
+          @method('DELETE')
+          <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-3">
+            <i class="bx bx-trash me-1"></i>Delete GR
+          </button>
+        </form>
+      @endif
+    </div>
+  </div>
+
+  {{-- Stats Summary Row --}}
+  <div class="row g-3 mb-4">
+    <div class="col-md-3 col-6">
+      <div class="card shadow-sm border-0 rounded-3 p-3 bg-primary bg-opacity-10 h-100">
+        <div class="text-muted small fw-semibold">DO NUMBER</div>
+        <h5 class="mb-0 fw-extrabold text-primary">{{ $goodsReceipt->do_no }}</h5>
+      </div>
+    </div>
+    <div class="col-md-3 col-6">
+      <div class="card shadow-sm border-0 rounded-3 p-3 bg-white h-100 border-start border-4 border-info">
+        <div class="text-muted small fw-semibold">SUPPLIER</div>
+        <h6 class="mb-0 fw-bold text-dark text-truncate">{{ $goodsReceipt->supplier?->name ?: '-' }}</h6>
+      </div>
+    </div>
+    <div class="col-md-3 col-6">
+      <div class="card shadow-sm border-0 rounded-3 p-3 bg-white h-100 border-start border-4 border-warning">
+        <div class="text-muted small fw-semibold">STATUS</div>
+        <div>
+          <span class="badge {{ $goodsReceipt->status === 'Received' ? 'bg-success' : 'bg-warning' }} px-3 py-1 fs-7 fw-bold">{{ $goodsReceipt->status }}</span>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 col-6">
+      <div class="card shadow-sm border-0 rounded-3 p-3 bg-white h-100 border-start border-4 border-success">
+        <div class="text-muted small fw-semibold">TOTAL RECEIVED QTY</div>
+        <h6 class="mb-0 fw-extrabold text-success">{{ number_format($goodsReceipt->items->sum('qty_received'), 2, ',', '.') }}</h6>
+      </div>
+    </div>
+  </div>
+
+  {{-- Main Container Card --}}
+  <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-4">
     
-    <div class="card-body mt-3">
-      <div class="row small">
-        <!-- Left Column -->
-        <div class="col-md-6 border-end">
-          <div class="row mb-1">
-            <div class="col-4 text-end fw-semibold text-muted">DO No</div>
-            <div class="col-8 fw-bold">{{ $goodsReceipt->do_no }}</div>
+    {{-- Tab Navigation Bar --}}
+    <div class="bg-white border-bottom">
+      <ul class="nav nav-tabs nav-fill gr-nav-tabs border-0" id="grShowTab" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active py-3" id="tab-overview-btn" data-bs-toggle="tab" data-bs-target="#tab-overview" type="button" role="tab">
+            <i class="bx bx-buildings me-2 fs-5"></i>1. Overview & Warehouse Info
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link py-3" id="tab-items-btn" data-bs-toggle="tab" data-bs-target="#tab-items" type="button" role="tab">
+            <i class="bx bx-package me-2 fs-5"></i>2. Received Items (DO Line Items) <span class="badge bg-primary rounded-pill ms-1">{{ $goodsReceipt->items->count() }}</span>
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link py-3" id="tab-notes-btn" data-bs-toggle="tab" data-bs-target="#tab-notes" type="button" role="tab">
+            <i class="bx bx-paperclip me-2 fs-5"></i>3. Verification & Biometrics
+          </button>
+        </li>
+      </ul>
+    </div>
+
+    {{-- Tab Content Panes --}}
+    <div class="card-body p-4 tab-content" id="grShowTabContent">
+
+      {{-- Tab 1: Overview & Warehouse Info --}}
+      <div class="tab-pane fade show active" id="tab-overview" role="tabpanel">
+        <div class="row g-4">
+          
+          {{-- Left Column: DO Header & Supplier --}}
+          <div class="col-md-6 border-end">
+            <h6 class="fw-bold mb-3 text-primary"><i class="bx bx-detail me-1"></i>DO Header & Supplier Details</h6>
+            
+            <table class="table table-borderless table-sm mb-0">
+              <tbody>
+                <tr>
+                  <td class="text-muted fw-semibold" style="width: 38%;">DO Number</td>
+                  <td class="fw-bold text-dark">: {{ $goodsReceipt->do_no }}</td>
+                </tr>
+                <tr>
+                  <td class="text-muted fw-semibold">Reference PO No</td>
+                  <td>: 
+                    <a href="{{ route('erp.purchase-orders.show', $goodsReceipt->purchaseOrder) }}" class="text-primary fw-bold">
+                      {{ $goodsReceipt->purchaseOrder?->po_no }}
+                    </a>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="text-muted fw-semibold">Supplier Name</td>
+                  <td class="fw-bold text-dark">: {{ $goodsReceipt->supplier?->name ?: '-' }}</td>
+                </tr>
+                <tr>
+                  <td class="text-muted fw-semibold">Supplier Address</td>
+                  <td>: {{ $goodsReceipt->purchaseOrder?->address ?: '-' }}</td>
+                </tr>
+                <tr>
+                  <td class="text-muted fw-semibold">Sending Contact</td>
+                  <td class="text-primary fw-semibold">: {{ $goodsReceipt->sending_contact ?: '-' }}</td>
+                </tr>
+                <tr>
+                  <td class="text-muted fw-semibold">Receiving Contact</td>
+                  <td class="text-primary fw-semibold">: {{ $goodsReceipt->receiving_contact ?: '-' }}</td>
+                </tr>
+                <tr>
+                  <td class="text-muted fw-semibold">Status</td>
+                  <td>: <span class="badge {{ $goodsReceipt->status === 'Received' ? 'bg-success' : 'bg-warning' }}">{{ $goodsReceipt->status }}</span></td>
+                </tr>
+                <tr>
+                  <td class="text-muted fw-semibold">Total Delivered Qty</td>
+                  <td class="fw-bold">: {{ number_format($goodsReceipt->total_delivered_qty, 2, ',', '.') }}</td>
+                </tr>
+                <tr>
+                  <td class="text-muted fw-semibold">Remarks / Note</td>
+                  <td>: {{ $goodsReceipt->remarks ?: '-' }}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
-          <div class="row mb-1">
-            <div class="col-4 text-end fw-semibold text-muted">PO No</div>
-            <div class="col-8">
-              <a href="{{ route('erp.purchase-orders.show', $goodsReceipt->purchaseOrder) }}" class="text-primary">
-                {{ $goodsReceipt->purchaseOrder?->po_no }}
+
+          {{-- Right Column: Destination Warehouse & Receiver --}}
+          <div class="col-md-6">
+            <h6 class="fw-bold mb-3 text-primary"><i class="bx bx-buildings me-1"></i>Destination & Receiver Information</h6>
+            
+            <table class="table table-borderless table-sm mb-4">
+              <tbody>
+                <tr>
+                  <td class="text-muted fw-semibold" style="width: 38%;">Owner / P.I.C.</td>
+                  <td class="fw-bold text-dark">: {{ $goodsReceipt->owner?->name ?: 'Administrator' }}</td>
+                </tr>
+                <tr>
+                  <td class="text-muted fw-semibold">DO Date</td>
+                  <td>: {{ $goodsReceipt->date ? \Carbon\Carbon::parse($goodsReceipt->date)->format('Y-m-d') : '-' }}</td>
+                </tr>
+                <tr>
+                  <td class="text-muted fw-semibold">Supplier DO No</td>
+                  <td>: {{ $goodsReceipt->supplier_do_no ?: '-' }}</td>
+                </tr>
+                <tr>
+                  <td class="text-muted fw-semibold">Destination Warehouse</td>
+                  <td class="fw-bold text-primary">: {{ $goodsReceipt->purchaseOrder?->warehouse?->name ?: 'Gudang Utama HQ' }}</td>
+                </tr>
+                <tr>
+                  <td class="text-muted fw-semibold">Record Type</td>
+                  <td>: <span class="badge bg-label-info">{{ $goodsReceipt->record_type ?: 'External' }}</span></td>
+                </tr>
+                <tr>
+                  <td class="text-muted fw-semibold">Total Received Qty</td>
+                  <td class="fw-bold text-success">: {{ number_format($goodsReceipt->items->sum('qty_received'), 2, ',', '.') }}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            {{-- Biometric Verification Box --}}
+            <div class="p-3 bg-light rounded-3 border">
+              <h6 class="fw-bold text-dark mb-2"><i class="bx bx-shield-quarter me-1 text-primary"></i>Receive Verification Record</h6>
+              <div class="row g-2 small">
+                <div class="col-6">
+                  <span class="text-muted d-block">Receive Verified By:</span>
+                  <span class="fw-bold text-dark">{{ $goodsReceipt->receive_verified_by_id ? \App\Models\User::find($goodsReceipt->receive_verified_by_id)?->name : 'Not Verified Yet' }}</span>
+                </div>
+                <div class="col-6">
+                  <span class="text-muted d-block">Verification Timestamp:</span>
+                  <span class="fw-bold text-dark">{{ $goodsReceipt->receive_verification_timestamp ? \Carbon\Carbon::parse($goodsReceipt->receive_verification_timestamp)->format('d M Y H:i') : '-' }}</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+
+      {{-- Tab 2: Received Items Table --}}
+      <div class="tab-pane fade" id="tab-items" role="tabpanel">
+        <h6 class="fw-bold mb-3 text-primary"><i class="bx bx-package me-1"></i>Delivered & Received Line Items</h6>
+
+        <div class="table-responsive rounded-3 border">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="bg-light">
+              <tr class="text-uppercase small fw-bold text-muted">
+                <th>DO Detail Name</th>
+                <th>PO Detail No</th>
+                <th>Product Name</th>
+                <th>Product Model</th>
+                <th class="text-end">Delivered Qty</th>
+                <th class="text-end">Received Qty</th>
+                <th>Remarks</th>
+              </tr>
+            </thead>
+            <tbody>
+              @forelse($goodsReceipt->items as $item)
+                <tr>
+                  <td>
+                    <span class="fw-bold text-primary">{{ $item->do_detail_name ?: 'DOIN-'.$item->id }}</span>
+                  </td>
+                  <td>
+                    <span class="fw-semibold text-dark">{{ $item->poItem?->po_detail_no ?: '-' }}</span>
+                  </td>
+                  <td>
+                    <div class="fw-bold text-dark">{{ $item->poItem?->product_name ?: '-' }}</div>
+                  </td>
+                  <td>
+                    <span class="badge bg-label-secondary">{{ $item->poItem?->model ?: '-' }}</span>
+                  </td>
+                  <td class="text-end fw-bold text-dark">
+                    {{ number_format($item->qty_delivered, 2, ',', '.') }}
+                  </td>
+                  <td class="text-end fw-bold text-success">
+                    {{ number_format($item->qty_received, 2, ',', '.') }}
+                  </td>
+                  <td class="small text-muted">
+                    {{ $item->remark ?: '-' }}
+                  </td>
+                </tr>
+              @empty
+                <tr>
+                  <td colspan="7" class="text-center text-muted py-4">No items recorded in this Delivery Order.</td>
+                </tr>
+              @endforelse
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {{-- Tab 3: Verification & Biometrics --}}
+      <div class="tab-pane fade" id="tab-notes" role="tabpanel">
+        <h6 class="fw-bold mb-3 text-primary"><i class="bx bx-shield-check me-1"></i>Verification & Delivery Documents</h6>
+        
+        <div class="row g-4">
+          <div class="col-md-6">
+            <div class="p-4 bg-light rounded-4 border">
+              <h6 class="fw-bold text-dark mb-3"><i class="bx bx-file text-primary me-2 fs-5"></i>Surat Jalan / Delivery Note</h6>
+              <p class="text-muted small mb-3">Dokumen bukti serah terima barang dari supplier ke lokasi gudang.</p>
+              <a href="{{ route('erp.goods-receipts.print', $goodsReceipt) }}" target="_blank" class="btn btn-outline-primary rounded-pill px-4">
+                <i class="bx bx-printer me-1"></i>Cetak Surat Jalan / GR
               </a>
             </div>
           </div>
-          <div class="row mb-1">
-            <div class="col-4 text-end fw-semibold text-muted">Supplier Name</div>
-            <div class="col-8">{{ $goodsReceipt->supplier?->name ?: '-' }}</div>
-          </div>
-          <div class="row mb-1">
-            <div class="col-4 text-end fw-semibold text-muted">Supplier Address</div>
-            <div class="col-8">{{ $goodsReceipt->purchaseOrder?->address ?: '-' }}</div>
-          </div>
-          <div class="row mb-1">
-            <div class="col-4 text-end fw-semibold text-muted">Sending Contact</div>
-            <div class="col-8">
-              <a href="#" class="text-primary">{{ $goodsReceipt->sending_contact ?: '1203250003' }}</a>
-            </div>
-          </div>
-          <div class="row mb-1">
-            <div class="col-4 text-end fw-semibold text-muted">Status</div>
-            <div class="col-8 fw-bold">{{ $goodsReceipt->status }}</div>
-          </div>
-          <div class="row mb-1">
-            <div class="col-4 text-end fw-semibold text-muted">Total Delivered Qty</div>
-            <div class="col-8">{{ number_format($goodsReceipt->total_delivered_qty, 2, ',', '.') }}</div>
-          </div>
-          <div class="row mb-1">
-            <div class="col-4 text-end fw-semibold text-muted">Error</div>
-            <div class="col-8">No</div>
-          </div>
-          <div class="row mb-1">
-            <div class="col-4 text-end fw-semibold text-muted">Receiving Contact</div>
-            <div class="col-8">
-              <a href="#" class="text-primary">{{ $goodsReceipt->receiving_contact ?: '8617701' }}</a>
-            </div>
-          </div>
-          <div class="row mb-1">
-            <div class="col-4 text-end fw-semibold text-muted">Remarks Long</div>
-            <div class="col-8">{{ $goodsReceipt->remarks ?: 'Biaya Penghemat Telepon Periode Juni 2026' }}</div>
-          </div>
-          <div class="row mb-1">
-            <div class="col-4 text-end fw-semibold text-muted">Document Complete</div>
-            <div class="col-8">{{ $goodsReceipt->document_complete_date?->format('Y/m/d') ?: '-' }}</div>
-          </div>
-          <div class="row mb-1">
-            <div class="col-4 text-end fw-semibold text-muted">Status Receive Date</div>
-            <div class="col-8">{{ $goodsReceipt->status_receive_date?->format('Y/m/d') ?: '-' }}</div>
-          </div>
-          <div class="row mb-1">
-            <div class="col-4 text-end fw-semibold text-muted">Count Received GR</div>
-            <div class="col-8">0</div>
-          </div>
-          <div class="row mb-1">
-            <div class="col-4 text-end fw-semibold text-muted">KPI Received GR</div>
-            <div class="col-8">Achieved</div>
-          </div>
-        </div>
 
-        <!-- Right Column -->
-        <div class="col-md-6 ps-4">
-          <div class="row mb-1">
-            <div class="col-4 text-end fw-semibold text-muted">Owner</div>
-            <div class="col-8">
-              <i class="bx bx-user me-1 text-muted"></i>
-              <a href="#" class="text-primary">{{ $goodsReceipt->owner?->name ?: 'Administrator' }}</a>
-              <a href="#" class="ms-1 text-primary">[Change]</a>
-            </div>
-          </div>
-          <div class="row mb-1">
-            <div class="col-4 text-end fw-semibold text-muted">Date</div>
-            <div class="col-8">{{ $goodsReceipt->date?->format('Y/m/d') ?: '-' }}</div>
-          </div>
-          <div class="row mb-1">
-            <div class="col-4 text-end fw-semibold text-muted">Supplier DO No</div>
-            <div class="col-8">-</div>
-          </div>
-          <div class="row mb-1">
-            <div class="col-4 text-end fw-semibold text-muted">Warehouse To</div>
-            <div class="col-8">{{ $goodsReceipt->warehouse?->code ?: 'WH001' }}</div>
-          </div>
-          <div class="row mb-1">
-            <div class="col-4 text-end fw-semibold text-muted">Receiving Location Address</div>
-            <div class="col-8"></div>
-          </div>
-          <div class="row mb-1">
-            <div class="col-4 text-end fw-semibold text-muted">Total Received Qty</div>
-            <div class="col-8">{{ number_format($goodsReceipt->total_received_qty, 2, ',', '.') }}</div>
-          </div>
-          <div class="row mb-1">
-            <div class="col-4 text-end fw-semibold text-muted">Record Type</div>
-            <div class="col-8">{{ $goodsReceipt->record_type }} <a href="#" class="ms-1 text-primary">[Change]</a></div>
-          </div>
-          <div class="row mb-1">
-            <div class="col-4 text-end fw-semibold text-muted">Remarks</div>
-            <div class="col-8">{{ $goodsReceipt->remarks ?: 'Biaya Penghemat Telepon Periode Juni 2026' }}</div>
-          </div>
-          <div class="row mb-1">
-            <div class="col-4 text-end fw-semibold text-muted">Bypass Verification</div>
-            <div class="col-8">
-              <i class="bx {{ $goodsReceipt->bypass_verification ? 'bx-check-square text-success' : 'bx-square text-muted' }}"></i>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Biometric Section -->
-      <div class="border-top border-2 border-primary pt-3 mt-4">
-        <h6 class="fw-bold mb-3 d-flex align-items-center">
-          <i class="bx bx-caret-down me-1"></i> Biometric
-        </h6>
-        <div class="row small">
           <div class="col-md-6">
-            <div class="row mb-1">
-              <div class="col-4 text-end fw-semibold text-muted">Receive Verified By</div>
-              <div class="col-8">{{ $goodsReceipt->verifiedBy?->name ?: '-' }}</div>
-            </div>
-            <div class="row mb-1 mt-2">
-              <div class="col-4 text-end fw-semibold text-muted">Custom Links</div>
-              <div class="col-8"><a href="{{ route('erp.goods-receipts.print', $goodsReceipt) }}" target="_blank" class="text-primary text-decoration-underline"><i class="bx bx-printer me-1"></i>Surat Jalan</a></div>
-            </div>
-          </div>
-          <div class="col-md-6">
-            <div class="row mb-1">
-              <div class="col-4 text-end fw-semibold text-muted">Receive Verification Timestamp</div>
-              <div class="col-8">{{ $goodsReceipt->verification_timestamp?->format('Y/m/d H:i') ?: '-' }}</div>
+            <div class="p-4 bg-light rounded-4 border">
+              <h6 class="fw-bold text-dark mb-3"><i class="bx bx-check-shield text-success me-2 fs-5"></i>Status Verifikasi Penerimaan</h6>
+              @if($goodsReceipt->status === 'Received')
+                <div class="alert alert-success border-0 mb-0">
+                  <i class="bx bx-check-circle me-1 fs-5 align-middle"></i> Barang telah berhasil diverifikasi dan masuk ke dalam Stok Fisik Gudang.
+                </div>
+              @else
+                <div class="alert alert-warning border-0 mb-3">
+                  <i class="bx bx-time-five me-1 fs-5 align-middle"></i> Status penerimaan masih pending verification.
+                </div>
+                <button type="button" class="btn btn-success rounded-pill px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#receiveModal">
+                  <i class="bx bx-check-double me-1"></i>Verifikasi Penerimaan Barang
+                </button>
+              @endif
             </div>
           </div>
         </div>
       </div>
-      
-      <!-- Action Buttons Footer -->
-      <div class="text-center mt-4">
-        <button class="btn btn-xs btn-outline-secondary" disabled>Edit</button>
-        <button class="btn btn-xs btn-outline-secondary" disabled>1. Bypass Verification GR</button>
-        <button class="btn btn-xs btn-outline-secondary" disabled>2. Create Inventory Usage</button>
-        <button class="btn btn-xs btn-outline-secondary" disabled>3. Change Record Type</button>
-        
-        @if($goodsReceipt->status !== 'Received')
-          <button type="button" class="btn btn-xs btn-primary" data-bs-toggle="modal" data-bs-target="#receiveModal">Receive Verification</button>
-        @else
-          <button class="btn btn-xs btn-outline-secondary" disabled>Receive Verification</button>
-        @endif
-        
-        <a href="{{ route('erp.goods-receipts.print', $goodsReceipt) }}" target="_blank" class="btn btn-xs btn-outline-secondary me-1">Print GR</a>
 
-        @if(auth()->user()->hasRole('superadmin'))
-          <form action="{{ route('erp.goods-receipts.destroy', $goodsReceipt) }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin menghapus Goods Receipt (DO) ini? Stok fisik yang pernah diterima akan dikurangi kembali dan PO akan dikembalikan ke status Approved.');">
-            @csrf
-            @method('DELETE')
-            <button type="submit" class="btn btn-xs btn-outline-danger">
-              <i class="bx bx-trash me-1"></i>Delete GR
-            </button>
-          </form>
-        @endif
-      </div>
     </div>
+
   </div>
 
-  <!-- Related List: DO Details -->
-  <div class="card mb-4 border-top border-2 border-primary" id="do-details">
-    <div class="card-header py-2 d-flex justify-content-between align-items-center bg-light border-bottom">
-      <h6 class="mb-0 fw-bold">DO Details</h6>
-      <button class="btn btn-xs btn-outline-secondary" disabled>New DO Detail</button>
-    </div>
-    <div class="table-responsive">
-      <table class="table table-sm align-middle mb-0 small">
-        <thead class="table-light">
-          <tr>
-            <th>Action</th>
-            <th>DO Detail Name</th>
-            <th>PO Detail</th>
-            <th>RF</th>
-            <th>Product</th>
-            <th>Model</th>
-            <th>Asset Id</th>
-            <th class="text-end">Delivered Qty</th>
-            <th class="text-end">Received Qty</th>
-            <th>Updated</th>
-            <th>Remark</th>
-          </tr>
-        </thead>
-        <tbody>
-          @forelse($goodsReceipt->items as $item)
-            <tr>
-              <td><span class="text-muted small">Edit | Del</span></td>
-              <td class="fw-semibold">
-                <a href="#" class="text-primary">{{ $item->do_detail_no }}</a>
-              </td>
-              <td>
-                <a href="#" class="text-primary">{{ $item->purchaseOrderItem?->po_detail_no }}</a>
-              </td>
-              <td>
-                <a href="#" class="text-primary">{{ $item->requestFormItem?->requestForm?->rf_no }}</a>
-              </td>
-              <td>
-                <a href="#" class="text-primary">{{ $item->requestFormItem?->product_name }}</a>
-              </td>
-              <td>{{ $item->requestFormItem?->erpProduct?->productModel?->model_name ?: '-' }}</td>
-              <td>-</td>
-              <td class="text-end">{{ number_format((float)$item->delivered_qty, 2, ',', '.') }}</td>
-              <td class="text-end">{{ number_format((float)$item->received_qty, 2, ',', '.') }}</td>
-              <td></td>
-              <td>{{ $item->remark ?: '-' }}</td>
-            </tr>
-          @empty
-            <tr><td colspan="11" class="text-center text-muted py-3">No records to display</td></tr>
-          @endforelse
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- Related List: Payment Advice Detail -->
-  @php
-    $paDetails = \App\Models\Erp\ErpPaymentAdviceDetail::where('erp_goods_receipt_id', $goodsReceipt->id)->orWhere('erp_purchase_order_id', $goodsReceipt->erp_purchase_order_id)->get();
-    $pAdvices = \App\Models\Erp\ErpPaymentAdvice::where('erp_purchase_order_id', $goodsReceipt->erp_purchase_order_id)->get();
-  @endphp
-
-  <div class="card mb-4 border-top border-2 border-primary" id="payment-advice-detail">
-    <div class="card-header py-2 d-flex justify-content-between align-items-center bg-light border-bottom">
-      <h6 class="mb-0 fw-bold"><i class="bx bx-receipt me-1 text-primary"></i>Payment Advice Detail</h6>
-      <a href="{{ route('erp.payment-advices.create', ['gr_id' => $goodsReceipt->id, 'po_id' => $goodsReceipt->erp_purchase_order_id]) }}" class="btn btn-xs btn-outline-primary">
-        <i class="bx bx-plus me-1"></i>New Payment Advice Detail
-      </a>
-    </div>
-    <div class="table-responsive">
-      <table class="table table-sm align-middle mb-0 small">
-        <thead class="table-light">
-          <tr>
-            <th width="8%">Action</th>
-            <th>Supplier Detail No</th>
-            <th>Approved Date</th>
-            <th>Created Date SID</th>
-            <th>Date Paid</th>
-            <th>Invoice No</th>
-            <th>Payment Amount</th>
-            <th>Payment Amount With Tax</th>
-            <th>Remark</th>
-            <th>Days Invoice Overdue</th>
-            <th>Days over due</th>
-          </tr>
-        </thead>
-        <tbody>
-          @forelse($paDetails as $pad)
-            <tr>
-              <td>
-                <a href="{{ route('erp.payment-advice-details.show', $pad) }}" class="text-primary fw-semibold">View</a>
-              </td>
-              <td>
-                <a href="{{ route('erp.payment-advice-details.show', $pad) }}" class="fw-bold text-primary">{{ $pad->supplier_detail_no }}</a>
-              </td>
-              <td>{{ $pad->approved_date?->format('Y/m/d') ?? '-' }}</td>
-              <td>{{ $pad->created_date_sid?->format('Y/m/d') ?? '-' }}</td>
-              <td>{{ $pad->date_paid?->format('Y/m/d') ?? '-' }}</td>
-              <td>{{ $pad->paymentAdvice->invoice_no ?? '-' }}</td>
-              <td>IDR {{ number_format($pad->payment_amount, 0, ',', '.') }}</td>
-              <td class="fw-bold">IDR {{ number_format($pad->payment_amount_with_tax, 0, ',', '.') }}</td>
-              <td>{{ $pad->remark ?? '-' }}</td>
-              <td>{{ $pad->days_invoice_overdue }}</td>
-              <td>{{ $pad->days_overdue }}</td>
-            </tr>
-          @empty
-            <tr><td colspan="11" class="text-center text-muted py-3">No records to display</td></tr>
-          @endforelse
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- Related List: Payment Advice -->
-  <div class="card mb-4 border-top border-2 border-primary" id="payment-advice">
-    <div class="card-header py-2 d-flex justify-content-between align-items-center bg-light border-bottom">
-      <h6 class="mb-0 fw-bold"><i class="bx bx-credit-card-front me-1 text-primary"></i>Payment Advice</h6>
-      <a href="{{ route('erp.payment-advices.create', ['po_id' => $goodsReceipt->erp_purchase_order_id]) }}" class="btn btn-xs btn-outline-primary">
-        <i class="bx bx-plus me-1"></i>New Payment Advice
-      </a>
-    </div>
-    <div class="table-responsive">
-      <table class="table table-sm align-middle mb-0 small">
-        <thead class="table-light">
-          <tr>
-            <th width="8%">Action</th>
-            <th>Supplier Invoice No</th>
-            <th>Supplier Name</th>
-            <th>Contact Person</th>
-            <th>Sum of Payment Amount With Tax</th>
-            <th>Outstanding</th>
-            <th>Due Date</th>
-            <th>Status</th>
-            <th>Approval Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          @forelse($pAdvices as $pa)
-            <tr>
-              <td>
-                <a href="{{ route('erp.payment-advices.show', $pa) }}" class="text-primary fw-semibold">View</a>
-              </td>
-              <td>
-                <a href="{{ route('erp.payment-advices.show', $pa) }}" class="fw-bold text-primary">{{ $pa->supplier_invoice_no }}</a>
-              </td>
-              <td>{{ $pa->supplier?->name ?? '-' }}</td>
-              <td>{{ $pa->contact_person ?? '-' }}</td>
-              <td class="fw-bold">IDR {{ number_format($pa->sum_payment_amount_with_tax, 0, ',', '.') }}</td>
-              <td class="text-danger fw-bold">IDR {{ number_format($pa->outstanding, 0, ',', '.') }}</td>
-              <td>{{ $pa->due_date?->format('Y/m/d') ?? '-' }}</td>
-              <td>{{ $pa->status }}</td>
-              <td>
-                @if($pa->approval_status === 'Approved')
-                  <span class="badge bg-label-success fw-bold">Approved</span>
-                @else
-                  <span class="badge bg-label-warning fw-bold">{{ $pa->approval_status }}</span>
-                @endif
-              </td>
-            </tr>
-          @empty
-            <tr><td colspan="9" class="text-center text-muted py-3">No records to display</td></tr>
-          @endforelse
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- Related List: Notes & Attachments -->
-  <div class="card mb-4 border-top border-2 border-primary" id="notes-attachments">
-    <div class="card-header py-2 d-flex align-items-center gap-2 bg-light border-bottom">
-      <h6 class="mb-0 fw-bold">Notes & Attachments</h6>
-      <button class="btn btn-xs btn-outline-secondary" disabled>New Note</button>
-      <button class="btn btn-xs btn-outline-secondary" disabled>Attach File</button>
-    </div>
-    <div class="card-body py-3">
-      <div class="text-muted small">No records to display</div>
-    </div>
-  </div>
-</div>
-
-<!-- Receive Verification Modal -->
-<div class="modal fade" id="receiveModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-sm">
-    <div class="modal-content">
-      <form action="{{ route('erp.goods-receipts.receive', $goodsReceipt) }}" method="POST">
+  {{-- Receive Verification Modal --}}
+  <div class="modal fade" id="receiveModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <form action="{{ route('erp.goods-receipts.receive', $goodsReceipt) }}" method="POST" class="modal-content shadow-lg border-0 rounded-4">
         @csrf
-        <div class="modal-header border-bottom pb-3">
-          <h5 class="modal-title fw-bold">Receive Verification</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="modal-header border-bottom bg-success bg-opacity-10 py-3">
+          <h5 class="modal-title fw-bold text-success"><i class="bx bx-check-circle me-1"></i>Verifikasi Penerimaan Barang (GR)</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
-        <div class="modal-body">
+        <div class="modal-body p-4">
+          <p class="text-muted small">Dengan memverifikasi penerimaan barang ini, jumlah fisik barang akan secara otomatis ditambahkan ke dalam **Stok Fisik Gudang ERP**.</p>
           <div class="mb-3">
-            <label class="form-label">Receive Verified By</label>
-            <select name="verified_by_id" class="form-select form-select-sm" required>
-              <option value="">-- Select User --</option>
-              @foreach($users as $user)
-                <option value="{{ $user->id }}" {{ auth()->id() == $user->id ? 'selected' : '' }}>{{ $user->name }}</option>
-              @endforeach
-            </select>
+            <label class="form-label fw-semibold">Catatan Penerimaan (Opsional)</label>
+            <textarea name="remarks" class="form-control rounded-3" rows="3" placeholder="Tuliskan catatan kondisi fisik barang..."></textarea>
           </div>
         </div>
-        <div class="modal-footer border-top pt-3">
-          <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-sm btn-primary">Submit Verification</button>
+        <div class="modal-footer border-top bg-light py-3">
+          <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Batal</button>
+          <button type="submit" class="btn btn-success text-white px-4 shadow-sm">
+            <i class="bx bx-check me-1"></i>Proses & Tambah Stok
+          </button>
         </div>
       </form>
     </div>
   </div>
-</div>
 
+</div>
 @endsection
