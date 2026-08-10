@@ -473,53 +473,176 @@
 
       {{-- Tab 3: Approval History & Workflow --}}
       <div class="tab-pane fade" id="tab-approval" role="tabpanel">
-        <h6 class="fw-bold mb-3 text-primary"><i class="bx bx-shield-check me-1"></i>Approval Log & History Trail</h6>
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <div class="d-flex align-items-center gap-2">
+            <div class="bg-primary bg-opacity-10 rounded p-1">
+              <i class="bx bx-shield-check text-primary fs-5"></i>
+            </div>
+            <h6 class="fw-bold mb-0 text-primary">Approval Log & Workflow Trail</h6>
+          </div>
+          @if($purchaseOrder->status === 'Draft' && $purchaseOrder->verified_by_id)
+            <form action="{{ route('erp.purchase-orders.submit', $purchaseOrder) }}" method="POST" class="d-inline">
+              @csrf
+              <button type="submit" class="btn btn-sm btn-success rounded-pill px-3">
+                <i class="bx bx-paper-plane me-1"></i>Submit for Approval
+              </button>
+            </form>
+          @endif
+        </div>
 
-        <div class="table-responsive rounded-3 border">
-          <table class="table table-hover align-middle mb-0">
-            <thead class="bg-light">
-              <tr class="text-uppercase small fw-bold text-muted">
-                <th>Date / Time</th>
-                <th>Status</th>
-                <th>Assigned Approver / Role</th>
-                <th>Actual Approver</th>
-                <th>Comments / Notes</th>
+        <div class="table-responsive border rounded-3 overflow-hidden shadow-sm">
+          <table class="table table-hover align-middle mb-0 text-nowrap">
+            <thead class="table-light">
+              <tr class="text-muted text-uppercase small">
+                <th style="width: 120px;">ACTION</th>
+                <th>DATE</th>
+                <th>STATUS</th>
+                <th>ASSIGNED TO</th>
+                <th>ACTUAL APPROVER</th>
+                <th>COMMENTS / NOTES</th>
+                <th style="width: 140px;" class="text-center">OVERALL STATUS</th>
               </tr>
             </thead>
             <tbody>
-              @forelse($purchaseOrder->approvals()->orderBy('created_at', 'asc')->get() as $approval)
+              @if($purchaseOrder->approvals->count() === 0)
                 <tr>
-                  <td class="small fw-semibold text-muted">
-                    {{ $approval->created_at ? $approval->created_at->format('d M Y H:i:s') : '-' }}
-                  </td>
-                  <td>
-                    @php
-                      $appBadge = match($approval->status) {
-                        'Approved' => 'bg-success',
-                        'Rejected' => 'bg-danger',
-                        'Pending' => 'bg-warning',
-                        default => 'bg-secondary',
-                      };
-                    @endphp
-                    <span class="badge {{ $appBadge }} px-3 py-1 fw-bold">{{ $approval->status }}</span>
-                  </td>
-                  <td>
-                    <span class="fw-bold text-dark">{{ $approval->assignedToUser?->name ?: ($approval->assignedToRole?->name ?: $approval->record_type) }}</span>
-                  </td>
-                  <td>
-                    <span class="fw-semibold">{{ $approval->actualApprover?->name ?: '-' }}</span>
-                  </td>
-                  <td class="small">
-                    {{ $approval->comments ?: '-' }}
+                  <td colspan="7" class="text-muted text-center py-4 bg-light">
+                    <i class="bx bx-info-circle me-1"></i> Approval flow belum di-submit. Klik <strong>Submit for Approval</strong> untuk memulai alur persetujuan.
                   </td>
                 </tr>
-              @empty
-                <tr>
-                  <td colspan="5" class="text-center text-muted py-4">
-                    <i class="bx bx-info-circle me-1"></i>PO is currently in Draft status. Submit for approval to initiate the approval workflow.
+              @else
+                {{-- Submission Step --}}
+                <tr class="bg-light">
+                  <td colspan="6" class="fw-bold py-2 px-3 text-primary">
+                    <i class="bx bx-paper-plane me-2"></i>PO Request Submitted
+                  </td>
+                  <td class="bg-success text-white fw-bold text-center py-2">
+                    <i class="bx bx-check-circle me-1"></i> Approved
                   </td>
                 </tr>
-              @endforelse
+                <tr class="bg-white">
+                  <td>-</td>
+                  <td>{{ $purchaseOrder->submitted_date ? \Carbon\Carbon::parse($purchaseOrder->submitted_date)->format('Y-m-d H:i') : ($purchaseOrder->created_at->format('Y-m-d H:i')) }}</td>
+                  <td><span class="badge bg-label-info">Submitted</span></td>
+                  <td>{{ $purchaseOrder->owner?->name ?: 'Requester' }}</td>
+                  <td>{{ $purchaseOrder->owner?->name ?: 'Requester' }}</td>
+                  <td>PO Submitted for approval</td>
+                  <td class="text-center"></td>
+                </tr>
+
+                {{-- Approval Steps --}}
+                @foreach($purchaseOrder->approvals->sortBy('level') as $approval)
+                  @php
+                    $statusBg = 'bg-secondary';
+                    $statusIcon = 'bx-minus';
+                    if ($approval->status === 'Approved') {
+                        $statusBg = 'bg-success';
+                        $statusIcon = 'bx-check-circle';
+                    } elseif ($approval->status === 'Pending') {
+                        $statusBg = 'bg-warning';
+                        $statusIcon = 'bx-time-five';
+                    } elseif ($approval->status === 'Rejected') {
+                        $statusBg = 'bg-danger';
+                        $statusIcon = 'bx-x-circle';
+                    }
+                  @endphp
+                  <tr class="bg-light">
+                    <td colspan="6" class="fw-bold py-2 px-3 text-dark">
+                      <i class="bx bx-badge-check me-2 text-primary"></i>Step {{ $approval->level }}: {{ $approval->assignedRole?->name ?: ($approval->assignedUser?->name ?: ($approval->name ?: 'Level '.$approval->level)) }}
+                    </td>
+                    <td class="{{ $statusBg }} text-white fw-bold text-center py-2">
+                      <i class="bx {{ $statusIcon }} me-1"></i> {{ $approval->status }}
+                    </td>
+                  </tr>
+                  <tr class="bg-white">
+                    <td>
+                      @php
+                        $user = auth()->user();
+                        $canApproveStep = false;
+                        if ($approval->status === 'Pending') {
+                            if ($user->hasRole('superadmin')) {
+                                $canApproveStep = true;
+                            } elseif ($approval->assigned_to_user_id && $user->id == $approval->assigned_to_user_id) {
+                                $canApproveStep = true;
+                            } elseif ($approval->assigned_to_role_id) {
+                                $canApproveStep = \Illuminate\Support\Facades\DB::connection('tenant')
+                                    ->table('role_user')
+                                    ->where('user_id', $user->id)
+                                    ->where('role_id', $approval->assigned_to_role_id)
+                                    ->exists();
+                            }
+                        }
+                      @endphp
+                      @if($canApproveStep)
+                        <div class="d-flex gap-1">
+                          <button type="button" class="btn btn-xs btn-success px-2" data-bs-toggle="modal" data-bs-target="#approvePoStepModal{{ $approval->id }}">
+                            <i class="bx bx-check me-1"></i>Approve
+                          </button>
+                          <button type="button" class="btn btn-xs btn-danger px-2" data-bs-toggle="modal" data-bs-target="#rejectPoStepModal{{ $approval->id }}">
+                            <i class="bx bx-x me-1"></i>Reject
+                          </button>
+                        </div>
+
+                        <!-- Modal Approve Step -->
+                        <div class="modal fade" id="approvePoStepModal{{ $approval->id }}" tabindex="-1" aria-hidden="true">
+                          <div class="modal-dialog modal-dialog-centered">
+                            <form action="{{ route('erp.purchase-orders.approve', $purchaseOrder) }}" method="POST" class="modal-content shadow-lg border-0 rounded-4">
+                              @csrf
+                              <div class="modal-header border-bottom bg-success bg-opacity-10 py-3">
+                                <h5 class="modal-title fw-bold text-success"><i class="bx bx-check-circle me-1"></i>Approve Step {{ $approval->level }}: {{ $purchaseOrder->po_no }}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                              </div>
+                              <div class="modal-body p-4">
+                                <div class="mb-3">
+                                  <label class="form-label fw-semibold">Catatan / Approval Comments (Opsional)</label>
+                                  <textarea name="comments" class="form-control rounded-3" rows="3" placeholder="Tuliskan catatan persetujuan..."></textarea>
+                                </div>
+                              </div>
+                              <div class="modal-footer border-top bg-light py-3">
+                                <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-success text-white px-4 shadow-sm">Approve Step</button>
+                              </div>
+                            </form>
+                          </div>
+                        </div>
+
+                        <!-- Modal Reject Step -->
+                        <div class="modal fade" id="rejectPoStepModal{{ $approval->id }}" tabindex="-1" aria-hidden="true">
+                          <div class="modal-dialog modal-dialog-centered">
+                            <form action="{{ route('erp.purchase-orders.reject', $purchaseOrder) }}" method="POST" class="modal-content shadow-lg border-0 rounded-4">
+                              @csrf
+                              <div class="modal-header border-bottom bg-danger bg-opacity-10 py-3">
+                                <h5 class="modal-title fw-bold text-danger"><i class="bx bx-x-circle me-1"></i>Reject Step {{ $approval->level }}: {{ $purchaseOrder->po_no }}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                              </div>
+                              <div class="modal-body p-4">
+                                <div class="mb-3">
+                                  <label class="form-label fw-semibold text-danger">Alasan Penolakan <span class="text-danger">*</span></label>
+                                  <textarea name="comments" class="form-control rounded-3" rows="3" required placeholder="Tuliskan alasan penolakan..."></textarea>
+                                </div>
+                              </div>
+                              <div class="modal-footer border-top bg-light py-3">
+                                <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-danger text-white px-4 shadow-sm">Reject Step</button>
+                              </div>
+                            </form>
+                          </div>
+                        </div>
+                      @else
+                        -
+                      @endif
+                    </td>
+                    <td>{{ $approval->approved_at ? \Carbon\Carbon::parse($approval->approved_at)->format('Y-m-d H:i') : '-' }}</td>
+                    <td>
+                      <span class="badge {{ $statusBg }} px-2 py-1">{{ $approval->status }}</span>
+                    </td>
+                    <td>{{ $approval->assignedUser?->name ?: ($approval->assignedRole?->name ?: ($approval->name ?: '-')) }}</td>
+                    <td>{{ $approval->actualApprover?->name ?: '-' }}</td>
+                    <td>{{ $approval->comments ?: '-' }}</td>
+                    <td class="text-center"></td>
+                  </tr>
+                @endforeach
+              @endif
             </tbody>
           </table>
         </div>
