@@ -301,7 +301,10 @@
                     <input type="number" step="0.01" name="items[{{ $idx }}][qty]" class="form-control form-control-sm rounded-2 item-qty fw-bold" value="{{ old("items.$idx.qty", $qty) }}" oninput="calculateRow({{ $idx }})">
                   </td>
                   <td>
-                    <input type="number" name="items[{{ $idx }}][unit_cost]" class="form-control form-control-sm rounded-2 item-cost" value="{{ old("items.$idx.unit_cost", $item->unit_cost) }}" oninput="calculateRow({{ $idx }})">
+                    @php
+                      $effectiveCost = $item->actual_cost > 0 ? $item->actual_cost : $item->unit_cost;
+                    @endphp
+                    <input type="number" name="items[{{ $idx }}][unit_cost]" class="form-control form-control-sm rounded-2 item-cost fw-bold text-success" value="{{ old("items.$idx.unit_cost", $effectiveCost) }}" oninput="calculateRow({{ $idx }})">
                   </td>
                   <td>
                     <input type="number" name="items[{{ $idx }}][tax]" class="form-control form-control-sm rounded-2 item-tax" value="{{ old("items.$idx.tax", 0) }}" oninput="calculateRow({{ $idx }})">

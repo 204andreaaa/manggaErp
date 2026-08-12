@@ -122,12 +122,16 @@
               <input class="form-control bg-white text-muted" value="{{ number_format((float)$requestFormItem->qty_fulfilled, 2, ',', '.') }}" readonly>
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-semibold small text-uppercase text-muted">Unit Cost</label>
+              <label class="form-label fw-semibold small text-uppercase text-muted">Unit Cost (Estimasi)</label>
               <input class="form-control bg-white" value="{{ $requestFormItem->currency }} {{ number_format((float)$requestFormItem->unit_cost, 0, ',', '.') }}" readonly>
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-semibold small text-uppercase text-muted">Original Total Cost</label>
-              <input class="form-control bg-white fw-bold text-success" value="{{ $requestFormItem->currency }} {{ number_format((float)$requestFormItem->original_total_cost, 0, ',', '.') }}" readonly>
+              <label class="form-label fw-semibold small text-uppercase text-muted text-success">Actual Cost (Harga Real)</label>
+              <input class="form-control bg-white fw-bold text-success border-success" value="{{ $requestFormItem->currency }} {{ number_format((float)($requestFormItem->actual_cost > 0 ? $requestFormItem->actual_cost : $requestFormItem->unit_cost), 0, ',', '.') }}" readonly>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small text-uppercase text-muted">Total Cost</label>
+              <input class="form-control bg-white fw-bold text-primary" value="{{ $requestFormItem->currency }} {{ number_format((float)($requestFormItem->original_total_cost > 0 ? $requestFormItem->original_total_cost : ($requestFormItem->qty * ($requestFormItem->actual_cost > 0 ? $requestFormItem->actual_cost : $requestFormItem->unit_cost))), 0, ',', '.') }}" readonly>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold small text-uppercase text-muted">Date Required</label>

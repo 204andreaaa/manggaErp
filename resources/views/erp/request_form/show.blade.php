@@ -277,8 +277,8 @@
                 <th>Currency</th>
                 <th class="text-end">Qty</th>
                 <th class="text-end">Qty Fulfilled</th>
-                <th class="text-end">Unit Cost</th>
-                <th class="text-end">Total Cost</th>
+                <th class="text-end">Actual Cost (Real Price)</th>
+                <th class="text-end">Total Amount</th>
                 <th>Date Required</th>
                 <th>PIC</th>
                 <th>Status</th>
@@ -286,6 +286,10 @@
             </thead>
             <tbody>
               @forelse($rf->items as $item)
+                @php
+                  $effectiveCost = $item->actual_cost > 0 ? $item->actual_cost : $item->unit_cost;
+                  $totalCost = $item->original_total_cost > 0 ? $item->original_total_cost : ($item->qty * $effectiveCost);
+                @endphp
                 <tr>
                   <td class="fw-semibold">
                     @if($item->rf_detail_no)
@@ -299,8 +303,8 @@
                   <td>{{ $item->currency }}</td>
                   <td class="text-end fw-semibold">{{ number_format((float) $item->qty, 2, ',', '.') }}</td>
                   <td class="text-end text-muted">{{ number_format((float) $item->qty_fulfilled, 2, ',', '.') }}</td>
-                  <td class="text-end">{{ $item->currency }} {{ number_format($item->unit_cost, 0, ',', '.') }}</td>
-                  <td class="text-end fw-bold text-primary">{{ $item->currency }} {{ number_format($item->original_total_cost, 0, ',', '.') }}</td>
+                  <td class="text-end fw-bold text-success">{{ $item->currency }} {{ number_format($effectiveCost, 0, ',', '.') }}</td>
+                  <td class="text-end fw-extrabold text-primary">{{ $item->currency }} {{ number_format($totalCost, 0, ',', '.') }}</td>
                   <td>{{ $item->date_required?->format('Y-m-d') ?: '-' }}</td>
                   <td>{{ $item->pic ?: '-' }}</td>
                   <td><span class="badge bg-label-info">{{ $item->status }}</span></td>

@@ -89,8 +89,12 @@
           <div class="row mb-1">
             <div class="col-4 fw-bold text-end text-muted">Unit Cost</div>
             <div class="col-8">
-              {{ $purchaseRequestItem->requestFormItem?->currency ?: 'IDR' }} 
-              {{ number_format((float)($purchaseRequestItem->requestFormItem?->unit_cost), 0, ',', '.') }}
+              @php
+                $rfItem = $purchaseRequestItem->requestFormItem;
+                $effCost = ($rfItem?->actual_cost > 0 ? $rfItem?->actual_cost : $rfItem?->unit_cost) ?? 0;
+              @endphp
+              {{ $rfItem?->currency ?: 'IDR' }} 
+              {{ number_format((float)$effCost, 0, ',', '.') }}
             </div>
           </div>
         </div>
@@ -111,15 +115,15 @@
           <div class="row mb-1">
             <div class="col-4 fw-bold text-end text-muted">Total Cost</div>
             <div class="col-8">
-              {{ $purchaseRequestItem->requestFormItem?->currency ?: 'IDR' }} 
-              {{ number_format((float)($purchaseRequestItem->pr_requested_qty * ($purchaseRequestItem->requestFormItem?->unit_cost ?: 0)), 0, ',', '.') }}
+              {{ $rfItem?->currency ?: 'IDR' }} 
+              {{ number_format((float)($purchaseRequestItem->pr_requested_qty * $effCost), 0, ',', '.') }}
             </div>
           </div>
           <div class="row mb-1">
-            <div class="col-4 fw-bold text-end text-muted">Actual Cost</div>
-            <div class="col-8">
-              {{ $purchaseRequestItem->requestFormItem?->currency ?: 'IDR' }} 
-              {{ number_format((float)($purchaseRequestItem->requestFormItem?->actual_cost), 0, ',', '.') }}
+            <div class="col-4 fw-bold text-end text-muted">Actual Cost (Real)</div>
+            <div class="col-8 text-success fw-bold">
+              {{ $rfItem?->currency ?: 'IDR' }} 
+              {{ number_format((float)$effCost, 0, ',', '.') }}
             </div>
           </div>
           <div class="row mb-1">

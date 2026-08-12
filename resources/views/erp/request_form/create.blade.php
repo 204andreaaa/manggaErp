@@ -541,9 +541,24 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function syncOriginalTotal() {
-    if (Number(fields.original_total_cost.value || 0) > 0) return;
-    fields.original_total_cost.value = Math.round(Number(fields.qty.value || 0) * Number(fields.unit_cost.value || 0));
+    const qty = Number(fields.qty.value || 0);
+    const unitCost = Number(fields.unit_cost.value || 0);
+    const actualCost = Number(fields.actual_cost.value || 0);
+    const effectiveCost = actualCost > 0 ? actualCost : unitCost;
+
+    if (unitCost > 0 && actualCost === 0) {
+      fields.actual_cost.value = unitCost;
+    }
+    if (actualCost > 0 && unitCost === 0) {
+      fields.unit_cost.value = actualCost;
+    }
+
+    fields.original_total_cost.value = Math.round(qty * effectiveCost);
   }
+
+  fields.qty.addEventListener('input', syncOriginalTotal);
+  fields.unit_cost.addEventListener('input', syncOriginalTotal);
+  fields.actual_cost.addEventListener('input', syncOriginalTotal);
 
   function collectModalItem() {
     syncOriginalTotal();

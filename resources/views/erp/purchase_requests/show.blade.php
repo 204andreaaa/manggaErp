@@ -50,7 +50,8 @@
             <span class="text-muted small d-block">Total PR Amount</span>
             @php
               $totalPrAmount = $purchaseRequest->items->sum(function($item) {
-                return $item->pr_requested_qty * ($item->requestFormItem->unit_cost ?? 0);
+                $cost = ($item->requestFormItem?->actual_cost > 0 ? $item->requestFormItem?->actual_cost : $item->requestFormItem?->unit_cost) ?? 0;
+                return $item->pr_requested_qty * $cost;
               });
             @endphp
             <span class="fw-extrabold text-primary fs-5">IDR {{ number_format($totalPrAmount, 0, ',', '.') }}</span>
@@ -203,7 +204,7 @@
               @forelse($purchaseRequest->items as $prItem)
                 @php
                   $rfItem = $prItem->requestFormItem;
-                  $unitCost = $rfItem?->unit_cost ?? 0;
+                  $unitCost = ($rfItem?->actual_cost > 0 ? $rfItem?->actual_cost : $rfItem?->unit_cost) ?? 0;
                   $total = $prItem->pr_requested_qty * $unitCost;
                 @endphp
                 <tr>

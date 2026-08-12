@@ -162,10 +162,12 @@ class RequestFormController extends Controller
             $items = collect($data['items'] ?? [])->map(function (array $item) {
                 $qty = (float) $item['qty'];
                 $unitCost = (int) ($item['unit_cost'] ?? 0);
-                $originalTotalCost = (int) ($item['original_total_cost'] ?? 0);
+                $actualCost = (int) ($item['actual_cost'] ?? 0);
+                $effectiveCost = $actualCost > 0 ? $actualCost : $unitCost;
 
-                if ($originalTotalCost <= 0) {
-                    $originalTotalCost = (int) round($qty * $unitCost);
+                $originalTotalCost = (int) ($item['original_total_cost'] ?? 0);
+                if ($originalTotalCost <= 0 || $actualCost > 0) {
+                    $originalTotalCost = (int) round($qty * $effectiveCost);
                 }
 
                 return [
@@ -174,8 +176,8 @@ class RequestFormController extends Controller
                     'wid' => $item['wid'] ?? null,
                     'currency' => $item['currency'],
                     'original_total_cost' => $originalTotalCost,
-                    'actual_cost' => (int) ($item['actual_cost'] ?? 0),
-                    'unit_cost' => $unitCost,
+                    'actual_cost' => $effectiveCost,
+                    'unit_cost' => $effectiveCost,
                     'qty' => $qty,
                     'qty_fulfilled' => (float) ($item['qty_fulfilled'] ?? 0),
                     'date_required' => $item['date_required'] ?? null,
@@ -314,16 +316,18 @@ class RequestFormController extends Controller
             $itemsData = collect($data['items'] ?? [])->map(function (array $item) {
                 $qty = (float) $item['qty'];
                 $unitCost = (int) ($item['unit_cost'] ?? 0);
-                $originalTotalCost = (int) ($item['original_total_cost'] ?? 0);
+                $actualCost = (int) ($item['actual_cost'] ?? 0);
+                $effectiveCost = $actualCost > 0 ? $actualCost : $unitCost;
 
-                if ($originalTotalCost <= 0) {
-                    $originalTotalCost = (int) round($qty * $unitCost);
+                $originalTotalCost = (int) ($item['original_total_cost'] ?? 0);
+                if ($originalTotalCost <= 0 || $actualCost > 0) {
+                    $originalTotalCost = (int) round($qty * $effectiveCost);
                 }
 
                 return array_merge($item, [
                     'original_total_cost' => $originalTotalCost,
-                    'actual_cost' => (int) ($item['actual_cost'] ?? 0),
-                    'unit_cost' => $unitCost,
+                    'actual_cost' => $effectiveCost,
+                    'unit_cost' => $effectiveCost,
                     'qty' => $qty,
                     'qty_fulfilled' => (float) ($item['qty_fulfilled'] ?? 0),
                     'within_budget' => ! empty($item['within_budget']),
