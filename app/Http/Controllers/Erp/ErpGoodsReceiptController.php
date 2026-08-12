@@ -55,7 +55,9 @@ class ErpGoodsReceiptController extends Controller
             $gr->supplier_id = $purchaseOrder->supplier_id;
             $gr->warehouse_id = $purchaseOrder->erp_warehouse_id;
             $gr->date = $data['date'];
-            $gr->supplier_do_no = $data['supplier_do_no'] ?? null;
+            if (\Illuminate\Support\Facades\Schema::hasColumn('erp_goods_receipts', 'supplier_do_no')) {
+                $gr->supplier_do_no = $data['supplier_do_no'] ?? null;
+            }
             $gr->remarks = $data['remarks'] ?? null;
             $gr->owner_id = auth()->id();
             $gr->status = 'Draft';

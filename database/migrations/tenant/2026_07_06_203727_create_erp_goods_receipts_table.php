@@ -24,6 +24,7 @@ return new class extends Migration
             $table->decimal('total_delivered_qty', 15, 2)->default(0);
             $table->decimal('total_received_qty', 15, 2)->default(0);
             $table->string('record_type')->default('External');
+            $table->string('supplier_do_no')->nullable();
             $table->text('remarks')->nullable();
             $table->boolean('bypass_verification')->default(false);
             $table->date('document_complete_date')->nullable();
