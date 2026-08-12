@@ -108,14 +108,20 @@
           </thead>
           <tbody>
             @foreach($purchaseOrder->items as $index => $item)
+              @php
+                $rfItem = $item->requestFormItem;
+                $prodName = $rfItem?->product_name ?: 'Product Item';
+                $prodDesc = $rfItem?->product_description ?: ($item->remarks ?: '-');
+                $uomName = $rfItem?->erpProduct?->uom?->uom_name ?: ($rfItem?->erpProduct?->uom?->name ?: 'PCS');
+              @endphp
               <tr>
                 <td>
                   <input type="hidden" name="items[{{ $index }}][po_item_id]" value="{{ $item->id }}">
-                  <input type="hidden" name="items[{{ $index }}][remark]" value="{{ $item->remarks ?: ($item->product_description ?: '-') }}">
-                  <div class="fw-bold text-dark">{{ $item->product_name }}</div>
+                  <input type="hidden" name="items[{{ $index }}][remark]" value="{{ $item->remarks ?: $prodDesc }}">
+                  <div class="fw-bold text-dark">{{ $prodName }}</div>
                 </td>
-                <td class="small text-muted">{{ $item->product_description ?: '-' }}</td>
-                <td><span class="badge bg-label-secondary">{{ $item->requestFormItem?->erpProduct?->uom?->uom_name ?: '-' }}</span></td>
+                <td class="small text-muted">{{ $prodDesc }}</td>
+                <td><span class="badge bg-label-secondary">{{ $uomName }}</span></td>
                 <td class="text-end fw-bold text-dark">{{ number_format($item->qty, 2, ',', '.') }}</td>
                 <td class="text-end">
                   <input type="number" step="0.01" name="items[{{ $index }}][delivered_qty]" class="form-control form-control-sm rounded-2 text-end fw-bold" value="{{ old('items.'.$index.'.delivered_qty', $item->qty) }}" required min="0">
