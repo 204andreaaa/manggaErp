@@ -43,4 +43,9 @@ class ErpSupplier extends Model
     {
         return $this->belongsTo(ErpPaymentTerm::class, 'payment_terms_id');
     }
+
+    public function purchaseOrders()
+    {
+        return $this->hasMany(ErpPurchaseOrder::class, 'supplier_id');
+    }
 }

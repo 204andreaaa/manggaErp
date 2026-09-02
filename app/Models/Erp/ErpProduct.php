@@ -78,4 +78,45 @@ class ErpProduct extends Model
     {
         return $this->hasMany(ErpStock::class, 'erp_product_id');
     }
+
+    public static function syncBuyingPriceFromLatestApprovedPo($productId)
+    {
+        $product = self::find($productId);
+        if (!$product) return;
+
+        $latestPoItem = ErpPurchaseOrderItem::whereHas('requestFormItem', function($q) use ($product) {
+                $q->where('product_id_text', $product->product_code)
+                  ->orWhere('product_name', $product->name);
+            })
+            ->whereHas('purchaseOrder', function($q) {
+                $q->where('status', 'Approved');
+            })
+            ->join('erp_purchase_orders', 'erp_purchase_order_items.purchase_order_id', '=', 'erp_purchase_orders.id')
+            ->orderByRaw('COALESCE(erp_purchase_orders.approved_date, erp_purchase_orders.updated_at) DESC')
+            ->orderBy('erp_purchase_orders.id', 'desc')
+            ->select('erp_purchase_order_items.*')
+            ->first();
+
+        if ($latestPoItem && $latestPoItem->unit_cost > 0) {
+            $product->update([
+                'buying_price' => (int) $latestPoItem->unit_cost
+            ]);
+        }
+    }
+
+    public static function syncProductsFromPo(ErpPurchaseOrder $po)
+    {
+        $po->loadMissing('items.requestFormItem.erpProduct');
+        foreach ($po->items as $item) {
+            $product = $item->requestFormItem?->erpProduct 
+                ?: self::where('product_code', $item->requestFormItem?->product_id_text)
+                    ->orWhere('name', $item->requestFormItem?->product_name)
+                    ->first();
+
+            if ($product) {
+                self::syncBuyingPriceFromLatestApprovedPo($product->id);
+            }
+        }
+    }
 }
+

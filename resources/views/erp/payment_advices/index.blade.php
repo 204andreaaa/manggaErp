@@ -6,9 +6,11 @@
     <h4 class="fw-bold py-1 mb-0">
       <span class="text-muted fw-light">Procurement ERP /</span> Payment Advice (Supplier Invoices)
     </h4>
-    <a href="{{ route('erp.payment-advices.create') }}" class="btn btn-primary">
-      <i class="bx bx-plus me-1"></i>New Payment Advice
+    @if(auth()->user()->hasRole('superadmin'))
+    <a href="{{ route('erp.payment-advices.create') }}" class="btn btn-outline-primary btn-sm">
+      <i class="bx bx-plus me-1"></i>New PA (Manual Fallback)
     </a>
+    @endif
   </div>
 
   <div class="card border-0 shadow-sm">

@@ -43,7 +43,13 @@ class MasterUserSeeder extends Seeder
             $count = 0;
             while (($row = fgetcsv($file)) !== false) {
                 $data = array_combine($header, $row);
- 
+
+                // Skip legacy warehouse and sales accounts
+                $roleSlugs = !empty($data['role_slugs']) ? explode(',', strtolower($data['role_slugs'])) : [];
+                if (in_array('warehouse', $roleSlugs) || in_array('sales', $roleSlugs)) {
+                    continue;
+                }
+
                 $warehouseId = null;
                 if (!empty($data['warehouse_id'])) {
                     $warehouseId = $data['warehouse_id'];

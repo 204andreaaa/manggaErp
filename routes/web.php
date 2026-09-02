@@ -10,17 +10,20 @@ Route::middleware('guest')->group(function () {
     Route::post('/login', [LoginController::class, 'attempt'])->name('login.attempt');
 });
 
-Route::get('/dashboard', function () {
-    $u = auth()->user();
-    if (!$u) return redirect()->route('login');
-    return redirect()->route('erp.procurement.dashboard');
-})->middleware(['auth', 'active'])->name('dashboard');
+Route::get('/dashboard', [\App\Http\Controllers\Erp\ErpDashboardController::class, 'index'])
+    ->middleware(['auth', 'active'])
+    ->name('dashboard');
 
 Route::get('/', fn() => redirect()->route('dashboard'))->middleware(['auth', 'active']);
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout')->middleware(['auth', 'active']);
 
-/* ===== Protected by auth ===== */
 Route::middleware(['auth', 'active'])->group(function () {
+    // Notifications Engine
+    Route::get('/notifications', [\App\Http\Controllers\NotificationController::class, 'index'])->name('notifications.index');
+    Route::get('/notifications/badge', [\App\Http\Controllers\NotificationController::class, 'getBadge'])->name('notifications.badge');
+    Route::post('/notifications/{id}/read', [\App\Http\Controllers\NotificationController::class, 'markAsRead'])->name('notifications.read');
+    Route::post('/notifications/mark-all-read', [\App\Http\Controllers\NotificationController::class, 'markAllAsRead'])->name('notifications.mark_all_read');
+
     // Switch Project Routes
     Route::get('/projects/switch', [\App\Http\Controllers\ProjectSwitchController::class, 'showSwitchForm'])->name('projects.switch');
     Route::post('/projects/switch', [\App\Http\Controllers\ProjectSwitchController::class, 'processSwitch'])->name('projects.switch.process');
@@ -57,6 +60,20 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('uoms/datatable', [\App\Http\Controllers\Erp\UomController::class, 'datatable'])->name('uoms.datatable');
         Route::resource('uoms', \App\Http\Controllers\Erp\UomController::class)->except(['create', 'edit', 'show']);
 
+        // Budget Project System
+        Route::post('budget-parents/datatable', [\App\Http\Controllers\Erp\ErpBudgetParentController::class, 'datatable'])->name('budget-parents.datatable');
+        Route::resource('budget-parents', \App\Http\Controllers\Erp\ErpBudgetParentController::class)->except(['create', 'edit', 'show']);
+
+
+        Route::post('sub-projects/datatable', [\App\Http\Controllers\Erp\ErpSubProjectController::class, 'datatable'])->name('sub-projects.datatable');
+        Route::resource('sub-projects', \App\Http\Controllers\Erp\ErpSubProjectController::class)->except(['create', 'edit', 'show']);
+
+        Route::post('work-items/datatable', [\App\Http\Controllers\Erp\ErpWorkItemController::class, 'datatable'])->name('work-items.datatable');
+        Route::get('work-items/next-code', [\App\Http\Controllers\Erp\ErpWorkItemController::class, 'getNextWidCode'])->name('work-items.next-code');
+        Route::resource('work-items', \App\Http\Controllers\Erp\ErpWorkItemController::class)->except(['create', 'edit', 'show']);
+        
+        Route::get('work-items/by-project', [\App\Http\Controllers\Erp\ErpWorkItemController::class, 'getWorkItemsByProject'])->name('work-items.by_project');
+
         // Request Form
         Route::post('request-form/datatable', [\App\Http\Controllers\Erp\RequestFormController::class, 'datatable'])->name('request-form.datatable');
         Route::get('request-form/create', [\App\Http\Controllers\Erp\RequestFormController::class, 'create'])->name('request-form.create');
@@ -66,6 +83,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::put('request-form/{requestForm}', [\App\Http\Controllers\Erp\RequestFormController::class, 'update'])->name('request-form.update');
         Route::get('request-form/{requestForm}', [\App\Http\Controllers\Erp\RequestFormController::class, 'show'])->name('request-form.show');
         Route::post('request-form/{requestForm}/unlock', [\App\Http\Controllers\Erp\RequestFormController::class, 'unlock'])->name('request-form.unlock');
+        Route::delete('request-form/{requestForm}', [\App\Http\Controllers\Erp\RequestFormController::class, 'destroy'])->name('request-form.destroy');
         // Request Form - Notes & Attachments
         Route::post('request-form/{requestForm}/notes', [\App\Http\Controllers\Erp\RequestFormNoteController::class, 'storeNote'])->name('request-form.notes.store');
         Route::post('request-form/{requestForm}/attachments', [\App\Http\Controllers\Erp\RequestFormNoteController::class, 'storeAttachment'])->name('request-form.attachments.store');
@@ -93,6 +111,8 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('purchase-orders/{purchaseOrder}/approve', [\App\Http\Controllers\Erp\ErpPurchaseOrderController::class, 'approve'])->name('purchase-orders.approve');
         Route::delete('purchase-orders/{purchaseOrder}', [\App\Http\Controllers\Erp\ErpPurchaseOrderController::class, 'destroy'])->name('purchase-orders.destroy');
         Route::post('purchase-orders/{purchaseOrder}/reject', [\App\Http\Controllers\Erp\ErpPurchaseOrderController::class, 'reject'])->name('purchase-orders.reject');
+        Route::post('purchase-orders/{purchaseOrder}/cancel', [\App\Http\Controllers\Erp\ErpPurchaseOrderController::class, 'cancel'])->name('purchase-orders.cancel');
+        Route::post('purchase-orders/{purchaseOrder}/unlock', [\App\Http\Controllers\Erp\ErpPurchaseOrderController::class, 'unlock'])->name('purchase-orders.unlock');
         Route::get('purchase-orders/{purchaseOrder}/print', [\App\Http\Controllers\Erp\ErpPurchaseOrderController::class, 'print'])->name('purchase-orders.print');
         Route::post('purchase-orders/{purchaseOrder}/verify', [\App\Http\Controllers\Erp\ErpPurchaseOrderController::class, 'verify'])->name('purchase-orders.verify');
 
@@ -113,15 +133,17 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('payment-advices/{paymentAdvice}/details', [\App\Http\Controllers\Erp\ErpPaymentAdviceController::class, 'storeDetail'])->name('payment-advice-details.store');
         Route::get('payment-advice-details/{paymentAdviceDetail}', [\App\Http\Controllers\Erp\ErpPaymentAdviceController::class, 'showDetail'])->name('payment-advice-details.show');
         Route::delete('payment-advice-details/{paymentAdviceDetail}', [\App\Http\Controllers\Erp\ErpPaymentAdviceController::class, 'destroyDetail'])->name('payment-advice-details.destroy');
-        Route::post('payment-advices/{paymentAdvice}/submit', [\App\Http\Controllers\Erp\ErpPaymentAdviceController::class, 'submit'])->name('payment-advices.submit');
-        Route::post('payment-advices/{paymentAdvice}/approve', [\App\Http\Controllers\Erp\ErpPaymentAdviceController::class, 'approve'])->name('payment-advices.approve');
-        Route::post('payment-advices/{paymentAdvice}/reject', [\App\Http\Controllers\Erp\ErpPaymentAdviceController::class, 'reject'])->name('payment-advices.reject');
-        Route::post('payment-advices/{paymentAdvice}/mark-paid', [\App\Http\Controllers\Erp\ErpPaymentAdviceController::class, 'markPaid'])->name('payment-advices.mark-paid');
+        Route::post('payment-advice-details/{paymentAdviceDetail}/update-invoice', [\App\Http\Controllers\Erp\ErpPaymentAdviceController::class, 'updateInvoice'])->name('payment-advice-details.update-invoice');
+        Route::post('payment-advice-details/{paymentAdviceDetail}/submit', [\App\Http\Controllers\Erp\ErpPaymentAdviceController::class, 'submitDetail'])->name('payment-advice-details.submit');
+        Route::post('payment-advice-details/{paymentAdviceDetail}/approve', [\App\Http\Controllers\Erp\ErpPaymentAdviceController::class, 'approveDetail'])->name('payment-advice-details.approve');
+        Route::post('payment-advice-details/{paymentAdviceDetail}/reject', [\App\Http\Controllers\Erp\ErpPaymentAdviceController::class, 'rejectDetail'])->name('payment-advice-details.reject');
+        Route::post('payment-advice-details/{paymentAdviceDetail}/mark-paid', [\App\Http\Controllers\Erp\ErpPaymentAdviceController::class, 'markPaidDetail'])->name('payment-advice-details.mark-paid');
         Route::delete('payment-advices/{paymentAdvice}', [\App\Http\Controllers\Erp\ErpPaymentAdviceController::class, 'destroy'])->name('payment-advices.destroy');
 
         // Request Form - Approvals
         Route::post('request-form/{requestForm}/approvals/submit', [\App\Http\Controllers\Erp\ApprovalController::class, 'submit'])->name('approvals.submit');
         Route::post('approvals/{approval}/approve', [\App\Http\Controllers\Erp\ApprovalController::class, 'approve'])->name('approvals.approve');
+        Route::post('approvals/{approval}/reject', [\App\Http\Controllers\Erp\ApprovalController::class, 'reject'])->name('approvals.reject');
 
         // Approval Configs (Superadmin Only)
         Route::resource('approval-configs', \App\Http\Controllers\Erp\ApprovalConfigController::class)->only(['index', 'store', 'destroy']);
@@ -141,7 +163,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::resource('warehouses', \App\Http\Controllers\Erp\ErpWarehouseController::class);
 
         // Dedicated ERP Payment Terms
-        Route::resource('payment-terms', \App\Http\Controllers\Erp\ErpPaymentTermController::class)->only(['index', 'store']);
+        Route::resource('payment-terms', \App\Http\Controllers\Erp\ErpPaymentTermController::class)->except(['create', 'show', 'edit']);
 
         // Inventory Stocks
         Route::post('stocks/datatable', [\App\Http\Controllers\Erp\ErpStockController::class, 'datatable'])->name('stocks.datatable');

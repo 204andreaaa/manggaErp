@@ -12,6 +12,7 @@ class ErpStock extends Model
     protected $fillable = [
         'erp_product_id',
         'erp_warehouse_id',
+        'erp_supplier_id',
         'qty_on_hand',
     ];
 
@@ -27,5 +28,10 @@ class ErpStock extends Model
     public function warehouse()
     {
         return $this->belongsTo(ErpWarehouse::class, 'erp_warehouse_id');
+    }
+
+    public function supplier()
+    {
+        return $this->belongsTo(ErpSupplier::class, 'erp_supplier_id');
     }
 }

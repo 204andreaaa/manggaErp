@@ -73,6 +73,7 @@
             <th class="text-uppercase fw-bold small">PART NO.</th>
             <th class="text-uppercase fw-bold small">TYPE</th>
             <th class="text-uppercase fw-bold small">WAREHOUSE</th>
+            <th class="text-uppercase fw-bold small">SUPPLIER</th>
             <th class="text-uppercase fw-bold small">QTY ON HAND</th>
             <th class="text-uppercase fw-bold small">STATUS</th>
             <th class="text-uppercase fw-bold small">LAST UPDATED</th>
@@ -110,13 +111,14 @@ $(function () {
             { data: 'part_number',  className: 'align-middle text-muted small' },
             { data: 'item_type',    className: 'align-middle' },
             { data: 'warehouse',    className: 'align-middle fw-semibold' },
+            { data: 'supplier',     className: 'align-middle fw-semibold text-info' },
             { data: 'qty_on_hand',  className: 'align-middle fw-bold text-success' },
             { data: 'stock_status', className: 'align-middle' },
             { data: 'updated_at',   className: 'align-middle text-muted small' },
         ],
         dom: 'tip',
         language: { processing: '<div class="spinner-border spinner-border-sm text-primary"></div>' },
-        order: [[6, 'desc']]
+        order: [[7, 'desc']]
     });
 
     $('#pageLength').on('change', function () { DT.page.len(+this.value).draw(); });

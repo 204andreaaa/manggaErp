@@ -383,7 +383,7 @@ class ErpPurchaseOrderController extends Controller
         }
 
         if (!$purchaseOrder->verified_by_id) {
-            return redirect()->back()->with('error', 'PO must be verified by Finance before it can be submitted for approval.');
+            return redirect()->back()->with('error', 'PO harus diverifikasi oleh Head of Procurement atau Superadmin terlebih dahulu sebelum di-submit.');
         }
 
         // Ambil data level yang sudah di-approve sebelum ada perubahan status
@@ -410,9 +410,18 @@ class ErpPurchaseOrderController extends Controller
         ]);
 
         $totalCost = $purchaseOrder->total_po_amount_with_tax;
-        $recordType = $totalCost <= 1000000 ? 'purchase_order_low' : 'purchase_order_high';
+        $isProject = $purchaseOrder->requestForm && $purchaseOrder->requestForm->record_type === 'project' ? 1 : 0;
 
-        $configs = \App\Models\Erp\ErpApprovalConfig::where('record_type', $recordType)
+        $configs = \App\Models\Erp\ErpApprovalConfig::where('record_type', 'purchase_order')
+            ->where(function($q) use ($isProject) {
+                $q->whereNull('is_project')->orWhere('is_project', $isProject);
+            })
+            ->where(function($q) use ($totalCost) {
+                $q->whereNull('min_amount')->orWhere('min_amount', '<=', $totalCost);
+            })
+            ->where(function($q) use ($totalCost) {
+                $q->whereNull('max_amount')->orWhere('max_amount', '>=', $totalCost);
+            })
             ->orderBy('level')
             ->get();
 
@@ -442,6 +451,7 @@ class ErpPurchaseOrderController extends Controller
                     'status' => 'Approved',
                     'approved_date' => now(),
                 ]);
+                $this->deductBudget($purchaseOrder);
                 return redirect()->back()->with('success', 'PO submitted and automatically approved.');
             }
         }
@@ -498,6 +508,9 @@ class ErpPurchaseOrderController extends Controller
                     'status' => 'Approved',
                     'approved_date' => now(),
                 ]);
+                $this->deductBudget($purchaseOrder);
+                $this->generatePaymentAdvices($purchaseOrder);
+                \App\Models\Erp\ErpProduct::syncProductsFromPo($purchaseOrder);
             }
 
             return redirect()->back()->with('success', 'Approval PO berhasil disetujui.');
@@ -522,7 +535,68 @@ class ErpPurchaseOrderController extends Controller
             'status' => 'Approved',
             'approved_date' => now(),
         ]);
+        $this->deductBudget($purchaseOrder);
+        $this->generatePaymentAdvices($purchaseOrder);
+        \App\Models\Erp\ErpProduct::syncProductsFromPo($purchaseOrder);
         return redirect()->back()->with('success', 'PO approved successfully.');
+    }
+
+    private function generatePaymentAdvices(ErpPurchaseOrder $po)
+    {
+        if ($po->paymentAdvices()->count() > 0) return;
+
+        $termDef = \App\Models\Erp\ErpPaymentTerm::where('name', $po->payment_terms)->first();
+        $schedule = $termDef ? $termDef->term_schedule : [['name' => '100% Payment', 'percentage' => 100]];
+        if (empty($schedule)) {
+            $schedule = [['name' => '100% Payment', 'percentage' => 100]];
+        }
+
+        // Create Header PA (100% of PO amount)
+        $amount = $po->total_po_amount_with_tax;
+        $pa = new \App\Models\Erp\ErpPaymentAdvice();
+        $pa->supplier_invoice_no = 'PA-' . date('Y-m-d') . '-' . mt_rand(10000, 99999);
+        $pa->erp_purchase_order_id = $po->id;
+        $pa->supplier_id = $po->supplier_id;
+        $pa->invoice_no = '-';
+        $pa->contact_person = $po->contact_person;
+        $days = 30;
+        if ($po->payment_terms && preg_match('/(\d+)\s*(days|hari)/i', $po->payment_terms, $m)) {
+            $days = (int) $m[1];
+        }
+        $pa->due_date = $po->date ? \Carbon\Carbon::parse($po->date)->addDays($days) : now()->addDays($days);
+        $pa->total_invoice_amount = $amount;
+        $pa->total_invoice_amount_with_tax = $amount;
+        $pa->outstanding = $amount;
+        $pa->status = 'Draft';
+        $pa->approval_status = 'Draft';
+        $pa->payment_closed = false;
+        $pa->owner_id = $po->owner_id;
+        $pa->save();
+
+        // Generate Termin Details
+        foreach ($schedule as $idx => $sch) {
+            $percentage = $sch['percentage'] ?? 100;
+            $name = $sch['name'] ?? 'Payment';
+            $terminAmount = ($amount * $percentage) / 100;
+
+            $pad = new \App\Models\Erp\ErpPaymentAdviceDetail();
+            $pad->supplier_detail_no = 'SID-' . date('Y-m-d') . '-' . mt_rand(10000, 99999);
+            $pad->erp_payment_advice_id = $pa->id;
+            $pad->erp_purchase_order_id = $po->id;
+            $pad->erp_goods_receipt_id = null; // Can be linked later
+            $pad->created_date_sid = now();
+            $pad->payment_amount = $terminAmount;
+            $pad->payment_amount_with_tax = $terminAmount;
+            $pad->payment_method = 'Bank Transfer'; // Default
+            $pad->payment_type = $name . ' (' . $percentage . '%)';
+            $pad->remark = 'Auto-generated termin schedule';
+            $pad->days_invoice_overdue = '< 30';
+            $pad->days_overdue = 1;
+            $pad->approval_status = 'Draft';
+            $pad->save();
+        }
+        
+        // No need to recalculate totals since they are Draft details, outstanding remains total amount
     }
 
     public function reject(ErpPurchaseOrder $purchaseOrder, Request $request)
@@ -541,7 +615,7 @@ class ErpPurchaseOrderController extends Controller
                     $isAuthorized = true;
                 }
             } elseif ($activeApproval->assigned_to_role_id) {
-                $hasRole = \Illuminate\Support\Facades\DB::connection('tenant')
+                $hasRole = \Illuminate\Support\Facades\DB::connection('master')
                     ->table('role_user')
                     ->where('user_id', $user->id)
                     ->where('role_id', $activeApproval->assigned_to_role_id)
@@ -594,11 +668,25 @@ class ErpPurchaseOrderController extends Controller
             'comments' => 'required|string',
         ]);
 
+        // Collect affected products before rejecting/updating
+        $affectedProductIds = [];
+        foreach ($purchaseOrder->items as $item) {
+            $p = $item->requestFormItem?->erpProduct 
+                ?: \App\Models\Erp\ErpProduct::where('product_code', $item->requestFormItem?->product_id_text)
+                    ->orWhere('name', $item->requestFormItem?->product_name)
+                    ->first();
+            if ($p) $affectedProductIds[] = $p->id;
+        }
+
         $purchaseOrder->update([
             'status' => 'Rejected',
             'rejected_date' => now(),
             'description' => $purchaseOrder->description . "\nRejection Reason: " . $request->input('comments'),
         ]);
+
+        foreach (array_unique($affectedProductIds) as $pId) {
+            \App\Models\Erp\ErpProduct::syncBuyingPriceFromLatestApprovedPo($pId);
+        }
 
         return redirect()->back()->with('success', 'PO rejected successfully.');
     }
@@ -609,8 +697,19 @@ class ErpPurchaseOrderController extends Controller
             return redirect()->back()->with('error', 'Hanya Admin/Superadmin yang berhak menghapus PO.');
         }
 
+        // Collect affected products before deletion
+        $affectedProductIds = [];
+        foreach ($purchaseOrder->items as $item) {
+            $p = $item->requestFormItem?->erpProduct 
+                ?: \App\Models\Erp\ErpProduct::where('product_code', $item->requestFormItem?->product_id_text)
+                    ->orWhere('name', $item->requestFormItem?->product_name)
+                    ->first();
+            if ($p) $affectedProductIds[] = $p->id;
+        }
+
         // Rollback any received physical stocks associated with this PO's Goods Receipts
         $purchaseOrder->load('goodsReceipts.items.requestFormItem.erpProduct');
+        $supplierId = $purchaseOrder->supplier_id;
         foreach ($purchaseOrder->goodsReceipts as $gr) {
             if ($gr->status === 'Received') {
                 $warehouseId = $gr->warehouse_id ?: ($purchaseOrder->erp_warehouse_id ?: \Illuminate\Support\Facades\DB::table('erp_warehouses')->value('id'));
@@ -619,6 +718,7 @@ class ErpPurchaseOrderController extends Controller
                     if ($product && ($product->is_physical ?? true) && $warehouseId && $grItem->received_qty > 0) {
                         $stock = \App\Models\Erp\ErpStock::where('erp_product_id', $product->id)
                             ->where('erp_warehouse_id', $warehouseId)
+                            ->where('erp_supplier_id', $supplierId)
                             ->first();
                         if ($stock) {
                             $newQty = max(0, $stock->qty_on_hand - $grItem->received_qty);
@@ -643,14 +743,34 @@ class ErpPurchaseOrderController extends Controller
         $purchaseOrder->approvals()->delete();
         $purchaseOrder->delete();
 
+        foreach (array_unique($affectedProductIds) as $pId) {
+            \App\Models\Erp\ErpProduct::syncBuyingPriceFromLatestApprovedPo($pId);
+        }
+
         return redirect()->route('erp.procurement.dashboard')->with('success', 'PO dihapus. Stok fisik yang pernah diterima telah dikurangi kembali, dan status barang (RF Item) dikembalikan agar dapat dipesan ulang.');
     }
 
     public function verify(ErpPurchaseOrder $purchaseOrder)
     {
         $user = auth()->user();
-        if (!$user->hasRole('finance') && !$user->hasRole('superadmin')) {
-            return redirect()->back()->with('error', 'Only Finance team can verify this PO.');
+        $poVerifConfig = \App\Models\Erp\ErpApprovalConfig::where('record_type', 'po_verification')->first();
+        
+        $isAuthorized = false;
+        if ($user->hasRole('superadmin')) {
+            $isAuthorized = true;
+        } elseif ($poVerifConfig) {
+            if ($poVerifConfig->user_id && $user->id == $poVerifConfig->user_id) {
+                $isAuthorized = true;
+            } elseif ($poVerifConfig->role_id && $user->hasRole($poVerifConfig->role?->name)) {
+                $isAuthorized = true;
+            }
+        } else {
+            $isAuthorized = ($user->email === 'febri@local.com' || $user->username === 'febri' || $user->hasRole('head_procurement') || $user->hasPermission('po.verify'));
+        }
+
+        if (!$isAuthorized) {
+            $verifierName = $poVerifConfig?->user?->name ?? 'Head of Procurement (Febri Saputra)';
+            return redirect()->back()->with('error', "Hanya {$verifierName} atau Superadmin yang berhak memverifikasi PO ini.");
         }
 
         $purchaseOrder->update([
@@ -658,7 +778,59 @@ class ErpPurchaseOrderController extends Controller
             'verification_timestamp' => now(),
         ]);
 
-        return redirect()->back()->with('success', 'PO has been verified successfully by Finance.');
+        return redirect()->back()->with('success', 'PO berhasil diverifikasi oleh ' . $user->name . '.');
+    }
+
+    public function unlock(ErpPurchaseOrder $purchaseOrder)
+    {
+        if (!auth()->user()->hasRole('superadmin')) {
+            return redirect()->back()->with('error', 'Hanya Superadmin yang berhak meng-unlock Purchase Order.');
+        }
+
+        if ($purchaseOrder->status === 'Draft') {
+            return redirect()->back()->with('error', 'Purchase Order sudah berstatus Draft.');
+        }
+
+        if ($purchaseOrder->goodsReceipts()->where('status', 'Received')->exists()) {
+            return redirect()->back()->with('error', 'PO tidak dapat di-unlock karena sudah ada Goods Receipt (GR) yang telah diterima.');
+        }
+
+        if ($purchaseOrder->paymentAdvices()->where('status', 'Completed')->exists() || 
+            $purchaseOrder->paymentAdvices()->whereHas('details', fn($q) => $q->where('status', 'Paid'))->exists()) {
+            return redirect()->back()->with('error', 'PO tidak dapat di-unlock karena sudah ada Termin Pembayaran yang telah dibayar (Paid).');
+        }
+
+        \Illuminate\Support\Facades\DB::beginTransaction();
+        try {
+            if ($purchaseOrder->status === 'Approved') {
+                $this->refundBudget($purchaseOrder);
+            }
+
+            $purchaseOrder->approvals()->delete();
+
+            foreach ($purchaseOrder->paymentAdvices as $pa) {
+                $pa->details()->delete();
+                $pa->delete();
+            }
+
+            $purchaseOrder->update([
+                'status' => 'Draft',
+                'approved_date' => null,
+                'rejected_date' => null,
+                'verified_by_id' => null,
+                'verification_timestamp' => null,
+                'gr' => false,
+                'payment_closed' => false,
+            ]);
+
+            \App\Models\Erp\ErpProduct::syncProductsFromPo($purchaseOrder);
+
+            \Illuminate\Support\Facades\DB::commit();
+            return redirect()->back()->with('success', 'Purchase Order berhasil di-unlock. Status kembali menjadi Draft, verifikasi & approval telah direset.');
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            return redirect()->back()->with('error', 'Gagal meng-unlock PO: ' . $e->getMessage());
+        }
     }
 
     private function generatePoNo()
@@ -666,5 +838,102 @@ class ErpPurchaseOrderController extends Controller
         $prefix = 'PO-' . now()->format('Y') . '-';
         $count = ErpPurchaseOrder::where('po_no', 'like', $prefix . '%')->count();
         return $prefix . str_pad($count + 1, 5, '0', STR_PAD_LEFT);
+    }
+
+    public function cancel(ErpPurchaseOrder $purchaseOrder)
+    {
+        if (!auth()->user()->hasRole('superadmin')) {
+            return redirect()->back()->with('error', 'Only Superadmin can cancel Purchase Orders.');
+        }
+
+        if ($purchaseOrder->status === 'Cancelled') {
+            return redirect()->back()->with('error', 'Purchase Order is already cancelled.');
+        }
+
+        // Collect affected products before cancelling
+        $affectedProductIds = [];
+        foreach ($purchaseOrder->items as $item) {
+            $p = $item->requestFormItem?->erpProduct 
+                ?: \App\Models\Erp\ErpProduct::where('product_code', $item->requestFormItem?->product_id_text)
+                    ->orWhere('name', $item->requestFormItem?->product_name)
+                    ->first();
+            if ($p) $affectedProductIds[] = $p->id;
+        }
+
+        // If PO was previously approved, refund the budget
+        if ($purchaseOrder->status === 'Approved') {
+            $this->refundBudget($purchaseOrder);
+        }
+
+        // Also cancel any pending approvals
+        $purchaseOrder->approvals()->whereIn('status', ['Pending', 'Waiting'])->update(['status' => 'Cancelled']);
+
+        // Release the request form items back to Pending so they can be re-ordered
+        \App\Models\Erp\RequestFormItem::whereIn('id', $purchaseOrder->items->pluck('request_form_item_id'))->update(['status' => 'Pending']);
+
+        $purchaseOrder->update([
+            'status' => 'Cancelled',
+            'rejected_date' => now(), // track cancellation timestamp
+        ]);
+
+        foreach (array_unique($affectedProductIds) as $pId) {
+            \App\Models\Erp\ErpProduct::syncBuyingPriceFromLatestApprovedPo($pId);
+        }
+
+        return redirect()->back()->with('success', 'Purchase Order has been cancelled successfully, and the budget has been refunded.');
+    }
+
+    private function deductBudget(ErpPurchaseOrder $purchaseOrder)
+    {
+        $purchaseOrder->load(['items.requestFormItem', 'requestForm']);
+        $rf = $purchaseOrder->requestForm;
+
+        foreach ($purchaseOrder->items as $poItem) {
+            $rfItem = $poItem->requestFormItem;
+            $itemCost = $poItem->total_cost ?: (($poItem->qty * $poItem->unit_cost) + ($poItem->tax ?? 0));
+            
+            $workItem = null;
+            if ($rfItem && $rfItem->work_item_id) {
+                $workItem = \App\Models\Erp\ErpWorkItem::find($rfItem->work_item_id);
+            } elseif ($rfItem && $rfItem->wid) {
+                $workItem = \App\Models\Erp\ErpWorkItem::where('wid_code', $rfItem->wid)->first();
+            } elseif ($rf && $rf->work_item_id) {
+                $workItem = \App\Models\Erp\ErpWorkItem::find($rf->work_item_id);
+            } elseif ($rf && $rf->project_code) {
+                $workItem = \App\Models\Erp\ErpWorkItem::where('wid_code', $rf->project_code)->first();
+            }
+
+            if ($workItem) {
+                $workItem->remaining_budget = max(0, $workItem->remaining_budget - $itemCost);
+                $workItem->save();
+            }
+        }
+    }
+
+    private function refundBudget(ErpPurchaseOrder $purchaseOrder)
+    {
+        $purchaseOrder->load(['items.requestFormItem', 'requestForm']);
+        $rf = $purchaseOrder->requestForm;
+
+        foreach ($purchaseOrder->items as $poItem) {
+            $rfItem = $poItem->requestFormItem;
+            $itemCost = $poItem->total_cost ?: (($poItem->qty * $poItem->unit_cost) + ($poItem->tax ?? 0));
+
+            $workItem = null;
+            if ($rfItem && $rfItem->work_item_id) {
+                $workItem = \App\Models\Erp\ErpWorkItem::find($rfItem->work_item_id);
+            } elseif ($rfItem && $rfItem->wid) {
+                $workItem = \App\Models\Erp\ErpWorkItem::where('wid_code', $rfItem->wid)->first();
+            } elseif ($rf && $rf->work_item_id) {
+                $workItem = \App\Models\Erp\ErpWorkItem::find($rf->work_item_id);
+            } elseif ($rf && $rf->project_code) {
+                $workItem = \App\Models\Erp\ErpWorkItem::where('wid_code', $rf->project_code)->first();
+            }
+
+            if ($workItem) {
+                $workItem->remaining_budget = min($workItem->allocated_budget, $workItem->remaining_budget + $itemCost);
+                $workItem->save();
+            }
+        }
     }
 }

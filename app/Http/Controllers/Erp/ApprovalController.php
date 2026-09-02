@@ -20,7 +20,19 @@ class ApprovalController extends Controller
             return redirect()->back()->with('error', 'Request Form tidak bisa disubmit karena belum ada item (RF Line) yang ditambahkan.');
         }
 
-        $configs = ErpApprovalConfig::where('record_type', $requestForm->record_type)
+        $isProject = $requestForm->record_type === 'project' ? 1 : 0;
+        $totalAmount = $requestForm->total_amount ?? 0;
+
+        $configs = ErpApprovalConfig::where('record_type', 'request_form')
+            ->where(function($q) use ($isProject) {
+                $q->whereNull('is_project')->orWhere('is_project', $isProject);
+            })
+            ->where(function($q) use ($totalAmount) {
+                $q->whereNull('min_amount')->orWhere('min_amount', '<=', $totalAmount);
+            })
+            ->where(function($q) use ($totalAmount) {
+                $q->whereNull('max_amount')->orWhere('max_amount', '>=', $totalAmount);
+            })
             ->orderBy('level')
             ->get();
 
@@ -57,9 +69,9 @@ class ApprovalController extends Controller
                 $isAuthorized = true;
             }
         } elseif ($approval->assigned_to_role_id) {
-            // Check if user has this role in the current tenant DB
+            // Check if user has this role in the current master DB
             // Using DB facade to avoid cross-connection relation issues just in case
-            $hasRole = \Illuminate\Support\Facades\DB::connection('tenant')
+            $hasRole = \Illuminate\Support\Facades\DB::connection('master')
                 ->table('role_user')
                 ->where('user_id', auth()->id())
                 ->where('role_id', $approval->assigned_to_role_id)
@@ -97,5 +109,61 @@ class ApprovalController extends Controller
         }
 
         return redirect()->back()->with('success', 'Approval berhasil disubmit.');
+    }
+
+    public function reject(Request $request, ErpApproval $approval)
+    {
+        // Validation for authorization
+        $isAuthorized = false;
+        
+        if (auth()->user()->hasRole('superadmin')) {
+            $isAuthorized = true;
+        } elseif ($approval->assigned_to_user_id) {
+            if (auth()->id() == $approval->assigned_to_user_id) {
+                $isAuthorized = true;
+            }
+        } elseif ($approval->assigned_to_role_id) {
+            $hasRole = \Illuminate\Support\Facades\DB::connection('master')
+                ->table('role_user')
+                ->where('user_id', auth()->id())
+                ->where('role_id', $approval->assigned_to_role_id)
+                ->exists();
+            if ($hasRole) {
+                $isAuthorized = true;
+            }
+        }
+
+        if (!$isAuthorized) {
+            return redirect()->back()->with('error', 'Anda tidak memiliki akses untuk menolak tahap ini.');
+        }
+
+        $request->validate([
+            'reason' => 'required|string|max:500',
+        ]);
+
+        \Illuminate\Support\Facades\DB::beginTransaction();
+        try {
+            $approval->update([
+                'status' => 'Rejected',
+                'comments' => $request->input('reason'),
+                'actual_approver_id' => auth()->id(),
+                'approved_at' => now(),
+            ]);
+
+            $requestForm = $approval->requestForm;
+
+            // Cancel any subsequent waiting steps
+            if ($requestForm) {
+                $requestForm->approvals()->where('status', 'Waiting')->update(['status' => 'Cancelled']);
+                $requestForm->update(['status' => 'Rejected']);
+            }
+
+            \Illuminate\Support\Facades\DB::commit();
+
+            return redirect()->back()->with('success', 'Request Form berhasil ditolak (Rejected).');
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            return redirect()->back()->with('error', 'Gagal menolak Request Form: ' . $e->getMessage());
+        }
     }
 }

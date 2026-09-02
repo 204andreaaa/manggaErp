@@ -15,7 +15,7 @@ class ErpSupplierController extends Controller
 {
     public function index()
     {
-        abort_unless(auth()->user()->hasPermission('supplier.view'), 403);
+        abort_unless(auth()->user()->hasRole(['procurement', 'finance', 'superadmin', 'ceo', 'admin_project', 'logistik']) || auth()->user()->hasPermission('supplier.view'), 403);
 
         $nextSupplierCode = $this->generateNextCode();
         $paymentTerms = ErpPaymentTerm::where('is_active', true)->get();
@@ -126,7 +126,7 @@ class ErpSupplierController extends Controller
 
     public function store(Request $request)
     {
-        abort_unless(auth()->user()->hasPermission('supplier.create'), 403);
+        abort_unless(auth()->user()->hasRole(['procurement', 'superadmin']) || auth()->user()->hasPermission('supplier.create'), 403);
 
         $code = strtoupper(trim((string) $request->input('supplier_code', '')));
         if ($code === '') $code = $this->generateNextCode();
@@ -162,7 +162,7 @@ class ErpSupplierController extends Controller
 
     public function show(ErpSupplier $supplier)
     {
-        abort_unless(auth()->user()->hasPermission('supplier.view'), 403);
+        abort_unless(auth()->user()->hasRole(['procurement', 'finance', 'superadmin', 'ceo', 'admin_project', 'logistik']) || auth()->user()->hasPermission('supplier.view'), 403);
 
         $supplier->load(['contacts', 'attachments', 'paymentTerm']);
         $paymentTerms = ErpPaymentTerm::where('is_active', true)->get();
@@ -173,7 +173,7 @@ class ErpSupplierController extends Controller
 
     public function update(Request $request, ErpSupplier $supplier)
     {
-        abort_unless(auth()->user()->hasPermission('supplier.update'), 403);
+        abort_unless(auth()->user()->hasRole(['procurement', 'superadmin']) || auth()->user()->hasPermission('supplier.update'), 403);
 
         $code = strtoupper(trim((string) $request->input('supplier_code', '')));
         if ($code === '') $code = $supplier->supplier_code;
@@ -217,7 +217,7 @@ class ErpSupplierController extends Controller
 
     public function destroy(ErpSupplier $supplier)
     {
-        abort_unless(auth()->user()->hasPermission('supplier.delete'), 403);
+        abort_unless(auth()->user()->hasRole(['procurement', 'superadmin']) || auth()->user()->hasPermission('supplier.delete'), 403);
 
         $supplier->delete();
 

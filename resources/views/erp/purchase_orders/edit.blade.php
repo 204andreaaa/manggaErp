@@ -342,7 +342,9 @@
     <div class="card-footer bg-light border-top py-3 px-4 d-flex align-items-center justify-content-between">
       <a href="{{ route('erp.purchase-orders.show', $purchaseOrder) }}" class="btn btn-label-secondary">Cancel</a>
       <div class="d-flex align-items-center gap-2">
-        <button type="submit" class="btn btn-primary px-4 shadow-sm">
+        <button type="button" class="btn btn-outline-primary" id="btnPrev" style="display: none;" onclick="navigateTab(-1)"><i class="bx bx-chevron-left me-1"></i>Previous</button>
+        <button type="button" class="btn btn-primary px-4 shadow-sm" id="btnNext" onclick="navigateTab(1)">Next Step<i class="bx bx-chevron-right ms-1"></i></button>
+        <button type="submit" class="btn btn-success px-4 shadow-sm" id="btnSubmit" style="display: none;">
           <i class="bx bx-check-circle me-1"></i>Update PO Request
         </button>
       </div>
@@ -351,6 +353,39 @@
 </div>
 
 <script>
+  const tabs = ['tab-supplier-btn', 'tab-delivery-btn', 'tab-items-btn', 'tab-attachments-btn'];
+  let currentTabIndex = 0;
+
+  function updateFooterButtons() {
+    document.getElementById('btnPrev').style.display = currentTabIndex === 0 ? 'none' : 'inline-block';
+    if (currentTabIndex === tabs.length - 1) {
+      document.getElementById('btnNext').style.display = 'none';
+      document.getElementById('btnSubmit').style.display = 'inline-block';
+    } else {
+      document.getElementById('btnNext').style.display = 'inline-block';
+      document.getElementById('btnSubmit').style.display = 'none';
+    }
+  }
+
+  function navigateTab(direction) {
+    currentTabIndex += direction;
+    if (currentTabIndex < 0) currentTabIndex = 0;
+    if (currentTabIndex >= tabs.length) currentTabIndex = tabs.length - 1;
+    
+    const tabElement = document.getElementById(tabs[currentTabIndex]);
+    const tab = new bootstrap.Tab(tabElement);
+    tab.show();
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    // Listen to tab clicks so buttons update if user clicks tabs directly
+    document.querySelectorAll('button[data-bs-toggle="tab"]').forEach((tabBtn, index) => {
+      tabBtn.addEventListener('shown.bs.tab', () => {
+        currentTabIndex = index;
+        updateFooterButtons();
+      });
+    });
+    updateFooterButtons();
   function removeRow(idx) {
     const row = document.querySelector(`tr[data-row="${idx}"]`);
     if (row) {

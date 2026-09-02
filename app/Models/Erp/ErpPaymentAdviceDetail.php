@@ -18,6 +18,9 @@ class ErpPaymentAdviceDetail extends Model
         'created_date_sid',
         'approved_date',
         'date_paid',
+        'invoice_no',
+        'invoice_attachment',
+        'payment_receipt',
         'payment_amount',
         'payment_amount_with_tax',
         'payment_method',
@@ -51,4 +54,28 @@ class ErpPaymentAdviceDetail extends Model
     {
         return $this->belongsTo(ErpGoodsReceipt::class, 'erp_goods_receipt_id');
     }
+
+    public function approvals()
+    {
+        return $this->hasMany(ErpApproval::class, 'payment_advice_detail_id');
+    }
+
+    public function previousUnapprovedDetail()
+    {
+        $allDetails = self::where('erp_payment_advice_id', $this->erp_payment_advice_id)
+            ->orderBy('id', 'asc')
+            ->get();
+
+        foreach ($allDetails as $prev) {
+            if ($prev->id === $this->id) {
+                return null;
+            }
+            if ($prev->approval_status !== 'Approved') {
+                return $prev;
+            }
+        }
+
+        return null;
+    }
 }
+

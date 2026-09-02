@@ -32,6 +32,8 @@ class SyncErpStocksCommand extends Command
                 ErpTenantManager::switchToProject($project);
 
                 // Clear or recalculate erp_stocks based on Received Goods Receipts
+                ErpStock::truncate();
+
                 $receivedGrs = ErpGoodsReceipt::with(['items.requestFormItem.erpProduct', 'purchaseOrder'])
                     ->where('status', 'Received')
                     ->get();
@@ -65,10 +67,12 @@ class SyncErpStocksCommand extends Command
                         $isPhysical = $product ? ($product->is_physical ?? true) : false;
 
                         if ($product && $isPhysical && $grItem->received_qty > 0) {
+                            $supplierId = $po?->supplier_id;
                             $stock = ErpStock::firstOrCreate(
                                 [
                                     'erp_product_id' => $product->id,
                                     'erp_warehouse_id' => $warehouseId,
+                                    'erp_supplier_id' => $supplierId,
                                 ],
                                 ['qty_on_hand' => 0]
                             );

@@ -224,6 +224,36 @@
             function renderNotifItem(n) {
                 // Mapping Type ke Icon & Warna ala Dashboard Premium
                 const config = {
+                    'po_approval_needed': {
+                        icon: 'bx-check-shield',
+                        color: 'bg-label-warning',
+                        text: 'text-warning'
+                    },
+                    'rf_approval_needed': {
+                        icon: 'bx-file',
+                        color: 'bg-label-primary',
+                        text: 'text-primary'
+                    },
+                    'pa_approval_needed': {
+                        icon: 'bx-credit-card',
+                        color: 'bg-label-success',
+                        text: 'text-success'
+                    },
+                    'gr_ready': {
+                        icon: 'bx-truck',
+                        color: 'bg-label-info',
+                        text: 'text-info'
+                    },
+                    'po_approved': {
+                        icon: 'bx-check-circle',
+                        color: 'bg-label-success',
+                        text: 'text-success'
+                    },
+                    'po_rejected': {
+                        icon: 'bx-error-circle',
+                        color: 'bg-label-danger',
+                        text: 'text-danger'
+                    },
                     'stock_request_approved': {
                         icon: 'bx-check-circle',
                         color: 'bg-label-success',
@@ -239,38 +269,8 @@
                         color: 'bg-label-primary',
                         text: 'text-primary'
                     },
-                    'handover_payment_rejected': {
-                        icon: 'bx-x-circle',
-                        color: 'bg-label-danger',
-                        text: 'text-danger'
-                    },
-                    'handover_payment_submitted': {
-                        icon: 'bx-dollar-circle',
-                        color: 'bg-label-info',
-                        text: 'text-info'
-                    },
-                    'new_return': {
-                        icon: 'bx-redo',
-                        color: 'bg-label-warning',
-                        text: 'text-warning'
-                    },
-                    'new_settlement_submitted': {
-                        icon: 'bx-wallet',
-                        color: 'bg-label-success',
-                        text: 'text-success'
-                    },
-                    'return_rejected': {
-                        icon: 'bx-undo',
-                        color: 'bg-label-danger',
-                        text: 'text-danger'
-                    },
-                    'warehouse_transfer': {
-                        icon: 'bx-transfer',
-                        color: 'bg-label-info',
-                        text: 'text-info'
-                    },
                     'default': {
-                        icon: 'bx-notification',
+                        icon: 'bx-bell',
                         color: 'bg-label-secondary',
                         text: 'text-secondary'
                     }
@@ -280,6 +280,7 @@
 
                 return `
                 <li class="list-group-item list-group-item-action dropdown-notifications-item ${n.is_read ? '' : 'unread'}" 
+                    style="cursor: pointer;"
                     onclick="handleNotifClick('${n.id}', '${n.url}')">
                     <div class="d-flex align-items-center position-relative">
                         ${!n.is_read ? '<span class="notif-dot"></span>' : ''}
@@ -292,7 +293,7 @@
                         <div class="flex-grow-1 overflow-hidden">
                             <h6 class="mb-0 text-truncate" style="font-size:13px; font-weight: ${n.is_read ? '400' : '600'}">${n.title}</h6>
                             <p class="mb-0 text-muted text-truncate" style="font-size:12px">${n.body || ''}</p>
-                            <small class="text-muted" style="font-size:11px">${n.time_ago}</small>
+                            <small class="text-muted" style="font-size:11px">${n.created_at || n.time_ago || 'Baru saja'}</small>
                         </div>
                     </div>
                 </li>

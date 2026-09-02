@@ -13,6 +13,8 @@ class AppFreshCommand extends Command
 
     public function handle(): int
     {
+        $this->ensureDatabasesExist();
+
         $this->info('1. Running master database fresh migration...');
         Artisan::call('migrate:fresh', [
             '--database' => 'master',
@@ -45,5 +47,26 @@ class AppFreshCommand extends Command
 
         $this->info('All migrations & seeders completed successfully!');
         return self::SUCCESS;
+    }
+
+    private function ensureDatabasesExist(): void
+    {
+        $masterDb = config('database.connections.master.database', 'mandau_master');
+        $tenantDb = config('database.connections.tenant.database', 'mandau_db');
+
+        $host = config('database.connections.mysql.host', '127.0.0.1');
+        $port = config('database.connections.mysql.port', '3306');
+        $user = config('database.connections.mysql.username', 'root');
+        $pass = config('database.connections.mysql.password', '');
+
+        try {
+            $pdo = new \PDO("mysql:host={$host};port={$port}", $user, $pass);
+            $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+            $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$masterDb}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+            $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$tenantDb}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+            $this->info("✓ Databases `{$masterDb}` and `{$tenantDb}` checked & ready!");
+        } catch (\Exception $e) {
+            $this->warn("Note: " . $e->getMessage());
+        }
     }
 }

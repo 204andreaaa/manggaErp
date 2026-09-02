@@ -76,6 +76,16 @@
           <input type="text" class="form-control bg-light rounded-3" value="{{ $purchaseOrder->address ?: '-' }}" readonly>
         </div>
 
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Sending Contact (Vendor / Kurir PIC)</label>
+          <input type="text" name="sending_contact" class="form-control rounded-3" value="{{ old('sending_contact', $purchaseOrder->contact_person ?: $purchaseOrder->supplier?->contact_person) }}" placeholder="e.g. PIC Pengirim Vendor / Ekspedisi">
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Receiving Contact (Penerima Gudang / GA)</label>
+          <input type="text" name="receiving_contact" class="form-control rounded-3" value="{{ old('receiving_contact', auth()->user()->name ?: ($purchaseOrder->warehouse?->pic ?: 'Penerima Barang')) }}" placeholder="e.g. PIC Penerima Gudang">
+        </div>
+
         <div class="col-md-4">
           <label class="form-label fw-semibold">DO Date <span class="text-danger">*</span></label>
           <input type="date" name="date" class="form-control rounded-3 @error('date') is-invalid @enderror" value="{{ old('date', date('Y-m-d')) }}" required>
@@ -101,9 +111,11 @@
               <th>Product Name</th>
               <th>Description</th>
               <th>UOM</th>
-              <th style="width: 130px;" class="text-end">Required Qty</th>
-              <th style="width: 140px;" class="text-end">Delivered Qty <span class="text-danger">*</span></th>
-              <th style="width: 140px;" class="text-end">Received Qty <span class="text-danger">*</span></th>
+              <th style="width: 110px;" class="text-end">Ordered Qty</th>
+              <th style="width: 110px;" class="text-end">Prev. Received</th>
+              <th style="width: 110px;" class="text-end">Remaining</th>
+              <th style="width: 130px;" class="text-end">Delivered Qty <span class="text-danger">*</span></th>
+              <th style="width: 130px;" class="text-end">Received Qty <span class="text-danger">*</span></th>
             </tr>
           </thead>
           <tbody>
@@ -113,6 +125,8 @@
                 $prodName = $rfItem?->product_name ?: 'Product Item';
                 $prodDesc = $rfItem?->product_description ?: ($item->remarks ?: '-');
                 $uomName = $rfItem?->erpProduct?->uom?->uom_name ?: ($rfItem?->erpProduct?->uom?->name ?: 'PCS');
+                $prevReceived = $item->received_qty;
+                $remaining = $item->remaining_qty;
               @endphp
               <tr>
                 <td>
@@ -122,12 +136,20 @@
                 </td>
                 <td class="small text-muted">{{ $prodDesc }}</td>
                 <td><span class="badge bg-label-secondary">{{ $uomName }}</span></td>
-                <td class="text-end fw-bold text-dark">{{ number_format($item->qty, 2, ',', '.') }}</td>
-                <td class="text-end">
-                  <input type="number" step="0.01" name="items[{{ $index }}][delivered_qty]" class="form-control form-control-sm rounded-2 text-end fw-bold" value="{{ old('items.'.$index.'.delivered_qty', $item->qty) }}" required min="0">
+                <td class="text-end fw-semibold text-muted">{{ number_format($item->qty, 2, ',', '.') }}</td>
+                <td class="text-end fw-semibold text-info">{{ number_format($prevReceived, 2, ',', '.') }}</td>
+                <td class="text-end fw-bold text-primary">
+                  @if($remaining <= 0)
+                    <span class="badge bg-label-success">Complete</span>
+                  @else
+                    {{ number_format($remaining, 2, ',', '.') }}
+                  @endif
                 </td>
                 <td class="text-end">
-                  <input type="number" step="0.01" name="items[{{ $index }}][received_qty]" class="form-control form-control-sm rounded-2 text-end fw-bold text-success border-success" value="{{ old('items.'.$index.'.received_qty', $item->qty) }}" required min="0">
+                  <input type="number" step="0.01" name="items[{{ $index }}][delivered_qty]" class="form-control form-control-sm rounded-2 text-end fw-bold" value="{{ old('items.'.$index.'.delivered_qty', $remaining) }}" required min="0" max="{{ $remaining }}">
+                </td>
+                <td class="text-end">
+                  <input type="number" step="0.01" name="items[{{ $index }}][received_qty]" class="form-control form-control-sm rounded-2 text-end fw-bold text-success border-success" value="{{ old('items.'.$index.'.received_qty', $remaining) }}" required min="0" max="{{ $remaining }}">
                 </td>
               </tr>
             @endforeach

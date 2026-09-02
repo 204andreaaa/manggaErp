@@ -32,7 +32,7 @@
   <div class="d-flex align-items-center justify-content-between mb-4">
     <div>
       <h4 class="mb-1 fw-bold">Approval Configuration</h4>
-      <div class="text-muted small">Manage Request Form Approval Workflows</div>
+      <div class="text-muted small">Manage ERP Approval Workflows</div>
     </div>
     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addConfigModal">
       <i class="bx bx-plus me-1"></i> Add Step
@@ -40,34 +40,47 @@
   </div>
 
   <div class="row g-4">
-    <!-- Project Configs -->
-    <div class="col-md-6">
+    
+    <!-- Request Form Configs -->
+    <div class="col-12">
       <div class="card h-100">
         <div class="card-header border-bottom py-3 d-flex justify-content-between align-items-center">
-          <h6 class="mb-0 fw-bold text-primary"><i class="bx bx-buildings me-2"></i>Project RF Approval</h6>
+          <h6 class="mb-0 fw-bold text-primary"><i class="bx bx-file me-2"></i>Request Form Approval Workflow</h6>
         </div>
         <div class="table-responsive">
-          <table class="table table-sm align-middle mb-0">
+          <table class="table table-sm table-hover align-middle mb-0">
             <thead class="table-light">
               <tr>
-                <th>Level</th>
+                <th>Level / Step</th>
                 <th>Name</th>
                 <th>Assigned To</th>
+                <th>Conditions</th>
                 <th class="text-end">Action</th>
               </tr>
             </thead>
             <tbody>
-              @forelse($projectConfigs as $config)
+              @forelse($rfConfigs as $config)
                 <tr>
                   <td><span class="badge bg-label-primary">Step {{ $config->level }}</span></td>
                   <td class="fw-semibold">{{ $config->name }}</td>
                   <td>
-                    @if($config->role_id)
-                      Role: <span class="fw-bold">{{ $config->role->name }}</span>
-                    @elseif($config->user_id)
-                      User: <span class="fw-bold">{{ $config->user->name }}</span>
+                    User: <span class="fw-bold">{{ $config->user->name ?? "-" }}</span>
+                  </td>
+                  <td>
+                    @if(!is_null($config->is_project))
+                      <span class="badge bg-label-secondary me-1">
+                        {{ $config->is_project ? 'Project Only' : 'Non-Project Only' }}
+                      </span>
                     @else
-                      -
+                      <span class="badge bg-label-secondary me-1">All Types</span>
+                    @endif
+                    @if($config->min_amount || $config->max_amount)
+                      <span class="text-muted small d-block mt-1">
+                        Amount: 
+                        {{ $config->min_amount ? number_format($config->min_amount, 0, ',', '.') : '0' }}
+                        - 
+                        {{ $config->max_amount ? number_format($config->max_amount, 0, ',', '.') : '∞' }}
+                      </span>
                     @endif
                   </td>
                   <td class="text-end">
@@ -79,7 +92,7 @@
                   </td>
                 </tr>
               @empty
-                <tr><td colspan="4" class="text-center text-muted py-4">No configuration found</td></tr>
+                <tr><td colspan="5" class="text-center text-muted py-4">No configuration found</td></tr>
               @endforelse
             </tbody>
           </table>
@@ -87,34 +100,46 @@
       </div>
     </div>
 
-    <!-- Non-Project Configs -->
-    <div class="col-md-6">
+    <!-- Purchase Order Configs -->
+    <div class="col-12">
       <div class="card h-100">
         <div class="card-header border-bottom py-3 d-flex justify-content-between align-items-center">
-          <h6 class="mb-0 fw-bold text-success"><i class="bx bx-shopping-bag me-2"></i>Non-Project RF Approval</h6>
+          <h6 class="mb-0 fw-bold text-success"><i class="bx bx-cart me-2"></i>Purchase Order Approval Workflow</h6>
         </div>
         <div class="table-responsive">
-          <table class="table table-sm align-middle mb-0">
+          <table class="table table-sm table-hover align-middle mb-0">
             <thead class="table-light">
               <tr>
-                <th>Level</th>
+                <th>Level / Step</th>
                 <th>Name</th>
                 <th>Assigned To</th>
+                <th>Conditions</th>
                 <th class="text-end">Action</th>
               </tr>
             </thead>
             <tbody>
-              @forelse($nonProjectConfigs as $config)
+              @forelse($poConfigs as $config)
                 <tr>
                   <td><span class="badge bg-label-success">Step {{ $config->level }}</span></td>
                   <td class="fw-semibold">{{ $config->name }}</td>
                   <td>
-                    @if($config->role_id)
-                      Role: <span class="fw-bold">{{ $config->role->name }}</span>
-                    @elseif($config->user_id)
-                      User: <span class="fw-bold">{{ $config->user->name }}</span>
+                    User: <span class="fw-bold">{{ $config->user->name ?? "-" }}</span>
+                  </td>
+                  <td>
+                    @if(!is_null($config->is_project))
+                      <span class="badge bg-label-secondary me-1">
+                        {{ $config->is_project ? 'Project Only' : 'Non-Project Only' }}
+                      </span>
                     @else
-                      -
+                      <span class="badge bg-label-secondary me-1">All Types</span>
+                    @endif
+                    @if($config->min_amount || $config->max_amount)
+                      <span class="text-muted small d-block mt-1">
+                        Amount: 
+                        {{ $config->min_amount ? number_format($config->min_amount, 0, ',', '.') : '0' }}
+                        - 
+                        {{ $config->max_amount ? number_format($config->max_amount, 0, ',', '.') : '∞' }}
+                      </span>
                     @endif
                   </td>
                   <td class="text-end">
@@ -126,44 +151,54 @@
                   </td>
                 </tr>
               @empty
-                <tr><td colspan="4" class="text-center text-muted py-4">No configuration found</td></tr>
+                <tr><td colspan="5" class="text-center text-muted py-4">No configuration found</td></tr>
               @endforelse
             </tbody>
           </table>
         </div>
       </div>
     </div>
-  </div>
 
-  <div class="row g-4 mt-1">
-    <!-- PO Low Configs (<= 1M) -->
-    <div class="col-md-6">
+    <!-- Payment Advice Configs -->
+    <div class="col-12">
       <div class="card h-100">
         <div class="card-header border-bottom py-3 d-flex justify-content-between align-items-center">
-          <h6 class="mb-0 fw-bold text-info"><i class="bx bx-receipt me-2"></i>PO Approval (<= 1M)</h6>
+          <h6 class="mb-0 fw-bold text-info"><i class="bx bx-receipt me-2"></i>Payment Advice Approval Workflow</h6>
         </div>
         <div class="table-responsive">
-          <table class="table table-sm align-middle mb-0">
+          <table class="table table-sm table-hover align-middle mb-0">
             <thead class="table-light">
               <tr>
-                <th>Level</th>
+                <th>Level / Step</th>
                 <th>Name</th>
                 <th>Assigned To</th>
+                <th>Conditions</th>
                 <th class="text-end">Action</th>
               </tr>
             </thead>
             <tbody>
-              @forelse($poLowConfigs as $config)
+              @forelse($paConfigs as $config)
                 <tr>
                   <td><span class="badge bg-label-info">Step {{ $config->level }}</span></td>
                   <td class="fw-semibold">{{ $config->name }}</td>
                   <td>
-                    @if($config->role_id)
-                      Role: <span class="fw-bold">{{ $config->role->name }}</span>
-                    @elseif($config->user_id)
-                      User: <span class="fw-bold">{{ $config->user->name }}</span>
+                    User: <span class="fw-bold">{{ $config->user->name ?? "-" }}</span>
+                  </td>
+                  <td>
+                    @if(!is_null($config->is_project))
+                      <span class="badge bg-label-secondary me-1">
+                        {{ $config->is_project ? 'Project Only' : 'Non-Project Only' }}
+                      </span>
                     @else
-                      -
+                      <span class="badge bg-label-secondary me-1">All Types</span>
+                    @endif
+                    @if($config->min_amount || $config->max_amount)
+                      <span class="text-muted small d-block mt-1">
+                        Amount: 
+                        {{ $config->min_amount ? number_format($config->min_amount, 0, ',', '.') : '0' }}
+                        - 
+                        {{ $config->max_amount ? number_format($config->max_amount, 0, ',', '.') : '∞' }}
+                      </span>
                     @endif
                   </td>
                   <td class="text-end">
@@ -175,7 +210,7 @@
                   </td>
                 </tr>
               @empty
-                <tr><td colspan="4" class="text-center text-muted py-4">No configuration found</td></tr>
+                <tr><td colspan="5" class="text-center text-muted py-4">No configuration found</td></tr>
               @endforelse
             </tbody>
           </table>
@@ -183,38 +218,44 @@
       </div>
     </div>
 
-    <!-- PO High Configs (> 1M) -->
-    <div class="col-md-6">
-      <div class="card h-100">
-        <div class="card-header border-bottom py-3 d-flex justify-content-between align-items-center">
-          <h6 class="mb-0 fw-bold text-danger"><i class="bx bx-badge-check me-2"></i>PO Approval (> 1M)</h6>
+    <!-- Document Verification Configs (PO & GR) -->
+    <div class="col-12">
+      <div class="card h-100 border border-primary border-opacity-25 shadow-sm">
+        <div class="card-header border-bottom py-3 bg-primary bg-opacity-10 d-flex justify-content-between align-items-center">
+          <h6 class="mb-0 fw-bold text-primary"><i class="bx bx-shield-quarter me-2"></i>Document Verification Workflows (PO & Goods Receipt)</h6>
+          <span class="badge bg-primary">Operational Verifiers</span>
         </div>
         <div class="table-responsive">
-          <table class="table table-sm align-middle mb-0">
+          <table class="table table-sm table-hover align-middle mb-0">
             <thead class="table-light">
               <tr>
-                <th>Level</th>
-                <th>Name</th>
-                <th>Assigned To</th>
+                <th>Workflow Module</th>
+                <th>Verification Name</th>
+                <th>Assigned Verifier</th>
+                <th>Target Document</th>
                 <th class="text-end">Action</th>
               </tr>
             </thead>
             <tbody>
-              @forelse($poHighConfigs as $config)
+              {{-- PO Verification --}}
+              @forelse($poVerifConfigs as $config)
                 <tr>
-                  <td><span class="badge bg-label-danger">Step {{ $config->level }}</span></td>
-                  <td class="fw-semibold">{{ $config->name }}</td>
+                  <td><span class="badge bg-label-warning"><i class="bx bx-cart me-1"></i>Procurement PO</span></td>
+                  <td class="fw-bold text-dark">{{ $config->name }}</td>
                   <td>
-                    @if($config->role_id)
-                      Role: <span class="fw-bold">{{ $config->role->name }}</span>
-                    @elseif($config->user_id)
-                      User: <span class="fw-bold">{{ $config->user->name }}</span>
-                    @else
-                      -
-                    @endif
+                    <div class="d-flex align-items-center">
+                      <div class="avatar avatar-xs me-2">
+                        <span class="avatar-initial rounded-circle bg-label-primary"><i class="bx bx-user"></i></span>
+                      </div>
+                      <div>
+                        <span class="fw-bold text-dark">{{ $config->user->name ?? '-' }}</span>
+                        <div class="text-muted small">{{ $config->user->email ?? '' }}</div>
+                      </div>
+                    </div>
                   </td>
+                  <td><span class="badge bg-label-secondary">Draft Purchase Order (Before Approval)</span></td>
                   <td class="text-end">
-                    <form action="{{ route('erp.approval-configs.destroy', $config) }}" method="POST" onsubmit="return confirm('Hapus konfigurasi ini?');">
+                    <form action="{{ route('erp.approval-configs.destroy', $config) }}" method="POST" onsubmit="return confirm('Hapus konfigurasi verifikator PO ini?');">
                       @csrf
                       @method('DELETE')
                       <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bx bx-trash"></i></button>
@@ -222,82 +263,119 @@
                   </td>
                 </tr>
               @empty
-                <tr><td colspan="4" class="text-center text-muted py-4">No configuration found</td></tr>
+                <tr><td colspan="5" class="text-center text-muted py-3">Default Verifier: Head of Procurement (Febri Saputra)</td></tr>
+              @endforelse
+
+              {{-- GR Verification --}}
+              @forelse($grVerifConfigs as $config)
+                <tr>
+                  <td><span class="badge bg-label-info"><i class="bx bx-package me-1"></i>Warehouse GR / DO</span></td>
+                  <td class="fw-bold text-dark">{{ $config->name }}</td>
+                  <td>
+                    <div class="d-flex align-items-center">
+                      <div class="avatar avatar-xs me-2">
+                        <span class="avatar-initial rounded-circle bg-label-info"><i class="bx bx-user"></i></span>
+                      </div>
+                      <div>
+                        <span class="fw-bold text-dark">{{ $config->user->name ?? '-' }}</span>
+                        <div class="text-muted small">{{ $config->user->email ?? '' }}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td><span class="badge bg-label-secondary">Physical Goods Receipt & QC Gudang</span></td>
+                  <td class="text-end">
+                    <form action="{{ route('erp.approval-configs.destroy', $config) }}" method="POST" onsubmit="return confirm('Hapus konfigurasi verifikator GR ini?');">
+                      @csrf
+                      @method('DELETE')
+                      <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bx bx-trash"></i></button>
+                    </form>
+                  </td>
+                </tr>
+              @empty
+                <tr><td colspan="5" class="text-center text-muted py-3">Default Verifier: Logistik & Warehouse (Nikmal Hadi)</td></tr>
               @endforelse
             </tbody>
           </table>
         </div>
       </div>
     </div>
+
   </div>
 </div>
 
 <!-- Modal Add Config -->
 <div class="modal fade" id="addConfigModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <form action="{{ route('erp.approval-configs.store') }}" method="POST">
         @csrf
-        <div class="modal-header">
-          <h5 class="modal-title">Add Approval Step</h5>
+        <div class="modal-header bg-light">
+          <h5 class="modal-title fw-bold"><i class="bx bx-cog me-2"></i>Add Approval / Verification Configuration</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
-          <div class="mb-3">
-            <label class="form-label">Record Type <span class="text-danger">*</span></label>
-            <select name="record_type" class="form-select" required>
-              <option value="project">Project</option>
-              <option value="non_project">Non-Project</option>
-              <option value="purchase_order_low">PO Approval (<= 1M)</option>
-              <option value="purchase_order_high">PO Approval (> 1M)</option>
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Level / Step (Number) <span class="text-danger">*</span></label>
-            <input type="number" name="level" class="form-control" min="1" required placeholder="e.g. 1" readonly>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Name <span class="text-danger">*</span></label>
-            <input type="text" name="name" class="form-control" required placeholder="e.g. Manager Approval">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label fw-bold">Workflow Type <span class="text-danger">*</span></label>
+              <select name="record_type" class="form-select" required>
+                <optgroup label="Multi-Level Approvals">
+                  <option value="request_form">Request Form (RF)</option>
+                  <option value="purchase_order">Purchase Order (PO)</option>
+                  <option value="payment_advice">Payment Advice (PA)</option>
+                </optgroup>
+                <optgroup label="Document Verifications">
+                  <option value="po_verification">🛒 PO Procurement Verifier (Verifikasi PO)</option>
+                  <option value="gr_verification">📦 GR Physical QC Verifier (Verifikasi Fisik Gudang)</option>
+                </optgroup>
+              </select>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label fw-bold">Level / Step (Number) <span class="text-danger">*</span></label>
+              <input type="number" name="level" class="form-control" min="1" required placeholder="e.g. 1">
+            </div>
           </div>
           
           <div class="mb-3">
-            <label class="form-label d-block">Assignment Type <span class="text-danger">*</span></label>
-            <div class="form-check form-check-inline">
-              <input class="form-check-input" type="radio" name="assignment_type" id="assignRole" value="role" checked onchange="toggleAssignType()">
-              <label class="form-check-label" for="assignRole">Assign to a Role</label>
+            <label class="form-label">Name <span class="text-danger">*</span></label>
+            <input type="text" name="name" class="form-control" required placeholder="e.g. Finance Approval">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Assign to User <span class="text-danger">*</span></label>
+            <select name="user_id" class="form-select" required>
+              <option value="">-- Select User --</option>
+              @foreach($users as $u)
+                <option value="{{ $u->id }}">{{ $u->name }}</option>
+              @endforeach
+            </select>
+          </div>
+          
+          <hr>
+          <h6 class="fw-bold">Conditions (Optional)</h6>
+          
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Project Type</label>
+              <select name="is_project" class="form-select">
+                <option value="">All (Both)</option>
+                <option value="1">Project Only</option>
+                <option value="0">Non-Project Only</option>
+              </select>
             </div>
-            <div class="form-check form-check-inline">
-              <input class="form-check-input" type="radio" name="assignment_type" id="assignUser" value="user" onchange="toggleAssignType()">
-              <label class="form-check-label" for="assignUser">Assign to a Specific User</label>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Min Amount</label>
+              <input type="number" step="0.01" name="min_amount" class="form-control" placeholder="0">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Max Amount</label>
+              <input type="number" step="0.01" name="max_amount" class="form-control" placeholder="No limit">
             </div>
           </div>
 
-          <div class="mb-3" id="roleSelectWrapper">
-            <label class="form-label">Select Role</label>
-            <select name="role_id" class="form-select" id="roleSelect">
-              <option value="">-- Choose Role --</option>
-              @foreach($roles as $role)
-                <option value="{{ $role->id }}">{{ $role->name }}</option>
-              @endforeach
-            </select>
-            <small class="text-muted d-block mt-1">Siapapun yang memiliki peran ini berhak untuk menyetujui.</small>
-          </div>
-
-          <div class="mb-3 d-none" id="userSelectWrapper">
-            <label class="form-label">Select User</label>
-            <select name="user_id" class="form-select" id="userSelect">
-              <option value="">-- Choose User --</option>
-              @foreach($users as $user)
-                <option value="{{ $user->id }}">{{ $user->name }} - {{ ucwords(str_replace('_', ' ', $user->project_role ?? '')) }}</option>
-              @endforeach
-            </select>
-            <small class="text-muted d-block mt-1">Hanya orang spesifik ini yang berhak untuk menyetujui.</small>
-          </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-primary">Save Step</button>
+          <button type="submit" class="btn btn-primary">Save Configuration</button>
         </div>
       </form>
     </div>
@@ -305,57 +383,28 @@
 </div>
 @endsection
 
-@push('scripts')
+@section('scripts')
 <script>
-function toggleAssignType() {
-  const isRole = document.getElementById('assignRole').checked;
-  const roleSelectWrapper = document.getElementById('roleSelectWrapper');
-  const userSelectWrapper = document.getElementById('userSelectWrapper');
-  const roleSelect = document.getElementById('roleSelect');
-  const userSelect = document.getElementById('userSelect');
-
-  if (isRole) {
-    roleSelectWrapper.classList.remove('d-none');
-    userSelectWrapper.classList.add('d-none');
-    userSelect.value = ''; // Reset user
-  } else {
-    userSelectWrapper.classList.remove('d-none');
-    roleSelectWrapper.classList.add('d-none');
-    roleSelect.value = ''; // Reset role
-  }
-}
-
-// Auto-fill level based on record_type
 document.addEventListener('DOMContentLoaded', function() {
-    const projectCount = {{ $projectConfigs->count() }};
-    const nonProjectCount = {{ $nonProjectConfigs->count() }};
-    const poLowCount = {{ $poLowConfigs->count() }};
-    const poHighCount = {{ $poHighConfigs->count() }};
-    const recordTypeSelect = document.querySelector('[name="record_type"]');
-    const levelInput = document.querySelector('[name="level"]');
- 
-    function updateLevel() {
-        const val = recordTypeSelect.value;
-        if (val === 'project') {
-            levelInput.value = projectCount + 1;
-        } else if (val === 'non_project') {
-            levelInput.value = nonProjectCount + 1;
-        } else if (val === 'purchase_order_low') {
-            levelInput.value = poLowCount + 1;
-        } else if (val === 'purchase_order_high') {
-            levelInput.value = poHighCount + 1;
-        }
-    }
-
-    recordTypeSelect.addEventListener('change', updateLevel);
+    const maxLevels = @json($maxLevels);
     
-    // Auto-fill when modal is opened
-    const addConfigModal = document.getElementById('addConfigModal');
-    if(addConfigModal) {
-        addConfigModal.addEventListener('show.bs.modal', function () {
-            updateLevel();
-        });
-    }
+    
+    const recordTypeSelect = document.querySelector('select[name="record_type"]');
+    const levelInput = document.querySelector('input[name="level"]');
+    
+    const userSelect = document.querySelector('select[name="user_id"]');
+    
+    // Auto-calculate level on change
+    recordTypeSelect.addEventListener('change', function() {
+        const selectedType = this.value;
+        const currentMax = maxLevels[selectedType] || 0;
+        levelInput.value = currentMax + 1;
+    });
+
+    // Initialize level on load
+    recordTypeSelect.dispatchEvent(new Event('change'));
+
+    });
 });
 </script>
-@endpush
+@endsection

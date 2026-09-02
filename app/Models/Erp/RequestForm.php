@@ -34,6 +34,8 @@ class RequestForm extends Model
         'expense_other',
         'expense_utilities',
         'rf_for',
+        'is_project',
+        'work_item_id',
     ];
 
     protected $casts = [
@@ -47,7 +49,13 @@ class RequestForm extends Model
         'expense_office' => 'boolean',
         'expense_other' => 'boolean',
         'expense_utilities' => 'boolean',
+        'is_project' => 'boolean',
     ];
+
+    public function workItem()
+    {
+        return $this->belongsTo(ErpWorkItem::class, 'work_item_id');
+    }
 
     public function items()
     {

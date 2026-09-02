@@ -6,27 +6,11 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
 use App\Models\Role;
-use App\Models\Warehouse;
 
 class UserSeeder extends Seeder
 {
     public function run(): void
     {
-        /*
-        |--------------------------------------------------------------------------
-        | WAREHOUSES
-        |--------------------------------------------------------------------------
-        */
-        $wh1 = Warehouse::updateOrCreate(
-            ['warehouse_code' => 'DEPO-BUKITTINGGI'],
-            ['warehouse_name' => 'DEPO BUKITTINGGI']
-        );
-
-        $wh2 = Warehouse::updateOrCreate(
-            ['warehouse_code' => 'DEPO-PADANG'],
-            ['warehouse_name' => 'DEPO PADANG']
-        );
-
         $roles = Role::pluck('id','slug');
 
         /*
@@ -54,38 +38,41 @@ class UserSeeder extends Seeder
 
         /*
         |--------------------------------------------------------------------------
-        | OTHER USERS
+        | OTHER ERP ROLE USERS
         |--------------------------------------------------------------------------
+        | Standard ERP Test Accounts
         */
 
         $users = [
-            ['email'=>'wh_bukittinggi@local','username'=>'wh_bukittinggi','name'=>'Admin DEPO Bukittinggi','position'=>'Warehouse Admin','signature'=>'ImageAsset/3.jpg','role'=>'warehouse','warehouse'=>$wh1],
-            ['email'=>'wh_padang@local','username'=>'wh_padang','name'=>'Admin DEPO Padang','position'=>'Warehouse Admin','signature'=>'ImageAsset/3.jpg','role'=>'warehouse','warehouse'=>$wh2],
-            ['email'=>'sales_bukittinggi@local','username'=>'sales_bukittinggi','name'=>'Sales DEPO Bukittinggi','position'=>'Sales','signature'=>'ImageAsset/5.jpg','role'=>'sales','warehouse'=>$wh1],
-            ['email'=>'sales_padang@local','username'=>'sales_padang','name'=>'Sales DEPO Padang','position'=>'Sales','signature'=>'ImageAsset/5.jpg','role'=>'sales','warehouse'=>$wh2],
-            ['email'=>'sales_padang@loscal','username'=>'Rudi','name'=>'Sales Padang Rudi','position'=>'Sales','signature'=>'ImageAsset/5.jpg','role'=>'sales','warehouse'=>$wh2],
-            ['email'=>'procurement@local','username'=>'procurement','name'=>'User Procurement','position'=>'Procurement','signature'=>'ImageAsset/4.jpg','role'=>'procurement','warehouse'=>null],
-            ['email'=>'ceo@local','username'=>'ceo','name'=>'Chief Executive Officer','position'=>'CEO','signature'=>'ImageAsset/1.jpg','role'=>'ceo','warehouse'=>null],
+            ['email'=>'project@local','username'=>'admin_project','name'=>'Admin Project Mandau','position'=>'Admin Project','signature'=>'ImageAsset/1.jpg','role'=>'admin-project','phone'=>'081200000002'],
+            ['email'=>'nikmal@example.com','username'=>'nikmal','name'=>'Nikmal Hadi','position'=>'Logistik & Gudang','signature'=>'ImageAsset/3.jpg','role'=>'logistik','phone'=>'081200000003'],
+            ['email'=>'ga@local','username'=>'ga_budi','name'=>'Budi Santoso (GA)','position'=>'General Affair','signature'=>'ImageAsset/3.jpg','role'=>'general-affair','phone'=>'081200000004'],
+            ['email'=>'silmi@local.com','username'=>'silmi','name'=>'Silmi','position'=>'Staff Procurement','signature'=>'ImageAsset/4.jpg','role'=>'procurement','phone'=>'081200000005'],
+            ['email'=>'febri@local.com','username'=>'febri','name'=>'Febri Saputra','position'=>'Head of Procurement','signature'=>'ImageAsset/4.jpg','role'=>'procurement','phone'=>'081200000006'],
+            ['email'=>'lilu@local.com','username'=>'lilu','name'=>'Lilu','position'=>'Staff Finance','signature'=>'ImageAsset/2.jpg','role'=>'finance','phone'=>'081200000007'],
+            ['email'=>'melvien@example.com','username'=>'melvien','name'=>'Melvien Welang','position'=>'Finance Manager','signature'=>'ImageAsset/2.jpg','role'=>'finance','phone'=>'081200000008'],
+            ['email'=>'barry@local.com','username'=>'barry','name'=>'Barry Japadarmawan','position'=>'Chief Executive Officer','signature'=>'ImageAsset/1.jpg','role'=>'ceo','phone'=>'081200000009'],
         ];
 
         foreach ($users as $i => $data) {
-
             $u = User::updateOrCreate(
                 ['email' => $data['email']],
                 [
                     'name'           => $data['name'],
                     'username'       => $data['username'],
-                    'phone'          => '08120000' . str_pad($i+10, 4, '0', STR_PAD_LEFT),
-                    'password'       => Hash::make('password123'),
+                    'phone'          => $data['phone'],
+                    'password'       => Hash::make('password'),
                     'position'       => $data['position'],
                     'signature_path' => $data['signature'],
-                    'warehouse_id'   => $data['warehouse']?->id,
+                    'warehouse_id'   => null,
                     'status'         => 'active',
                 ]
             );
 
-            if (isset($roles[$data['role']])) {
-                $u->roles()->sync([$roles[$data['role']]]);
+            // Match role by slug or name
+            $targetRole = Role::where('slug', $data['role'])->orWhere('name', $data['role'])->orWhere('name', ucwords(str_replace('-', ' ', $data['role'])))->first();
+            if ($targetRole) {
+                $u->roles()->sync([$targetRole->id]);
             }
         }
     }

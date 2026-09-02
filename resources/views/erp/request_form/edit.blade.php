@@ -53,7 +53,7 @@
     </div>
   @endif
 
-  <form method="POST" action="{{ route('erp.request-form.update', $rf) }}" class="card shadow-sm border-0 rounded-3 overflow-hidden" id="rfCreateForm" enctype="multipart/form-data">
+  <form method="POST" action="{{ route('erp.request-form.update', $rf) }}" class="card shadow-sm border-0 rounded-3 overflow-hidden" id="rfCreateForm" enctype="multipart/form-data" novalidate>
     @csrf
     @method('PUT')
     <input type="hidden" name="record_type" value="{{ $recordType }}">
@@ -114,8 +114,16 @@
 
             @if($recordType === 'project')
               <div class="mb-3">
-                <label class="form-label fw-semibold small text-uppercase text-muted">Project Code <span class="text-danger">*</span></label>
-                <input name="project_code" class="form-control" value="{{ old('project_code', $rf->project_code) }}" placeholder="e.g. MP05922" required>
+                <label class="form-label fw-semibold small text-uppercase text-muted">Sub Project <span class="text-danger">*</span></label>
+                <select name="project_code" id="headerProjectCode" class="form-select select2" required>
+                  <option value="">-- Pilih Sub Project (JSI / Apjatel) --</option>
+                  @foreach($subProjects as $sp)
+                    <option value="{{ $sp->sub_project_code }}" @selected(old('project_code', $rf->project_code) === $sp->sub_project_code)>
+                      {{ $sp->budgetParent?->name ?? 'Mandau' }} - {{ $sp->name }} ({{ $sp->sub_project_code }})
+                    </option>
+                  @endforeach
+                </select>
+                <div class="form-text text-muted small">Pilih Sub Project (JSI atau Apjatel). Pilihan WID barang di Tab 2 akan otomatis disaring sesuai Sub Project ini.</div>
               </div>
             @else
               <div class="alert alert-secondary py-2 small mb-3">Non Project RF tidak menggunakan project code.</div>
@@ -152,11 +160,17 @@
               </div>
               <div class="col-md-6">
                 <label class="form-label fw-semibold small text-uppercase text-muted">Status</label>
-                <select name="status" class="form-select">
-                  @foreach(['Draft', 'Submitted', 'Approved', 'Partial', 'Completed', 'Cancelled'] as $status)
-                    <option value="{{ $status }}" @selected(old('status', $rf->status) === $status)>{{ $status }}</option>
-                  @endforeach
-                </select>
+                @if(auth()->user()->hasRole('superadmin'))
+                  <select name="status" class="form-select">
+                    @foreach(['Draft', 'Submitted', 'Approved', 'Partial', 'Completed', 'Cancelled'] as $status)
+                      <option value="{{ $status }}" @selected(old('status', $rf->status) === $status)>{{ $status }}</option>
+                    @endforeach
+                  </select>
+                @else
+                  <input type="text" class="form-control bg-light fw-semibold text-secondary" value="{{ $rf->status }}" readonly>
+                  <input type="hidden" name="status" value="{{ $rf->status }}">
+                  <div class="form-text text-muted" style="font-size:11px;"><i class="bx bx-lock-alt me-1"></i>Status mengikuti alur approval sistem.</div>
+                @endif
               </div>
             </div>
           </div>
@@ -348,45 +362,70 @@
 
 {{-- Modal Add Line Item --}}
 <div class="modal fade" id="modalLineItem" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header border-bottom">
-        <h5 class="modal-title fw-bold">
-          <i class="bx bx-list-plus me-2 text-primary"></i>RF Line Item
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content shadow-lg border-0">
+      <div class="modal-header bg-primary text-white py-3">
+        <h5 class="modal-title fw-bold text-white mb-0">
+          <i class="bx bx-list-plus me-2"></i>RF Line Item
         </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body p-4">
         <input type="hidden" id="lineId" name="id">
+        <input type="hidden" id="lineProductId">
         <div class="row g-3">
-          <div class="col-md-4">
-            <label class="form-label fw-semibold small text-uppercase text-muted">Product <span class="text-danger">*</span></label>
-            <select id="lineProductName" class="form-select select2" required>
-              <option value="">-- Select Product --</option>
+          <div class="{{ $recordType === 'project' ? 'col-md-6' : 'col-md-12' }}">
+            <label class="form-label fw-semibold small text-uppercase text-muted">Product / Barang <span class="text-danger">*</span></label>
+            <select id="lineProductName" class="form-select select2-modal" required>
+              <option value="">-- Cari & Pilih Produk --</option>
               @foreach($products as $product)
                 <option value="{{ $product->name }}" data-id="{{ $product->product_code ?: $product->part_number }}" data-cost="{{ $product->buying_price }}">
-                  {{ $product->name }}
+                  {{ $product->name }} ({{ $product->product_code }})
                 </option>
               @endforeach
             </select>
           </div>
-          <div class="col-md-2">
-            <label class="form-label fw-semibold small text-uppercase text-muted">Product ID</label>
-            <input id="lineProductId" class="form-control">
-          </div>
-          <div class="col-md-2">
-            <label class="form-label fw-semibold small text-uppercase text-muted">WID</label>
-            <input id="lineWid" class="form-control">
-          </div>
-          <div class="col-md-2">
-            <label class="form-label fw-semibold small text-uppercase text-muted">Currency <span class="text-danger">*</span></label>
-            <select id="lineCurrency" class="form-select">
-              <option value="IDR">IDR</option>
-              <option value="USD">USD</option>
-              <option value="SGD">SGD</option>
+          @if($recordType === 'project')
+          <div class="col-md-6">
+            <label class="form-label fw-semibold small text-uppercase text-muted">WID / Work Item <span class="text-danger">*</span></label>
+            <select id="lineWid" class="form-select select2-modal" required>
+              <option value="">-- Cari & Pilih WID --</option>
+              @foreach($workItems as $wid)
+                <option value="{{ $wid->wid_code }}">{{ $wid->wid_code }} - {{ $wid->name }} ({{ $wid->subProject?->name ?? 'SP' }})</option>
+              @endforeach
             </select>
           </div>
-          <div class="col-md-2">
+          @else
+            <input type="hidden" id="lineWid" value="NON-PROJECT">
+          @endif
+
+          <div class="col-md-3">
+            <label class="form-label fw-semibold small text-uppercase text-muted">Currency <span class="text-danger">*</span></label>
+            <select id="lineCurrency" class="form-select">
+              <option value="IDR">IDR (Rp)</option>
+              <option value="USD">USD ($)</option>
+              <option value="SGD">SGD (S$)</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold small text-uppercase text-muted">Qty <span class="text-danger">*</span></label>
+            <input type="number" step="0.01" min="0.01" id="lineQty" class="form-control" value="1">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold small text-uppercase text-muted">Unit Cost <span class="text-danger">*</span></label>
+            <input type="number" min="0" id="lineUnitCost" class="form-control" value="0">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold small text-uppercase text-muted">Actual Cost</label>
+            <input type="number" min="0" id="lineActualCost" class="form-control" value="0">
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small text-uppercase text-muted">Total Cost (Estimasi)</label>
+            <input type="number" min="0" id="lineOriginalTotalCost" class="form-control bg-light fw-bold text-primary" value="0" readonly>
+            <input type="hidden" id="lineQtyFulfilled" value="0">
+          </div>
+          <div class="col-md-4">
             <label class="form-label fw-semibold small text-uppercase text-muted">Status</label>
             <select id="lineStatus" class="form-select">
               <option value="Requested">Requested</option>
@@ -395,54 +434,38 @@
               <option value="Cancelled">Cancelled</option>
             </select>
           </div>
-          <div class="col-md-2">
-            <label class="form-label fw-semibold small text-uppercase text-muted">Qty <span class="text-danger">*</span></label>
-            <input type="number" step="0.01" min="0.01" id="lineQty" class="form-control" value="1">
-          </div>
-          <div class="col-md-2">
-            <label class="form-label fw-semibold small text-uppercase text-muted">Qty Fulfilled</label>
-            <input type="number" step="0.01" min="0" id="lineQtyFulfilled" class="form-control bg-light" value="0" readonly>
-          </div>
-          <div class="col-md-2">
-            <label class="form-label fw-semibold small text-uppercase text-muted">Unit Cost <span class="text-danger">*</span></label>
-            <input type="number" min="0" id="lineUnitCost" class="form-control" value="0">
-          </div>
-          <div class="col-md-2">
-            <label class="form-label fw-semibold small text-uppercase text-muted">Original Total Cost</label>
-            <input type="number" min="0" id="lineOriginalTotalCost" class="form-control" value="0">
-          </div>
-          <div class="col-md-2">
-            <label class="form-label fw-semibold small text-uppercase text-muted">Actual Cost</label>
-            <input type="number" min="0" id="lineActualCost" class="form-control" value="0">
-          </div>
-          <div class="col-md-2">
+          <div class="col-md-4">
             <label class="form-label fw-semibold small text-uppercase text-muted">Date Required</label>
             <input type="date" id="lineDateRequired" class="form-control" value="{{ old('rf_date', \Carbon\Carbon::parse($rf->rf_date)->format('Y-m-d')) }}">
           </div>
-          <div class="col-md-4">
-            <label class="form-label fw-semibold small text-uppercase text-muted">PIC</label>
-            <select id="linePic" class="form-select">
-              <option value="">-- Select PIC --</option>
+
+          <div class="col-md-6">
+            <label class="form-label fw-semibold small text-uppercase text-muted">PIC Pengaju / Penanggung Jawab</label>
+            <select id="linePic" class="form-select select2-modal">
+              <option value="">-- Cari & Pilih PIC --</option>
               @foreach($users as $user)
                 <option value="{{ $user->name }}">{{ $user->name }}</option>
               @endforeach
             </select>
           </div>
-          <div class="col-md-2 d-flex align-items-end">
-            <div class="form-check mb-2">
-              <input class="form-check-input" type="checkbox" id="lineWithinBudget" value="1">
-              <label class="form-check-label" for="lineWithinBudget">Within Budget</label>
+          <div class="col-md-6 d-flex align-items-center mt-4">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="lineWithinBudget" value="1" checked>
+              <label class="form-check-label fw-semibold text-success" for="lineWithinBudget">
+                <i class="bx bx-check-shield me-1"></i>Within Budget
+              </label>
             </div>
           </div>
-          <div class="col-md-6">
-            <label class="form-label fw-semibold small text-uppercase text-muted">Remark</label>
-            <textarea id="lineRemark" class="form-control" rows="2"></textarea>
+
+          <div class="col-12">
+            <label class="form-label fw-semibold small text-uppercase text-muted">Remark / Catatan Tambahan Barang</label>
+            <textarea id="lineRemark" class="form-control" rows="2" placeholder="Catatan spesifikasi, keperluan, atau detail lainnya..."></textarea>
           </div>
         </div>
       </div>
-      <div class="modal-footer border-top">
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-primary" id="btnSaveLineItem">
+      <div class="modal-footer border-top bg-light py-2">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary btn-sm px-3" id="btnSaveLineItem">
           <i class="bx bx-save me-1"></i>Save Product
         </button>
       </div>
@@ -531,10 +554,43 @@ document.addEventListener('DOMContentLoaded', function () {
     return new Intl.NumberFormat('id-ID').format(Number(value || 0));
   }
 
+  const allWidList = {!! json_encode($workItems->map(function($w) {
+    return [
+      'wid_code' => $w->wid_code,
+      'name' => $w->name,
+      'sp_code' => $w->subProject?->sub_project_code ?? '',
+      'sp_name' => $w->subProject?->name ?? '',
+    ];
+  })->values()) !!};
+
+  function populateFilteredWid(selectedSpCode) {
+    const $wid = $('#lineWid');
+    $wid.empty().append('<option value="">-- Cari & Pilih WID --</option>');
+
+    const matched = selectedSpCode 
+      ? allWidList.filter(w => w.sp_code === selectedSpCode)
+      : allWidList;
+
+    matched.forEach(w => {
+      $wid.append(new Option(`${w.wid_code} - ${w.name} (${w.sp_name || w.sp_code})`, w.wid_code));
+    });
+
+    if (matched.length > 0) {
+      $wid.val(matched[0].wid_code).trigger('change');
+    } else {
+      $wid.val('').trigger('change');
+    }
+  }
+
+  $('#headerProjectCode').on('change', function () {
+    const sp = $(this).val();
+    populateFilteredWid(sp);
+  });
+
   function resetModal() {
-    fields.product_name.value = '';
-    fields.product_id_text.value = '';
-    fields.wid.value = '';
+    $('#lineProductName').val('').trigger('change');
+    if (document.getElementById('lineProductId')) document.getElementById('lineProductId').value = '';
+
     fields.currency.value = 'IDR';
     fields.status.value = 'Requested';
     fields.qty.value = '1';
@@ -543,8 +599,8 @@ document.addEventListener('DOMContentLoaded', function () {
     fields.original_total_cost.value = '0';
     fields.actual_cost.value = '0';
     fields.date_required.value = document.querySelector('[name="rf_date"]').value || '{{ now()->toDateString() }}';
-    fields.pic.value = '';
-    fields.within_budget.checked = false;
+    $('#linePic').val('').trigger('change');
+    fields.within_budget.checked = true;
     fields.remark.value = '';
   }
 
@@ -571,11 +627,16 @@ document.addEventListener('DOMContentLoaded', function () {
   function collectModalItem() {
     syncOriginalTotal();
 
+    const prodSelect = $('#lineProductName');
+    const prodVal = prodSelect.val() || '';
+    const widVal = $('#lineWid').val() || '';
+    const picVal = $('#linePic').val() || '';
+
     return {
-      id: document.getElementById('lineId').value || '',
-      product_name: fields.product_name.value.trim(),
-      product_id_text: fields.product_id_text.value.trim(),
-      wid: fields.wid.value.trim(),
+      id: (document.getElementById('lineId').value || '').trim(),
+      product_name: prodVal.trim(),
+      product_id_text: (document.getElementById('lineProductId').value || '').trim(),
+      wid: widVal.trim(),
       currency: fields.currency.value,
       status: fields.status.value,
       qty: fields.qty.value || '1',
@@ -584,7 +645,7 @@ document.addEventListener('DOMContentLoaded', function () {
       original_total_cost: fields.original_total_cost.value || '0',
       actual_cost: fields.actual_cost.value || '0',
       date_required: fields.date_required.value,
-      pic: fields.pic.value.trim(),
+      pic: picVal.trim(),
       within_budget: fields.within_budget.checked ? '1' : '0',
       remark: fields.remark.value.trim(),
     };
@@ -611,7 +672,7 @@ document.addEventListener('DOMContentLoaded', function () {
           </button>
         </td>
         <td class="fw-bold text-dark">${escapeHtml(item.product_name)}</td>
-        <td>${escapeHtml(item.wid || '-')}</td>
+        <td><span class="badge bg-label-primary fw-semibold">${escapeHtml(item.wid || '-')}</span></td>
         <td>${escapeHtml(item.currency)}</td>
         <td class="text-end fw-semibold">${formatNumber(item.qty)}</td>
         <td class="text-end">${escapeHtml(item.currency)} ${formatNumber(item.unit_cost)}</td>
@@ -627,19 +688,34 @@ document.addEventListener('DOMContentLoaded', function () {
     renderHiddenInputs();
   }
 
-  document.getElementById('lineProductName').addEventListener('change', function (e) {
-    const select = e.target;
-    const option = select.options[select.selectedIndex];
-    
-    if (option && option.value !== "") {
-      if (option.dataset.id) document.getElementById('lineProductId').value = option.dataset.id;
-      if (option.dataset.cost) document.getElementById('lineUnitCost').value = option.dataset.cost;
-      syncOriginalTotal();
+  $('#lineProductName').on('change', function () {
+    const opt = $(this).find(':selected');
+    if (opt.length && opt.val()) {
+      if (opt.data('id')) document.getElementById('lineProductId').value = opt.data('id');
+      if (opt.data('cost')) {
+        document.getElementById('lineUnitCost').value = opt.data('cost');
+        document.getElementById('lineActualCost').value = opt.data('cost');
+        syncOriginalTotal();
+      }
     }
   });
 
   document.getElementById('btnOpenLineModal').addEventListener('click', function () {
+    const selectedSp = $('#headerProjectCode').val();
+    if (!selectedSp && '{{ $recordType }}' === 'project') {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Pilih Sub Project Terlebih Dahulu',
+        text: 'Silakan pilih Sub Project (JSI atau Apjatel) pada Tab 1 agar WID barang dapat disaring secara tepat.',
+        confirmButtonText: 'Ke Tab 1'
+      }).then(() => {
+        const firstTab = new bootstrap.Tab(document.querySelector('#rfTab button[data-bs-target="#tab-general"]'));
+        firstTab.show();
+      });
+      return;
+    }
     resetModal();
+    populateFilteredWid(selectedSp);
     lineModal.show();
   });
 
@@ -647,11 +723,15 @@ document.addEventListener('DOMContentLoaded', function () {
     const item = collectModalItem();
 
     if (!item.product_name) {
-      Swal.fire({ icon: 'warning', title: 'Product wajib diisi' });
+      Swal.fire({ icon: 'warning', title: 'Product / Barang wajib dipilih!' });
+      return;
+    }
+    if (!item.wid && '{{ $recordType }}' === 'project') {
+      Swal.fire({ icon: 'warning', title: 'WID / Work Item wajib dipilih!' });
       return;
     }
     if (Number(item.qty) <= 0 || Number(item.unit_cost) < 0) {
-      Swal.fire({ icon: 'warning', title: 'Qty dan Unit Cost belum valid' });
+      Swal.fire({ icon: 'warning', title: 'Qty dan Unit Cost belum valid!' });
       return;
     }
 
@@ -660,39 +740,74 @@ document.addEventListener('DOMContentLoaded', function () {
     lineModal.hide();
   });
 
-  body.addEventListener('click', function (event) {
-    const button = event.target.closest('.btn-remove-line');
-    if (!button) return;
-
-    lineItems.splice(Number(button.dataset.index), 1);
+  body.addEventListener('click', function (e) {
+    const btn = e.target.closest('.btn-remove-line');
+    if (!btn) return;
+    const index = Number(btn.dataset.index);
+    lineItems.splice(index, 1);
     renderTable();
   });
 
-  fields.qty.addEventListener('input', syncOriginalTotal);
-  fields.unit_cost.addEventListener('input', syncOriginalTotal);
+  // Tab 3 Approval Script
+  const approvalsContainer = document.getElementById('approvalsContainer');
+  const emptyApprovals = document.getElementById('emptyApprovalsMessage');
+  const btnAddApproval = document.getElementById('btnAddApproval');
 
-  initialItems.forEach((item) => {
-    if (item.product_name) {
-      lineItems.push({
-        id: item.id || '',
-        product_name: item.product_name || '',
-        product_id_text: item.product_id_text || '',
-        wid: item.wid || '',
-        currency: item.currency || 'IDR',
-        status: item.status || 'Requested',
-        qty: item.qty || '1',
-        qty_fulfilled: item.qty_fulfilled || '0',
-        unit_cost: item.unit_cost || '0',
-        original_total_cost: item.original_total_cost || '0',
-        actual_cost: item.actual_cost || '0',
-        date_required: item.date_required || '',
-        pic: item.pic || '',
-        within_budget: item.within_budget ? '1' : '0',
-        remark: item.remark || '',
-      });
-    }
-  });
-  renderTable();
+  if (btnAddApproval) {
+    btnAddApproval.addEventListener('click', function() {
+      if (emptyApprovals) emptyApprovals.style.display = 'none';
+      const count = approvalsContainer.querySelectorAll('.approval-row').length;
+      const row = document.createElement('div');
+      row.className = 'approval-row row g-2 align-items-center mb-3 p-3 border rounded-3 bg-light position-relative';
+      row.innerHTML = `
+        <div class="col-md-3">
+          <label class="form-label small fw-semibold text-muted">Role Approver</label>
+          <select name="approvals[${count}][role_id]" class="form-select form-select-sm">
+            <option value="">-- Select Role --</option>
+            <option value="1">Super Admin</option>
+            <option value="4">Head of Procurement</option>
+            <option value="6">Finance Manager</option>
+            <option value="7">CEO</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small fw-semibold text-muted">Specific User (Optional)</label>
+          <select name="approvals[${count}][user_id]" class="form-select form-select-sm">
+            <option value="">-- All in Role --</option>
+            @foreach($users as $user)
+              <option value="{{ $user->id }}">{{ $user->name }}</option>
+            @endforeach
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small fw-semibold text-muted">Note</label>
+          <input type="text" name="approvals[${count}][notes]" class="form-control form-control-sm" placeholder="Catatan approval...">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small fw-semibold text-muted">Approval Order</label>
+          <input type="number" name="approvals[${count}][order]" class="form-control form-control-sm" value="${count + 1}" min="1">
+        </div>
+        <div class="col-md-1 d-flex align-items-end">
+          <button type="button" class="btn btn-sm btn-outline-danger btn-remove-approval w-100" title="Remove">
+            <i class="bx bx-trash"></i>
+          </button>
+        </div>
+      `;
+      approvalsContainer.appendChild(row);
+    });
+  }
+
+  if (approvalsContainer) {
+    approvalsContainer.addEventListener('click', function(e) {
+      const btn = e.target.closest('.btn-remove-approval');
+      if (btn) {
+        btn.closest('.approval-row').remove();
+        if (approvalsContainer.querySelectorAll('.approval-row').length === 0 && emptyApprovals) {
+          emptyApprovals.style.display = 'block';
+        }
+      }
+    });
+  }
 
   // Notes & Attachments JS
   const naContainer = document.getElementById('notesAttachmentsContainer');
@@ -703,7 +818,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const wrapper = document.createElement('div');
     wrapper.className = 'd-flex align-items-start gap-2 mb-2 na-item';
     wrapper.innerHTML = `
-      <textarea name="notes[]" class="form-control form-control-sm" rows="2" placeholder="Tulis catatan..." required></textarea>
+      <textarea name="notes[]" class="form-control form-control-sm" rows="2" placeholder="Tulis catatan..."></textarea>
       <button type="button" class="btn btn-sm btn-outline-danger btn-remove-na"><i class="bx bx-trash"></i></button>
     `;
     naContainer.appendChild(wrapper);
@@ -714,7 +829,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const wrapper = document.createElement('div');
     wrapper.className = 'd-flex align-items-center gap-2 mb-2 na-item';
     wrapper.innerHTML = `
-      <input type="file" name="attachments[]" class="form-control form-control-sm" accept=".jpg,.jpeg,.png,.pdf" required>
+      <input type="file" name="attachments[]" class="form-control form-control-sm" accept=".jpg,.jpeg,.png,.pdf">
       <button type="button" class="btn btn-sm btn-outline-danger btn-remove-na"><i class="bx bx-trash"></i></button>
     `;
     naContainer.appendChild(wrapper);
@@ -728,6 +843,66 @@ document.addEventListener('DOMContentLoaded', function () {
         naEmptyMsg.style.display = 'block';
       }
     }
+  });
+
+  // Handle Form Submit with Tab Validation
+  $('#rfCreateForm').on('submit', function (e) {
+    if ('{{ $recordType }}' === 'project') {
+      const sp = $('#headerProjectCode').val();
+      if (!sp) {
+        e.preventDefault();
+        Swal.fire({
+          icon: 'warning',
+          title: 'Sub Project Belum Dipilih',
+          text: 'Harap pilih Sub Project (JSI atau Apjatel) pada Tab 1.'
+        }).then(() => {
+          new bootstrap.Tab(document.querySelector('#rfTab button[data-bs-target="#tab-general"]')).show();
+        });
+        return false;
+      }
+    }
+
+    if (lineItems.length === 0) {
+      e.preventDefault();
+      Swal.fire({
+        icon: 'warning',
+        title: 'Barang Belum Ditambahkan',
+        text: 'Harap tambahkan minimal 1 item barang di Tab 2 (Line Items) sebelum menyimpan RF.'
+      }).then(() => {
+        new bootstrap.Tab(document.querySelector('#rfTab button[data-bs-target="#tab-items"]')).show();
+      });
+      return false;
+    }
+  });
+
+  // Initialize Select2 in main page
+  $('.select2').each(function () {
+    $(this).select2({
+      theme: 'bootstrap-5',
+      width: '100%'
+    });
+  });
+
+  // Initialize Select2 inside modal with search & dropdownParent
+  $('#modalLineItem').on('shown.bs.modal', function () {
+    $('#lineProductName').select2({
+      theme: 'bootstrap-5',
+      dropdownParent: $('#modalLineItem'),
+      placeholder: '-- Cari & Pilih Produk --',
+      width: '100%'
+    });
+    $('#lineWid').select2({
+      theme: 'bootstrap-5',
+      dropdownParent: $('#modalLineItem'),
+      placeholder: '-- Cari & Pilih WID --',
+      width: '100%'
+    });
+    $('#linePic').select2({
+      theme: 'bootstrap-5',
+      dropdownParent: $('#modalLineItem'),
+      placeholder: '-- Cari & Pilih PIC --',
+      width: '100%'
+    });
   });
 });
 </script>

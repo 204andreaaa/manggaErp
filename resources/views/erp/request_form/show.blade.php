@@ -428,7 +428,7 @@
                     </tr>
                     <tr class="bg-white">
                       <td>-</td>
-                      <td>{{ $rf->approvals->first()->created_at->format('Y-m-d H:i') }}</td>
+                      <td>{{ $rf->approvals->first()?->created_at ? $rf->approvals->first()->created_at->format('Y-m-d H:i') : ($rf->created_at ? $rf->created_at->format('Y-m-d H:i') : '-') }}</td>
                       <td><span class="badge bg-label-info">Submitted</span></td>
                       <td>{{ $rf->requestor }}</td>
                       <td>{{ $rf->requestor }}</td>
@@ -468,7 +468,7 @@
                                   } elseif (auth()->id() == $approval->assigned_to_user_id) {
                                       $canApprove = true;
                                   } elseif ($approval->assigned_to_role_id) {
-                                      $canApprove = \Illuminate\Support\Facades\DB::connection('tenant')
+                                      $canApprove = \Illuminate\Support\Facades\DB::connection('master')
                                           ->table('role_user')
                                           ->where('user_id', auth()->id())
                                           ->where('role_id', $approval->assigned_to_role_id)
@@ -477,27 +477,61 @@
                               }
                           @endphp
                           @if($canApprove)
-                            <button class="btn btn-xs btn-success shadow-sm px-3" data-bs-toggle="modal" data-bs-target="#approveModal{{ $approval->id }}">Approve</button>
+                            <div class="d-flex align-items-center gap-1">
+                              <button class="btn btn-xs btn-success shadow-sm px-2.5 rounded-pill" data-bs-toggle="modal" data-bs-target="#approveModal{{ $approval->id }}">
+                                <i class="bx bx-check me-1"></i>Approve
+                              </button>
+                              <button class="btn btn-xs btn-outline-danger shadow-sm px-2.5 rounded-pill" data-bs-toggle="modal" data-bs-target="#rejectModal{{ $approval->id }}">
+                                <i class="bx bx-x me-1"></i>Reject
+                              </button>
+                            </div>
                             
                             <!-- Modal Approve -->
                             <div class="modal fade" id="approveModal{{ $approval->id }}" tabindex="-1" aria-hidden="true">
                               <div class="modal-dialog modal-dialog-centered">
-                                <div class="modal-content">
+                                <div class="modal-content border-0 shadow">
                                   <form action="{{ route('erp.approvals.approve', $approval) }}" method="POST">
                                     @csrf
-                                    <div class="modal-header border-bottom">
-                                      <h5 class="modal-title fw-bold"><i class="bx bx-check-shield me-2 text-success"></i>Approve Step {{ $approval->level }}</h5>
+                                    <div class="modal-header bg-success bg-opacity-10 border-bottom border-success border-opacity-25">
+                                      <h5 class="modal-title fw-bold text-success"><i class="bx bx-check-shield me-2"></i>Approve Step {{ $approval->level }}</h5>
                                       <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                     </div>
                                     <div class="modal-body p-4">
+                                      <p class="text-muted mb-3">Setujui pengajuan Request Form <strong>{{ $rf->request_no }}</strong> pada tahap Level {{ $approval->level }}.</p>
                                       <div class="mb-3">
                                         <label class="form-label fw-semibold">Catatan / Comments (Opsional)</label>
                                         <textarea name="comments" class="form-control" rows="3" placeholder="Tuliskan catatan persetujuan..."></textarea>
                                       </div>
                                     </div>
-                                    <div class="modal-footer border-top">
-                                      <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
-                                      <button type="submit" class="btn btn-success btn-sm px-4">Approve Step</button>
+                                    <div class="modal-footer border-top bg-light">
+                                      <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3" data-bs-dismiss="modal">Batal</button>
+                                      <button type="submit" class="btn btn-success btn-sm rounded-pill px-4"><i class="bx bx-check me-1"></i>Setujui (Approve)</button>
+                                    </div>
+                                  </form>
+                                </div>
+                              </div>
+                            </div>
+
+                            <!-- Modal Reject -->
+                            <div class="modal fade" id="rejectModal{{ $approval->id }}" tabindex="-1" aria-hidden="true">
+                              <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content border-0 shadow">
+                                  <form action="{{ route('erp.approvals.reject', $approval) }}" method="POST">
+                                    @csrf
+                                    <div class="modal-header bg-danger bg-opacity-10 border-bottom border-danger border-opacity-25">
+                                      <h5 class="modal-title fw-bold text-danger"><i class="bx bx-x-circle me-2"></i>Tolak (Reject) Step {{ $approval->level }}</h5>
+                                      <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body p-4">
+                                      <p class="text-muted mb-3">Anda akan menolak pengajuan Request Form <strong>{{ $rf->request_no }}</strong>. Berikan alasan penolakan agar pemohon dapat memperbaiki dokumen.</p>
+                                      <div class="mb-3">
+                                        <label class="form-label fw-bold">Alasan Penolakan (Reason) <span class="text-danger">*</span></label>
+                                        <textarea name="reason" class="form-control" rows="3" placeholder="Tuliskan alasan penolakan secara jelas..." required></textarea>
+                                      </div>
+                                    </div>
+                                    <div class="modal-footer border-top bg-light">
+                                      <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3" data-bs-dismiss="modal">Batal</button>
+                                      <button type="submit" class="btn btn-danger btn-sm rounded-pill px-4"><i class="bx bx-x me-1"></i>Tolak Pengajuan (Reject)</button>
                                     </div>
                                   </form>
                                 </div>
@@ -582,12 +616,6 @@
                 </div>
                 <h6 class="fw-bold mb-0 text-success">Purchase Orders (PO) Status</h6>
               </div>
-
-              @if($rf->status === 'Approved' && auth()->user()->hasRole(['procurement', 'superadmin']))
-                <a href="{{ route('erp.purchase-orders.create', $rf) }}" class="btn btn-sm btn-success rounded-pill px-3">
-                  <i class="bx bx-plus me-1"></i>Create PO Request
-                </a>
-              @endif
             </div>
 
             <div class="table-responsive border rounded-3 overflow-hidden shadow-sm">

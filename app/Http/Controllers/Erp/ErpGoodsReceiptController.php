@@ -13,32 +13,40 @@ class ErpGoodsReceiptController extends Controller
 {
     public function create(ErpPurchaseOrder $purchaseOrder)
     {
-        if ($purchaseOrder->gr || $purchaseOrder->status === 'Completed' || $purchaseOrder->goodsReceipts()->where('status', 'Received')->exists()) {
-            return redirect()->back()->with('error', 'PO ini sudah diterima / di-GR secara lengkap dan tidak dapat dibuatkan GR lagi.');
+        abort_unless(auth()->user()->hasRole(['logistik', 'warehouse', 'ga', 'admin_project', 'superadmin']), 403);
+
+        $purchaseOrder->load(['items.requestFormItem.erpProduct.uom', 'supplier', 'warehouse', 'goodsReceipts.items']);
+
+        if ($purchaseOrder->is_gr_completed) {
+            return redirect()->back()->with('error', 'Semua barang dalam PO ini sudah diterima lengkap (100% GR Completed).');
         }
 
-        if ($purchaseOrder->status !== 'Approved') {
+        if ($purchaseOrder->status !== 'Approved' && $purchaseOrder->status !== 'Completed') {
             return redirect()->back()->with('error', 'Hanya PO dengan status Approved yang dapat dibuatkan Goods Receipt.');
         }
-
-        $purchaseOrder->load('items.requestFormItem.erpProduct.uom', 'supplier', 'warehouse');
 
         return view('erp.goods_receipts.create', compact('purchaseOrder'));
     }
 
     public function store(Request $request, ErpPurchaseOrder $purchaseOrder)
     {
-        if ($purchaseOrder->gr || $purchaseOrder->status === 'Completed' || $purchaseOrder->goodsReceipts()->where('status', 'Received')->exists()) {
-            return redirect()->back()->with('error', 'PO ini sudah diterima / di-GR secara lengkap dan tidak dapat dibuatkan GR lagi.');
+        abort_unless(auth()->user()->hasRole(['logistik', 'warehouse', 'ga', 'admin_project', 'superadmin']), 403);
+
+        $purchaseOrder->load(['items.requestFormItem.erpProduct', 'goodsReceipts.items']);
+
+        if ($purchaseOrder->is_gr_completed) {
+            return redirect()->back()->with('error', 'Semua barang dalam PO ini sudah diterima lengkap (100% GR Completed).');
         }
 
-        if ($purchaseOrder->status !== 'Approved') {
+        if ($purchaseOrder->status !== 'Approved' && $purchaseOrder->status !== 'Completed') {
             return redirect()->back()->with('error', 'Hanya PO dengan status Approved yang dapat dibuatkan Goods Receipt.');
         }
 
         $data = $request->validate([
             'date' => 'required|date',
-            'supplier_do_no' => 'nullable|string',
+            'supplier_do_no' => 'nullable|string|max:100',
+            'sending_contact' => 'nullable|string|max:150',
+            'receiving_contact' => 'nullable|string|max:150',
             'remarks' => 'nullable|string',
             'items' => 'required|array',
             'items.*.po_item_id' => 'required|exists:erp_purchase_order_items,id',
@@ -55,6 +63,8 @@ class ErpGoodsReceiptController extends Controller
             $gr->supplier_id = $purchaseOrder->supplier_id;
             $gr->warehouse_id = $purchaseOrder->erp_warehouse_id;
             $gr->date = $data['date'];
+            $gr->sending_contact = $data['sending_contact'] ?? ($purchaseOrder->contact_person ?: ($purchaseOrder->supplier?->contact_person ?: 'Vendor Courier'));
+            $gr->receiving_contact = $data['receiving_contact'] ?? (auth()->user()->name ?: ($purchaseOrder->warehouse?->pic ?: 'Staff Penerima Gudang'));
             if (\Illuminate\Support\Facades\Schema::hasColumn('erp_goods_receipts', 'supplier_do_no')) {
                 $gr->supplier_do_no = $data['supplier_do_no'] ?? null;
             }
@@ -138,6 +148,24 @@ class ErpGoodsReceiptController extends Controller
 
     public function receive(Request $request, ErpGoodsReceipt $goodsReceipt)
     {
+        $user = auth()->user();
+        $grVerifConfig = \App\Models\Erp\ErpApprovalConfig::where('record_type', 'gr_verification')->first();
+        
+        $isAuthorized = false;
+        if ($user->hasRole('superadmin')) {
+            $isAuthorized = true;
+        } elseif ($grVerifConfig) {
+            if ($grVerifConfig->user_id && $user->id == $grVerifConfig->user_id) {
+                $isAuthorized = true;
+            } elseif ($grVerifConfig->role_id && $user->hasRole($grVerifConfig->role?->name)) {
+                $isAuthorized = true;
+            }
+        } else {
+            $isAuthorized = $user->hasRole(['logistik', 'warehouse', 'superadmin']) || $user->email === 'nikmal@example.com';
+        }
+
+        abort_unless($isAuthorized, 403, 'Anda tidak memiliki hak akses untuk memverifikasi penerimaan fisik barang (GR) ini.');
+
         if ($goodsReceipt->status === 'Received') {
             return redirect()->back()->with('error', 'Goods Receipt is already received.');
         }
@@ -155,22 +183,28 @@ class ErpGoodsReceiptController extends Controller
 
         $po = $goodsReceipt->purchaseOrder;
         if ($po) {
+            $po->load('items');
+            $isCompleted = $po->is_gr_completed;
             $po->update([
-                'gr' => true,
-                'status' => 'Completed',
+                'gr' => $isCompleted,
+                'status' => ($isCompleted && $po->payment_closed) ? 'Completed' : 'Approved',
             ]);
         }
 
         $warehouseId = $goodsReceipt->warehouse_id 
             ?: ($po?->erp_warehouse_id 
                 ?: \Illuminate\Support\Facades\DB::table('erp_warehouses')->value('id'));
+        $supplierId = $po?->supplier_id;
 
         foreach ($goodsReceipt->items as $grItem) {
             $rfItem = $grItem->requestFormItem;
             if ($rfItem) {
-                $rfItem->update(['status' => 'Completed']);
-                foreach ($rfItem->purchaseRequestItems as $prItem) {
-                    $prItem->update(['status' => 'Completed']);
+                $poItem = $grItem->purchaseOrderItem;
+                if ($poItem && $poItem->remaining_qty <= 0) {
+                    $rfItem->update(['status' => 'Completed']);
+                    foreach ($rfItem->purchaseRequestItems as $prItem) {
+                        $prItem->update(['status' => 'Completed']);
+                    }
                 }
 
                 $product = $rfItem->erpProduct;
@@ -180,6 +214,7 @@ class ErpGoodsReceiptController extends Controller
                         [
                             'erp_product_id' => $product->id,
                             'erp_warehouse_id' => $warehouseId,
+                            'erp_supplier_id' => $supplierId,
                         ],
                         ['qty_on_hand' => 0]
                     );
@@ -203,6 +238,7 @@ class ErpGoodsReceiptController extends Controller
             $warehouseId = $goodsReceipt->warehouse_id 
                 ?: ($po?->erp_warehouse_id 
                     ?: \Illuminate\Support\Facades\DB::table('erp_warehouses')->value('id'));
+            $supplierId = $po?->supplier_id;
 
             if ($goodsReceipt->status === 'Received') {
                 foreach ($goodsReceipt->items as $grItem) {
@@ -211,6 +247,7 @@ class ErpGoodsReceiptController extends Controller
                     if ($product && ($product->is_physical ?? true) && $warehouseId && $receivedQty > 0) {
                         $stock = \App\Models\Erp\ErpStock::where('erp_product_id', $product->id)
                             ->where('erp_warehouse_id', $warehouseId)
+                            ->where('erp_supplier_id', $supplierId)
                             ->first();
                         if ($stock) {
                             $newQty = max(0, $stock->qty_on_hand - $receivedQty);
@@ -224,15 +261,17 @@ class ErpGoodsReceiptController extends Controller
                 }
             }
 
+            $goodsReceipt->items()->delete();
+            $goodsReceipt->delete();
+
             if ($po) {
+                $po->load('items');
+                $isCompleted = $po->is_gr_completed;
                 $po->update([
-                    'gr' => false,
+                    'gr' => $isCompleted,
                     'status' => 'Approved'
                 ]);
             }
-
-            $goodsReceipt->items()->delete();
-            $goodsReceipt->delete();
 
             DB::commit();
 

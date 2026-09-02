@@ -12,14 +12,11 @@ class RequestFormController extends Controller
 {
     public function index()
     {
-        abort_unless(auth()->user()->hasPermission('products.view'), 403);
-
         return view('erp.request_form.index');
     }
 
     public function datatable(Request $request)
     {
-        abort_unless(auth()->user()->hasPermission('products.view'), 403);
 
         $draw = (int) $request->input('draw', 1);
         $start = (int) $request->input('start', 0);
@@ -99,13 +96,13 @@ class RequestFormController extends Controller
 
     public function create(Request $request)
     {
-        abort_unless(auth()->user()->hasPermission('products.create'), 403);
-
         $recordType = $request->query('type');
         abort_unless(in_array($recordType, ['project', 'non_project'], true), 404);
 
         $products = \App\Models\Erp\ErpProduct::orderBy('name')->get();
         $users = \App\Models\User::orderBy('name')->get();
+        $subProjects = \App\Models\Erp\ErpSubProject::with(['budgetParent', 'workItems'])->get();
+        $workItems = \App\Models\Erp\ErpWorkItem::with('subProject.budgetParent')->get();
 
         return view('erp.request_form.create', [
             'recordType' => $recordType,
@@ -113,12 +110,13 @@ class RequestFormController extends Controller
             'nextRfNo' => $this->generateNextCode(),
             'products' => $products,
             'users' => $users,
+            'subProjects' => $subProjects,
+            'workItems' => $workItems,
         ]);
     }
 
     public function store(Request $request)
     {
-        abort_unless(auth()->user()->hasPermission('products.create'), 403);
 
         $data = $request->validate([
             'record_type' => ['required', Rule::in(['project', 'non_project'])],
@@ -254,12 +252,13 @@ class RequestFormController extends Controller
 
     public function edit(RequestForm $requestForm)
     {
-        abort_unless(auth()->user()->hasPermission('products.update'), 403);
         abort_unless($requestForm->status === 'Draft', 403, 'Request Form hanya dapat di-edit saat berstatus Draft.');
 
         $requestForm->load(['items', 'notesAttachments']);
         $products = \App\Models\Erp\ErpProduct::orderBy('name')->get();
         $users = \App\Models\User::orderBy('name')->get();
+        $subProjects = \App\Models\Erp\ErpSubProject::with(['budgetParent', 'workItems'])->get();
+        $workItems = \App\Models\Erp\ErpWorkItem::with('subProject.budgetParent')->get();
 
         return view('erp.request_form.edit', [
             'rf' => $requestForm,
@@ -267,12 +266,13 @@ class RequestFormController extends Controller
             'recordTypeLabel' => $requestForm->record_type === 'project' ? 'Project Based' : 'Non Project Based',
             'products' => $products,
             'users' => $users,
+            'subProjects' => $subProjects,
+            'workItems' => $workItems,
         ]);
     }
 
     public function update(Request $request, RequestForm $requestForm)
     {
-        abort_unless(auth()->user()->hasPermission('products.update'), 403);
         abort_unless($requestForm->status === 'Draft', 403, 'Request Form hanya dapat di-edit saat berstatus Draft.');
 
         $data = $request->validate([
@@ -410,7 +410,6 @@ class RequestFormController extends Controller
 
     public function show(RequestForm $requestForm)
     {
-        abort_unless(auth()->user()->hasPermission('products.view'), 403);
 
         // Auto-fix status for RF records submitted prior to status bug fix
         if ($requestForm->status === 'Draft' && $requestForm->approvals()->count() > 0) {
@@ -451,6 +450,20 @@ class RequestFormController extends Controller
         });
 
         return redirect()->back()->with('success', 'Request Form berhasil di-unlock. Approval telah direset dan status kembali menjadi Draft.');
+    }
+
+    public function destroy(RequestForm $requestForm)
+    {
+        abort_unless(auth()->user()->hasRole('superadmin'), 403, 'Hanya Superadmin yang berhak menghapus Request Form.');
+
+        DB::transaction(function () use ($requestForm) {
+            $requestForm->items()->delete();
+            $requestForm->approvals()->delete();
+            $requestForm->notesAttachments()->delete();
+            $requestForm->delete();
+        });
+
+        return redirect()->route('erp.request-form.index')->with('success', 'Request Form berhasil dihapus permanen oleh Superadmin.');
     }
 
     private function generateNextCode(): string

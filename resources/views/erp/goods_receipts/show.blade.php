@@ -71,9 +71,26 @@
       </a>
 
       @if($goodsReceipt->status !== 'Received')
-        <button type="button" class="btn btn-success btn-sm rounded-pill px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#receiveModal">
-          <i class="bx bx-check-double me-1"></i>Receive Verification
-        </button>
+        @php
+          $grVerifConfig = \App\Models\Erp\ErpApprovalConfig::where('record_type', 'gr_verification')->first();
+          $canVerifyGr = false;
+          if (auth()->user()->hasRole('superadmin')) {
+              $canVerifyGr = true;
+          } elseif ($grVerifConfig) {
+              if ($grVerifConfig->user_id && auth()->id() == $grVerifConfig->user_id) {
+                  $canVerifyGr = true;
+              } elseif ($grVerifConfig->role_id && auth()->user()->hasRole($grVerifConfig->role?->name)) {
+                  $canVerifyGr = true;
+              }
+          } else {
+              $canVerifyGr = auth()->user()->hasRole(['logistik', 'warehouse', 'superadmin']) || auth()->user()->email === 'nikmal@example.com';
+          }
+        @endphp
+        @if($canVerifyGr)
+          <button type="button" class="btn btn-success btn-sm rounded-pill px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#receiveModal">
+            <i class="bx bx-check-double me-1"></i>Receive Verification
+          </button>
+        @endif
       @else
         <span class="badge bg-success px-3 py-2 fs-7"><i class="bx bx-check-circle me-1"></i>Verification Completed</span>
       @endif
@@ -188,12 +205,12 @@
                   <td>: {{ $goodsReceipt->purchaseOrder?->address ?: '-' }}</td>
                 </tr>
                 <tr>
-                  <td class="text-muted fw-semibold">Sending Contact</td>
-                  <td class="text-primary fw-semibold">: {{ $goodsReceipt->sending_contact ?: '-' }}</td>
+                  <td class="text-muted fw-semibold">Sending Contact (Vendor PIC)</td>
+                  <td class="text-primary fw-semibold">: {{ $goodsReceipt->sending_contact ?: ($goodsReceipt->purchaseOrder?->contact_person ?: ($goodsReceipt->supplier?->contact_person ?: '-')) }}</td>
                 </tr>
                 <tr>
-                  <td class="text-muted fw-semibold">Receiving Contact</td>
-                  <td class="text-primary fw-semibold">: {{ $goodsReceipt->receiving_contact ?: '-' }}</td>
+                  <td class="text-muted fw-semibold">Receiving Contact (Penerima)</td>
+                  <td class="text-primary fw-semibold">: {{ $goodsReceipt->receiving_contact ?: ($goodsReceipt->owner?->name ?: ($goodsReceipt->warehouse?->pic ?: '-')) }}</td>
                 </tr>
                 <tr>
                   <td class="text-muted fw-semibold">Status</td>
@@ -348,11 +365,13 @@
                 </div>
               @else
                 <div class="alert alert-warning border-0 mb-3">
-                  <i class="bx bx-time-five me-1 fs-5 align-middle"></i> Status penerimaan masih pending verification.
+                  <i class="bx bx-time-five me-1 fs-5 align-middle"></i> Status penerimaan menunggu verifikasi & QC fisik oleh tim Logistik / Gudang.
                 </div>
-                <button type="button" class="btn btn-success rounded-pill px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#receiveModal">
-                  <i class="bx bx-check-double me-1"></i>Verifikasi Penerimaan Barang
-                </button>
+                @if(auth()->user()->hasRole(['logistik', 'warehouse', 'superadmin']))
+                  <button type="button" class="btn btn-success rounded-pill px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#receiveModal">
+                    <i class="bx bx-check-double me-1"></i>Verifikasi Penerimaan Barang
+                  </button>
+                @endif
               @endif
             </div>
           </div>
@@ -363,7 +382,8 @@
 
   </div>
 
-  {{-- Receive Verification Modal --}}
+  {{-- Receive Verification Modal (Only for Logistik / Superadmin) --}}
+  @if(auth()->user()->hasRole(['logistik', 'warehouse', 'superadmin']))
   <div class="modal fade" id="receiveModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <form action="{{ route('erp.goods-receipts.receive', $goodsReceipt) }}" method="POST" class="modal-content shadow-lg border-0 rounded-4">
@@ -388,6 +408,7 @@
       </form>
     </div>
   </div>
+  @endif
 
 </div>
 @endsection

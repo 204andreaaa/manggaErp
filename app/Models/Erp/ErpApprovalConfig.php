@@ -18,6 +18,9 @@ class ErpApprovalConfig extends Model
         'name',
         'role_id',
         'user_id',
+        'min_amount',
+        'max_amount',
+        'is_project'
     ];
 
     public function role()

@@ -32,10 +32,10 @@
                 <span>{{ $purchaseOrder->po_no }} - {{ $purchaseOrder->supplier?->name }} (Total: IDR {{ number_format($purchaseOrder->total_po_amount_with_tax, 0, ',', '.') }})</span>
               </div>
             @else
-              <select name="erp_purchase_order_id" class="form-select @error('erp_purchase_order_id') is-invalid @enderror" required>
+              <select name="erp_purchase_order_id" id="erp_purchase_order_id" class="form-select @error('erp_purchase_order_id') is-invalid @enderror" required>
                 <option value="">-- Pilih Purchase Order --</option>
                 @foreach(\App\Models\Erp\ErpPurchaseOrder::whereIn('status', ['Approved', 'Completed'])->orderBy('po_no', 'desc')->get() as $po)
-                  <option value="{{ $po->id }}" {{ (old('erp_purchase_order_id', $purchaseOrder?->id) == $po->id) ? 'selected' : '' }}>
+                  <option value="{{ $po->id }}" data-total="{{ $po->total_po_amount_with_tax }}" {{ (old('erp_purchase_order_id', $purchaseOrder?->id) == $po->id) ? 'selected' : '' }}>
                     {{ $po->po_no }} - {{ $po->supplier?->name }} (Total: IDR {{ number_format($po->total_po_amount_with_tax, 0, ',', '.') }})
                   </option>
                 @endforeach
@@ -121,3 +121,22 @@
   </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+$(document).ready(function() {
+  $('#erp_purchase_order_id').select2({
+    theme: 'bootstrap-5',
+    placeholder: '-- Pilih Purchase Order --'
+  });
+
+  $('#erp_purchase_order_id').on('change', function() {
+    var selectedOption = $(this).find('option:selected');
+    var total = selectedOption.data('total') || '';
+    
+    $('input[name="total_invoice_amount"]').val(total);
+    $('input[name="initial_payment_amount"]').val(total); // default suggest full amount
+  });
+});
+</script>
+@endpush

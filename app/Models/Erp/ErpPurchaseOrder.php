@@ -126,4 +126,21 @@ class ErpPurchaseOrder extends Model
     {
         return $this->morphMany(ErpNoteAttachment::class, 'notable');
     }
+
+    public function getIsGrCompletedAttribute()
+    {
+        if ($this->items->isEmpty()) return false;
+        foreach ($this->items as $item) {
+            if ($item->remaining_qty > 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public function getRemainingTotalQtyAttribute()
+    {
+        return (float) $this->items->sum(fn($i) => $i->remaining_qty);
+    }
 }
+

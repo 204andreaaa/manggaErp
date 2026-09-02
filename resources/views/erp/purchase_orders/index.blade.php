@@ -11,9 +11,11 @@
       </h4>
       <div class="text-muted small">Daftar & Kumpulan Seluruh Purchase Order (Master PO)</div>
     </div>
-    <a href="{{ route('erp.procurement.dashboard') }}" class="btn btn-primary btn-sm">
-      <i class="bx bx-plus me-1"></i>+ Create PO Baru (dari RF/PR)
-    </a>
+    @if(auth()->user()->hasRole(['procurement', 'superadmin', 'admin']))
+      <a href="{{ route('erp.procurement.dashboard') }}" class="btn btn-primary btn-sm">
+        <i class="bx bx-plus me-1"></i>+ Create PO Baru (dari RF/PR)
+      </a>
+    @endif
   </div>
 
   @if(session('success'))
@@ -60,7 +62,7 @@
             </tr>
           </thead>
           <tbody>
-            @forelse($purchaseOrders as $index => $po)
+            @foreach($purchaseOrders as $index => $po)
               <tr data-status="{{ $po->status }}">
                 <td>{{ $index + 1 }}</td>
                 <td>
@@ -116,11 +118,7 @@
                   </div>
                 </td>
               </tr>
-            @empty
-              <tr>
-                <td colspan="10" class="text-center text-muted py-4">Belum ada data Purchase Order.</td>
-              </tr>
-            @endforelse
+            @endforeach
           </tbody>
         </table>
       </div>
@@ -134,7 +132,11 @@
 $(document).ready(function() {
   var table = $('#po-master-table').DataTable({
     order: [[1, 'desc']],
-    pageLength: 15
+    pageLength: 15,
+    language: {
+      emptyTable: "Belum ada data Purchase Order.",
+      zeroRecords: "Tidak ada Purchase Order yang cocok dengan pencarian."
+    }
   });
 
   // Tab Filtering (Semua, Draft, Approved, Completed)

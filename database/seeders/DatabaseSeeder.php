@@ -17,8 +17,11 @@ class DatabaseSeeder extends Seeder
             CompanySeeder::class,
             RoleSeeder::class,
             ErpSetupSeeder::class,
+            \Database\Seeders\Core\UserSeeder::class,
             ErpProductSeeder::class,
             MasterUserSeeder::class,
+            ErpBudgetSeeder::class,
+            ErpApprovalConfigSeeder::class,
         ]);
     }
 }

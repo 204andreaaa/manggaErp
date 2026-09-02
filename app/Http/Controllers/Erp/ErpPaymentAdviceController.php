@@ -56,7 +56,6 @@ class ErpPaymentAdviceController extends Controller
                     $closedBadge = $pa->payment_closed
                         ? '<span class="badge bg-label-success">Closed</span>'
                         : '<span class="badge bg-label-warning">Not Closed</span>';
-
                     return [
                         'rownum' => $start + $i + 1,
                         'supplier_invoice_no' => '<a href="' . route('erp.payment-advices.show', $pa) . '" class="fw-bold text-primary">' . e($pa->supplier_invoice_no) . '</a>',
@@ -166,12 +165,19 @@ class ErpPaymentAdviceController extends Controller
 
     public function storeDetail(Request $request, ErpPaymentAdvice $paymentAdvice)
     {
-        if ($paymentAdvice->payment_type === 'Final Payment (Pelunasan 100%)' || $paymentAdvice->payment_closed || $paymentAdvice->outstanding <= 0) {
-            return redirect()->back()->with('error', 'Payment Advice ini berjenis Full Payment / Sudah Lunas, tidak dapat menambah rincian termin lagi.');
+        if ($paymentAdvice->payment_closed || $paymentAdvice->outstanding <= 0) {
+            return redirect()->back()->with('error', 'Payment Advice ini sudah Lunas, tidak dapat menambah rincian termin lagi.');
+        }
+
+        $allocatedSum = $paymentAdvice->details()->sum('payment_amount_with_tax');
+        $unallocated = max(0, $paymentAdvice->total_invoice_amount_with_tax - $allocatedSum);
+
+        if ($unallocated <= 0) {
+            return redirect()->back()->with('error', 'Seluruh total invoice (100%) sudah teralokasi ke dalam jadwal termin yang ada. Harap hapus termin Draft yang ada terlebih dahulu jika ingin membuat termin kustom baru.');
         }
 
         $data = $request->validate([
-            'payment_amount' => 'required|numeric|min:0|max:' . $paymentAdvice->outstanding,
+            'payment_amount' => 'required|numeric|min:1|max:' . $unallocated,
             'payment_method' => 'required|string|max:100',
             'payment_type' => 'required|string|max:100',
             'erp_goods_receipt_id' => 'nullable|exists:erp_goods_receipts,id',
@@ -196,10 +202,7 @@ class ErpPaymentAdviceController extends Controller
             $pad->remark = $data['remark'];
             $pad->days_invoice_overdue = '< 30';
             $pad->days_overdue = 1;
-            $pad->approval_status = $paymentAdvice->approval_status === 'Approved' ? 'Approved' : 'Draft';
-            if ($pad->approval_status === 'Approved') {
-                $pad->approved_date = now();
-            }
+            $pad->approval_status = 'Draft';
             $pad->save();
 
             $this->recalculateTotals($paymentAdvice);
@@ -215,8 +218,12 @@ class ErpPaymentAdviceController extends Controller
 
     public function destroyDetail(ErpPaymentAdviceDetail $paymentAdviceDetail)
     {
-        if (!auth()->user()->hasRole('superadmin')) {
-            return redirect()->back()->with('error', 'Hanya Superadmin yang berhak menghapus termin Payment Advice Detail.');
+        if (!auth()->user()->hasRole('superadmin') && !auth()->user()->hasRole('finance')) {
+            return redirect()->back()->with('error', 'Anda tidak memiliki hak akses untuk menghapus termin pembayaran.');
+        }
+
+        if ($paymentAdviceDetail->approval_status === 'Approved' || $paymentAdviceDetail->date_paid) {
+            return redirect()->back()->with('error', 'Termin yang sudah di-Approve atau sudah dibayar tidak dapat dihapus.');
         }
 
         DB::beginTransaction();
@@ -238,7 +245,9 @@ class ErpPaymentAdviceController extends Controller
 
     private function recalculateTotals(ErpPaymentAdvice $paymentAdvice)
     {
-        $sum = $paymentAdvice->details()->sum('payment_amount_with_tax');
+        $sum = $paymentAdvice->details()
+            ->whereNotIn('approval_status', ['Draft', 'Rejected', 'Cancelled'])
+            ->sum('payment_amount_with_tax');
         $total = $paymentAdvice->total_invoice_amount_with_tax;
         $outstanding = max(0, $total - $sum);
         $isClosed = ($outstanding <= 0 && $total > 0);
@@ -250,6 +259,10 @@ class ErpPaymentAdviceController extends Controller
             'payment_closed' => $isClosed,
             'status' => $isClosed ? 'Completed' : ($paymentAdvice->approval_status === 'Approved' ? 'Approved' : $paymentAdvice->status)
         ]);
+
+        if ($isClosed && $paymentAdvice->purchaseOrder) {
+            $paymentAdvice->purchaseOrder->update(['payment_closed' => true]);
+        }
     }
 
     public function show(ErpPaymentAdvice $paymentAdvice)
@@ -259,6 +272,9 @@ class ErpPaymentAdviceController extends Controller
             'supplier',
             'owner',
             'details.goodsReceipt',
+            'details.approvals.assignedRole',
+            'details.approvals.assignedUser',
+            'details.approvals.actualApprover',
             'approvals'
         ]);
 
@@ -271,70 +287,198 @@ class ErpPaymentAdviceController extends Controller
             'paymentAdvice.purchaseOrder',
             'paymentAdvice.supplier',
             'paymentAdvice.owner',
-            'goodsReceipt'
+            'goodsReceipt',
+            'approvals.assignedRole',
+            'approvals.assignedUser',
+            'approvals.actualApprover'
         ]);
 
-        $approvals = $paymentAdviceDetail->paymentAdvice->approvals;
+        $approvals = $paymentAdviceDetail->approvals;
 
         return view('erp.payment_advice_details.show', compact('paymentAdviceDetail', 'approvals'));
     }
 
-    public function submit(ErpPaymentAdvice $paymentAdvice)
+    public function updateInvoice(Request $request, ErpPaymentAdviceDetail $paymentAdviceDetail)
     {
-        if ($paymentAdvice->approval_status !== 'Draft') {
-            return redirect()->back()->with('error', 'Payment Advice ini sudah diajukan untuk approval.');
+        abort_unless(auth()->user()->hasRole(['finance', 'superadmin']), 403, 'Hanya tim Finance yang berhak mengedit data invoice.');
+
+        $request->validate([
+            'invoice_no' => 'required|string|max:100',
+            'invoice_attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
+        ]);
+
+        $updateData = [
+            'invoice_no' => $request->invoice_no,
+        ];
+
+        if ($request->hasFile('invoice_attachment')) {
+            $file = $request->file('invoice_attachment');
+            $filename = 'inv_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            $file->move(public_path('uploads/invoices'), $filename);
+            $updateData['invoice_attachment'] = 'uploads/invoices/' . $filename;
+        }
+
+        $paymentAdviceDetail->update($updateData);
+
+        return redirect()->back()->with('success', 'Data Invoice Vendor (' . $paymentAdviceDetail->invoice_no . ') berhasil disimpan.');
+    }
+
+    public function submitDetail(Request $request, ErpPaymentAdviceDetail $paymentAdviceDetail)
+    {
+        abort_unless(auth()->user()->hasRole(['finance', 'superadmin']), 403, 'Hanya tim Finance yang berhak mengajukan tagihan untuk approval.');
+
+        $invoiceNo = $request->invoice_no ?: $paymentAdviceDetail->invoice_no;
+        if (empty($invoiceNo) || $invoiceNo === '-') {
+            return redirect()->back()->with('error', 'Nomor Invoice Vendor wajib diisi sebelum submit approval.');
+        }
+
+        $request->validate([
+            'invoice_attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
+        ]);
+
+        if ($paymentAdviceDetail->approvals()->count() > 0) {
+            return redirect()->back()->with('error', 'Payment Advice Detail is already submitted for approval.');
+        }
+
+        // Sequential validation check
+        $unapprovedPrev = $paymentAdviceDetail->previousUnapprovedDetail();
+        if ($unapprovedPrev) {
+            return redirect()->back()->with('error', 'Termin pembayaran harus diajukan secara berurutan. Harap selesaikan dan setujui (Approved) termin sebelumnya (' . $unapprovedPrev->payment_type . ' - ' . $unapprovedPrev->supplier_detail_no . ') terlebih dahulu.');
         }
 
         DB::beginTransaction();
         try {
-            $paymentAdvice->update([
-                'status' => 'Submitted',
+            $grId = $request->input('erp_goods_receipt_id') ?: ($paymentAdviceDetail->erp_goods_receipt_id ?: $paymentAdviceDetail->purchaseOrder?->goodsReceipts?->first()?->id);
+
+            $updateData = [
+                'invoice_no' => $invoiceNo,
+                'erp_goods_receipt_id' => $grId,
                 'approval_status' => 'Submitted'
-            ]);
+            ];
 
-            $paymentAdvice->details()->update(['approval_status' => 'Submitted']);
+            if ($request->hasFile('invoice_attachment')) {
+                $file = $request->file('invoice_attachment');
+                $filename = 'inv_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                $file->move(public_path('uploads/invoices'), $filename);
+                $updateData['invoice_attachment'] = 'uploads/invoices/' . $filename;
+            }
 
-            // Create Approval Step 1 for Finance / CEO
-            ErpApproval::create([
-                'payment_advice_id' => $paymentAdvice->id,
-                'level' => 1,
-                'status' => 'Pending',
-                'assigned_to_role_id' => null,
-                'assigned_to_user_id' => auth()->id(),
-            ]);
+            // Update the detail with invoice no, attachment and linked GR
+            $paymentAdviceDetail->update($updateData);
+
+            // Create Approval Flow
+            $amount = $paymentAdviceDetail->payment_amount_with_tax;
+            $configs = \App\Models\Erp\ErpApprovalConfig::where('record_type', 'payment_advice')
+                ->where(function($q) use ($amount) {
+                    $q->whereNull('min_amount')->orWhere('min_amount', '<=', $amount);
+                })
+                ->where(function($q) use ($amount) {
+                    $q->whereNull('max_amount')->orWhere('max_amount', '>=', $amount);
+                })
+                ->orderBy('level')
+                ->get();
+
+            if ($configs->isEmpty()) {
+                // If no dynamic configs, fallback to 1-level CEO/Finance
+                \App\Models\Erp\ErpApproval::create([
+                    'payment_advice_detail_id' => $paymentAdviceDetail->id,
+                    'level' => 1,
+                    'status' => 'Pending',
+                ]);
+            } else {
+                $isFirst = true;
+                foreach ($configs as $config) {
+                    \App\Models\Erp\ErpApproval::create([
+                        'payment_advice_detail_id' => $paymentAdviceDetail->id,
+                        'level' => $config->level,
+                        'assigned_to_role_id' => $config->role_id,
+                        'assigned_to_user_id' => $config->user_id,
+                        'status' => $isFirst ? 'Pending' : 'Waiting',
+                    ]);
+                    $isFirst = false;
+                }
+            }
 
             DB::commit();
-
-            return redirect()->back()->with('success', 'Payment Advice berhasil diajukan untuk approval.');
+            return redirect()->back()->with('success', 'Rincian termin berhasil disubmit untuk approval.');
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->with('error', 'Gagal mengajukan approval: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Gagal submit approval: ' . $e->getMessage());
         }
     }
 
-    public function approve(ErpPaymentAdvice $paymentAdvice)
+    public function approveDetail(Request $request, ErpPaymentAdviceDetail $paymentAdviceDetail)
     {
         $user = auth()->user();
-        if (!$user->hasRole('superadmin') && !$user->hasRole('finance') && !$user->hasRole('ceo')) {
-            return redirect()->back()->with('error', 'Hanya Finance / CEO / Superadmin yang berhak menyetujui Payment Advice.');
-        }
 
         DB::beginTransaction();
         try {
-            $paymentAdvice->update([
-                'status' => 'Approved',
-                'approval_status' => 'Approved'
-            ]);
+            $activeApproval = $paymentAdviceDetail->approvals()->where('status', 'Pending')->first();
 
-            $paymentAdvice->details()->update([
+            if ($activeApproval) {
+                $isAuthorized = false;
+                if ($user->hasRole('superadmin')) {
+                    $isAuthorized = true;
+                } elseif ($activeApproval->assigned_to_user_id) {
+                    if ($user->id == $activeApproval->assigned_to_user_id) {
+                        $isAuthorized = true;
+                    }
+                } elseif ($activeApproval->assigned_to_role_id) {
+                    $hasRole = \Illuminate\Support\Facades\DB::connection('master')
+                        ->table('role_user')
+                        ->where('user_id', $user->id)
+                        ->where('role_id', $activeApproval->assigned_to_role_id)
+                        ->exists();
+                    if ($hasRole) {
+                        $isAuthorized = true;
+                    }
+                }
+
+                if (!$isAuthorized) {
+                    return redirect()->back()->with('error', 'Anda tidak memiliki akses untuk menyetujui termin ini.');
+                }
+
+                $activeApproval->update([
+                    'status' => 'Approved',
+                    'comments' => $request->input('comments', 'Approved by ' . $user->name),
+                    'actual_approver_id' => $user->id,
+                    'approved_at' => now(),
+                ]);
+
+                // Promote next step if any
+                $nextApproval = $paymentAdviceDetail->approvals()->where('status', 'Waiting')->orderBy('level')->first();
+                if ($nextApproval) {
+                    $nextApproval->update(['status' => 'Pending']);
+                } else {
+                    // Fully approved
+                    $paymentAdviceDetail->update([
+                        'approval_status' => 'Approved',
+                        'approved_date' => now()
+                    ]);
+                    
+                    // Recalculate PA Header
+                    if ($paymentAdviceDetail->paymentAdvice) {
+                        $this->recalculateTotals($paymentAdviceDetail->paymentAdvice);
+                    }
+                }
+
+                DB::commit();
+                return redirect()->back()->with('success', 'Approval Rincian Termin berhasil disetujui.');
+            }
+
+            // FALLBACK RULES (No active dynamic approval, use legacy flow)
+            if (!$user->hasRole('superadmin') && !$user->hasRole('finance') && !$user->hasRole('ceo')) {
+                return redirect()->back()->with('error', 'Hanya Finance / CEO / Superadmin yang berhak menyetujui Termin ini.');
+            }
+
+            $paymentAdviceDetail->update([
                 'approval_status' => 'Approved',
                 'approved_date' => now()
             ]);
 
-            // Create or update Approval Record
-            ErpApproval::create([
-                'payment_advice_id' => $paymentAdvice->id,
-                'level' => 2,
+            \App\Models\Erp\ErpApproval::create([
+                'payment_advice_detail_id' => $paymentAdviceDetail->id,
+                'level' => 1,
                 'status' => 'Approved',
                 'assigned_to_user_id' => $user->id,
                 'actual_approver_id' => $user->id,
@@ -342,36 +486,79 @@ class ErpPaymentAdviceController extends Controller
                 'comments' => 'Approved by ' . $user->name,
             ]);
 
-            DB::commit();
+            if ($paymentAdviceDetail->paymentAdvice) {
+                $this->recalculateTotals($paymentAdviceDetail->paymentAdvice);
+            }
 
-            return redirect()->back()->with('success', 'Payment Advice berhasil disetujui (Approved).');
+            DB::commit();
+            return redirect()->back()->with('success', 'Rincian Termin berhasil disetujui (Approved).');
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->with('error', 'Gagal menyetujui Payment Advice: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Gagal menyetujui Rincian Termin: ' . $e->getMessage());
         }
     }
 
-    public function reject(Request $request, ErpPaymentAdvice $paymentAdvice)
+    public function rejectDetail(Request $request, ErpPaymentAdviceDetail $paymentAdviceDetail)
     {
         $user = auth()->user();
-        if (!$user->hasRole('superadmin') && !$user->hasRole('finance') && !$user->hasRole('ceo')) {
-            return redirect()->back()->with('error', 'Hanya Finance / CEO / Superadmin yang berhak menolak (Reject) Payment Advice.');
-        }
 
         DB::beginTransaction();
         try {
-            $paymentAdvice->update([
-                'status' => 'Rejected',
+            $activeApproval = $paymentAdviceDetail->approvals()->where('status', 'Pending')->first();
+
+            if ($activeApproval) {
+                $isAuthorized = false;
+                if ($user->hasRole('superadmin')) {
+                    $isAuthorized = true;
+                } elseif ($activeApproval->assigned_to_user_id) {
+                    if ($user->id == $activeApproval->assigned_to_user_id) {
+                        $isAuthorized = true;
+                    }
+                } elseif ($activeApproval->assigned_to_role_id) {
+                    $hasRole = \Illuminate\Support\Facades\DB::connection('master')
+                        ->table('role_user')
+                        ->where('user_id', $user->id)
+                        ->where('role_id', $activeApproval->assigned_to_role_id)
+                        ->exists();
+                    if ($hasRole) {
+                        $isAuthorized = true;
+                    }
+                }
+
+                if (!$isAuthorized) {
+                    return redirect()->back()->with('error', 'Anda tidak memiliki akses untuk menolak termin ini.');
+                }
+
+                $activeApproval->update([
+                    'status' => 'Rejected',
+                    'comments' => $request->input('reason', 'Rejected by ' . $user->name),
+                    'actual_approver_id' => $user->id,
+                    'approved_at' => now(),
+                ]);
+
+                // Cancel subsequent steps
+                $paymentAdviceDetail->approvals()->where('status', 'Waiting')->update(['status' => 'Cancelled']);
+
+                $paymentAdviceDetail->update([
+                    'approval_status' => 'Rejected'
+                ]);
+
+                DB::commit();
+                return redirect()->back()->with('success', 'Rincian Termin berhasil ditolak.');
+            }
+
+            // FALLBACK RULES
+            if (!$user->hasRole('superadmin') && !$user->hasRole('finance') && !$user->hasRole('ceo')) {
+                return redirect()->back()->with('error', 'Hanya Finance / CEO / Superadmin yang berhak menolak (Reject) Termin ini.');
+            }
+
+            $paymentAdviceDetail->update([
                 'approval_status' => 'Rejected'
             ]);
 
-            $paymentAdvice->details()->update([
-                'approval_status' => 'Rejected'
-            ]);
-
-            ErpApproval::create([
-                'payment_advice_id' => $paymentAdvice->id,
-                'level' => 2,
+            \App\Models\Erp\ErpApproval::create([
+                'payment_advice_detail_id' => $paymentAdviceDetail->id,
+                'level' => 1,
                 'status' => 'Rejected',
                 'assigned_to_user_id' => $user->id,
                 'actual_approver_id' => $user->id,
@@ -380,44 +567,45 @@ class ErpPaymentAdviceController extends Controller
             ]);
 
             DB::commit();
-
-            return redirect()->back()->with('success', 'Payment Advice telah ditolak (Rejected).');
+            return redirect()->back()->with('success', 'Rincian Termin telah ditolak (Rejected).');
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->with('error', 'Gagal menolak Payment Advice: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Gagal menolak Termin: ' . $e->getMessage());
         }
     }
 
-    public function markPaid(ErpPaymentAdvice $paymentAdvice)
+    public function markPaidDetail(Request $request, ErpPaymentAdviceDetail $paymentAdviceDetail)
     {
         $user = auth()->user();
         if (!$user->hasRole('superadmin') && !$user->hasRole('finance')) {
-            return redirect()->back()->with('error', 'Hanya Tim Finance / Superadmin yang berhak melakukan penutupan pembayaran.');
+            return redirect()->back()->with('error', 'Hanya Tim Finance / Superadmin yang berhak memproses pembayaran termin.');
         }
+
+        $request->validate([
+            'payment_receipt' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
+        ]);
 
         DB::beginTransaction();
         try {
-            $paymentAdvice->update([
-                'outstanding' => 0,
-                'payment_closed' => true,
-                'status' => 'Completed'
-            ]);
-
-            $paymentAdvice->details()->update([
+            $updateData = [
                 'date_paid' => now()
-            ]);
+            ];
 
-            // Update PO payment_closed status if full amount paid
-            if ($paymentAdvice->purchaseOrder) {
-                $paymentAdvice->purchaseOrder->update(['payment_closed' => true]);
+            if ($request->hasFile('payment_receipt')) {
+                $file = $request->file('payment_receipt');
+                $filename = 'receipt_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                $file->move(public_path('uploads/receipts'), $filename);
+                $updateData['payment_receipt'] = 'uploads/receipts/' . $filename;
             }
+
+            $paymentAdviceDetail->update($updateData);
 
             DB::commit();
 
-            return redirect()->back()->with('success', 'Pembayaran berhasil diselesaikan dan status diset menjadi Payment Closed.');
+            return redirect()->back()->with('success', 'Pembayaran termin berhasil dicatat & ditandai Lunas.');
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->with('error', 'Gagal menyelesaikan pembayaran: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Gagal mencatat pembayaran: ' . $e->getMessage());
         }
     }
 

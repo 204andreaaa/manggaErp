@@ -70,14 +70,23 @@
         <i class="bx bx-printer me-1"></i>Print PO
       </a>
 
-      {{-- Edit & Delete Buttons --}}
-      @if($purchaseOrder->status === 'Draft' || $purchaseOrder->status === 'Rejected')
+      {{-- Edit Button (Only for Procurement / Admin / Superadmin in Draft/Rejected) --}}
+      @if(($purchaseOrder->status === 'Draft' || $purchaseOrder->status === 'Rejected') && auth()->user()->hasRole(['procurement', 'admin', 'superadmin']))
         <a href="{{ route('erp.purchase-orders.edit', $purchaseOrder) }}" class="btn btn-outline-warning btn-sm rounded-pill px-3">
           <i class="bx bx-edit me-1"></i>Edit
         </a>
       @endif
 
       @if(auth()->user()->hasRole('superadmin'))
+        @if($purchaseOrder->status !== 'Draft')
+          <form action="{{ route('erp.purchase-orders.unlock', $purchaseOrder) }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin meng-unlock PO ini?\n\nStatus PO akan dikembalikan menjadi Draft, dan approval/verifikasi akan direset agar dapat diajukan ulang.');">
+            @csrf
+            <button type="submit" class="btn btn-outline-warning btn-sm rounded-pill px-3 shadow-sm">
+              <i class="bx bx-lock-open-alt me-1"></i>Unlock PO
+            </button>
+          </form>
+        @endif
+
         <form action="{{ route('erp.purchase-orders.destroy', $purchaseOrder) }}" method="POST" class="d-inline" onsubmit="return confirm('PERINGATAN KERAS!\n\nMenghapus PO ini akan berakibat:\n1. Dokumen PO ({{ $purchaseOrder->po_no }}) Dihapus Permanen.\n2. {{ $purchaseOrder->items->count() }} Item di dalam PO ini ikut terhapus.\n3. Histori Approval PO terhapus.\n4. Status Barang (PR Item) di RF akan dikembalikan menjadi \'Requested\'.\n\nApakah Anda sangat yakin ingin melanjutkan?');">
           @csrf
           @method('DELETE')
@@ -85,24 +94,48 @@
             <i class="bx bx-trash me-1"></i>Delete
           </button>
         </form>
+
+        @if(!in_array($purchaseOrder->status, ['Cancelled', 'Rejected']))
+        <form action="{{ route('erp.purchase-orders.cancel', $purchaseOrder) }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin membatalkan PO ini? \n\nJika PO sudah di-Approve sebelumnya, saldo Budget (WID) akan otomatis dikembalikan (di-refund).');">
+          @csrf
+          <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-3">
+            <i class="bx bx-x-circle me-1"></i>Cancel PO
+          </button>
+        </form>
+        @endif
       @endif
 
-      {{-- Verification Button --}}
+      {{-- Verification Button (PO Verifier / Superadmin) --}}
       @if(!$purchaseOrder->verified_by_id)
-        @if(auth()->user()->hasRole('finance') || auth()->user()->hasRole('superadmin'))
+        @php
+          $poVerifConfig = \App\Models\Erp\ErpApprovalConfig::where('record_type', 'po_verification')->first();
+          $canVerifyPo = false;
+          if (auth()->user()->hasRole('superadmin')) {
+              $canVerifyPo = true;
+          } elseif ($poVerifConfig) {
+              if ($poVerifConfig->user_id && auth()->id() == $poVerifConfig->user_id) {
+                  $canVerifyPo = true;
+              } elseif ($poVerifConfig->role_id && auth()->user()->hasRole($poVerifConfig->role?->name)) {
+                  $canVerifyPo = true;
+              }
+          } else {
+              $canVerifyPo = auth()->user()->email === 'febri@local.com' || auth()->user()->username === 'febri' || auth()->user()->hasRole('head_procurement');
+          }
+        @endphp
+        @if($canVerifyPo)
           <form action="{{ route('erp.purchase-orders.verify', $purchaseOrder) }}" method="POST" class="d-inline">
             @csrf
-            <button type="submit" class="btn btn-primary btn-sm rounded-pill px-3">
+            <button type="submit" class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm">
               <i class="bx bx-check-shield me-1"></i>Verify PO
             </button>
           </form>
         @endif
       @else
-        <span class="badge bg-success px-3 py-2 fs-7"><i class="bx bx-check-double me-1"></i>Verified</span>
+        <span class="badge bg-success px-3 py-2 fs-7" title="Verified by {{ $purchaseOrder->verifiedBy?->name ?? 'User' }} on {{ $purchaseOrder->verification_timestamp }}"><i class="bx bx-check-double me-1"></i>Verified</span>
       @endif
 
-      {{-- Submit for Approval Button --}}
-      @if($purchaseOrder->status === 'Draft')
+      {{-- Submit for Approval Button (Procurement / Admin only) --}}
+      @if($purchaseOrder->status === 'Draft' && auth()->user()->hasRole(['procurement', 'admin', 'superadmin']))
         @if($purchaseOrder->verified_by_id)
           <form action="{{ route('erp.purchase-orders.submit', $purchaseOrder) }}" method="POST" class="d-inline">
             @csrf
@@ -111,7 +144,7 @@
             </button>
           </form>
         @else
-          <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3 opacity-75" onclick="Swal.fire({icon: 'warning', title: 'Verification Required', text: 'PO must be verified by Finance first before it can be submitted for approval.', confirmButtonColor: '#4f46e5'})">
+          <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3 opacity-75" onclick="Swal.fire({icon: 'warning', title: 'Verifikasi Dibutuhkan', text: 'PO harus diverifikasi terlebih dahulu oleh Head of Procurement (Febri Saputra) sebelum dapat diajukan untuk approval.', confirmButtonColor: '#696cff'})">
             <i class="bx bx-lock-alt me-1"></i>Submit for Approval
           </button>
         @endif
@@ -157,12 +190,12 @@
         @endif
       @endif
 
-      {{-- Goods Receipt Button --}}
-      @if($purchaseOrder->status === 'Approved' && !$purchaseOrder->gr && !$purchaseOrder->goodsReceipts()->where('status', 'Received')->exists())
+      {{-- Goods Receipt Button (Only for Logistik / GA / Warehouse / Superadmin) --}}
+      @if(($purchaseOrder->status === 'Approved' || $purchaseOrder->status === 'Completed') && !$purchaseOrder->is_gr_completed && auth()->user()->hasRole(['logistik', 'warehouse', 'ga', 'admin_project', 'superadmin']))
         <a href="{{ route('erp.goods-receipts.create', $purchaseOrder) }}" class="btn btn-success btn-sm rounded-pill px-3">
           <i class="bx bx-package me-1"></i>Create Goods Receipt
         </a>
-      @elseif($purchaseOrder->gr || $purchaseOrder->status === 'Completed')
+      @elseif($purchaseOrder->is_gr_completed)
         <span class="badge bg-success px-3 py-2 fs-7"><i class="bx bx-check-circle me-1"></i>GR Completed</span>
       @endif
     </div>
@@ -370,9 +403,9 @@
               </tbody>
             </table>
 
-            {{-- Biometric & Verification Info --}}
+            {{-- Procurement Verification Info --}}
             <div class="p-3 bg-light rounded-3 border">
-              <h6 class="fw-bold text-dark mb-2"><i class="bx bx-shield-quarter me-1 text-primary"></i>Finance Verification Status</h6>
+              <h6 class="fw-bold text-dark mb-2"><i class="bx bx-shield-quarter me-1 text-primary"></i>Procurement Verification Status</h6>
               <div class="row g-2 small">
                 <div class="col-6">
                   <span class="text-muted">Verified By:</span>
@@ -380,7 +413,7 @@
                 </div>
                 <div class="col-6">
                   <span class="text-muted">Verification Timestamp:</span>
-                  <div class="fw-bold text-dark">{{ $purchaseOrder->verified_at ? \Carbon\Carbon::parse($purchaseOrder->verified_at)->format('d M Y H:i') : '-' }}</div>
+                  <div class="fw-bold text-dark">{{ $purchaseOrder->verification_timestamp ? \Carbon\Carbon::parse($purchaseOrder->verification_timestamp)->format('d M Y H:i') : '-' }}</div>
                 </div>
               </div>
             </div>
@@ -416,13 +449,13 @@
                     <span class="fw-bold text-primary">{{ $item->po_detail_no }}</span>
                   </td>
                   <td>
-                    <div class="fw-bold text-dark">{{ $item->product_name }}</div>
+                    <div class="fw-bold text-dark">{{ $item->requestFormItem?->product_name ?: '-' }}</div>
                   </td>
                   <td>
-                    <span class="badge bg-label-secondary">{{ $item->model ?: '-' }}</span>
+                    <span class="badge bg-label-secondary">{{ $item->requestFormItem?->erpProduct?->product_model ?: '-' }}</span>
                   </td>
                   <td>
-                    <div class="small text-muted">{{ $item->remarks ?: ($item->product_description ?: '-') }}</div>
+                    <div class="small text-muted">{{ $item->remarks ?: ($item->requestFormItem?->product_description ?: '-') }}</div>
                   </td>
                   <td class="text-end fw-semibold">
                     {{ number_format($item->qty, 2, ',', '.') }}
@@ -531,7 +564,7 @@
                 </tr>
 
                 {{-- Approval Steps --}}
-                @foreach($purchaseOrder->approvals->sortBy('level') as $approval)
+                @foreach($purchaseOrder->approvals->where('level', '>', 0)->sortBy('level') as $approval)
                   @php
                     $statusBg = 'bg-secondary';
                     $statusIcon = 'bx-minus';
@@ -652,8 +685,8 @@
       <div class="tab-pane fade" id="tab-do" role="tabpanel">
         <div class="d-flex align-items-center justify-content-between mb-3">
           <h6 class="fw-bold mb-0 text-primary"><i class="bx bx-truck me-1"></i>Goods Receipt & Delivery Orders</h6>
-          @if($purchaseOrder->status === 'Approved' && !$purchaseOrder->gr)
-            <a href="{{ route('erp.goods-receipts.create', $purchaseOrder) }}" class="btn btn-primary btn-sm rounded-pill px-3">
+          @if(($purchaseOrder->status === 'Approved' || $purchaseOrder->status === 'Completed') && !$purchaseOrder->is_gr_completed && auth()->user()->hasRole(['logistik', 'warehouse', 'ga', 'admin_project', 'superadmin']))
+            <a href="{{ route('erp.goods-receipts.create', $purchaseOrder) }}" class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm">
               <i class="bx bx-plus me-1"></i>New Goods Receipt
             </a>
           @endif
@@ -679,13 +712,13 @@
                   <td>
                     <a href="{{ route('erp.goods-receipts.show', $gr) }}" class="btn btn-xs btn-label-primary">View</a>
                   </td>
-                  <td class="fw-bold text-primary">{{ $gr->gr_no }}</td>
+                  <td class="fw-bold text-primary">{{ $gr->do_no }}</td>
                   <td>{{ $gr->record_type ?: 'Standard' }}</td>
                   <td>{{ $gr->date ? \Carbon\Carbon::parse($gr->date)->format('Y/m/d') : '-' }}</td>
-                  <td class="text-end fw-semibold">{{ number_format($gr->items->sum('qty_delivered'), 2, ',', '.') }}</td>
-                  <td class="text-end fw-bold text-success">{{ number_format($gr->items->sum('qty_received'), 2, ',', '.') }}</td>
+                  <td class="text-end fw-semibold">{{ number_format($gr->total_delivered_qty ?? $gr->items->sum('delivered_qty'), 2, ',', '.') }}</td>
+                  <td class="text-end fw-bold text-success">{{ number_format($gr->total_received_qty ?? $gr->items->sum('received_qty'), 2, ',', '.') }}</td>
                   <td><span class="badge bg-label-success">{{ $gr->status }}</span></td>
-                  <td>{{ $gr->notes ?: '-' }}</td>
+                  <td>{{ $gr->remarks ?: '-' }}</td>
                 </tr>
               @empty
                 <tr>
@@ -739,13 +772,14 @@
             <thead class="bg-light">
               <tr class="text-uppercase small fw-bold text-muted">
                 <th>Supplier Detail No</th>
+                <th>Jenis / Termin</th>
+                <th class="text-center">Status</th>
                 <th>Approved Date</th>
-                <th>Created Date</th>
                 <th>Date Paid</th>
                 <th>Invoice No</th>
                 <th class="text-end">Payment Amount</th>
-                <th class="text-end">Payment With Tax</th>
-                <th>Remark</th>
+                <th class="text-end">With Tax</th>
+                <th class="text-center">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -755,18 +789,45 @@
               @forelse($paymentAdvices as $pa)
                 @foreach($pa->details as $pad)
                   <tr>
-                    <td class="fw-bold text-primary">{{ $pad->supplier_detail_no }}</td>
+                    <td>
+                      <a href="{{ route('erp.payment-advice-details.show', $pad) }}" class="fw-bold text-primary text-decoration-none" data-bs-toggle="tooltip" title="Klik untuk membuka rincian & approval termin">
+                        <i class="bx bx-receipt me-1"></i>{{ $pad->supplier_detail_no }}
+                      </a>
+                    </td>
+                    <td><span class="badge bg-label-info">{{ $pad->payment_type }}</span></td>
+                    <td class="text-center">
+                      @if($pad->date_paid)
+                        <span class="badge bg-label-success fw-bold"><i class="bx bx-check-double me-1"></i>Paid</span>
+                      @elseif($pad->approval_status === 'Approved')
+                        <span class="badge bg-label-success fw-bold"><i class="bx bx-check-circle me-1"></i>Approved</span>
+                      @elseif($pad->approval_status === 'Submitted')
+                        <span class="badge bg-label-warning fw-bold"><i class="bx bx-time me-1"></i>Submitted</span>
+                      @elseif($pad->approval_status === 'Rejected')
+                        <span class="badge bg-label-danger fw-bold"><i class="bx bx-x-circle me-1"></i>Rejected</span>
+                      @else
+                        <span class="badge bg-label-secondary fw-semibold">Draft</span>
+                      @endif
+                    </td>
                     <td>{{ $pad->approved_date ? \Carbon\Carbon::parse($pad->approved_date)->format('Y/m/d') : '-' }}</td>
-                    <td>{{ $pad->created_at ? $pad->created_at->format('Y/m/d') : '-' }}</td>
-                    <td>{{ $pad->date_paid ? \Carbon\Carbon::parse($pad->date_paid)->format('Y/m/d') : '-' }}</td>
+                    <td>
+                      @if($pad->date_paid)
+                        <span class="text-success fw-semibold">{{ \Carbon\Carbon::parse($pad->date_paid)->format('Y/m/d') }}</span>
+                      @else
+                        <span class="text-muted small">Belum Dibayar</span>
+                      @endif
+                    </td>
                     <td>{{ $pad->invoice_no ?: '-' }}</td>
-                    <td class="text-end">IDR {{ number_format($pad->payment_amount, 0, ',', '.') }}</td>
-                    <td class="text-end fw-bold text-success">IDR {{ number_format($pad->payment_amount_with_tax, 0, ',', '.') }}</td>
-                    <td>{{ $pad->remark ?: '-' }}</td>
+                    <td class="text-end text-muted">IDR {{ number_format($pad->payment_amount, 0, ',', '.') }}</td>
+                    <td class="text-end fw-bold text-dark">IDR {{ number_format($pad->payment_amount_with_tax, 0, ',', '.') }}</td>
+                    <td class="text-center">
+                      <a href="{{ route('erp.payment-advice-details.show', $pad) }}" class="btn btn-sm btn-icon btn-label-primary rounded-circle" data-bs-toggle="tooltip" title="Buka Detail Termin">
+                        <i class="bx bx-show"></i>
+                      </a>
+                    </td>
                   </tr>
                 @endforeach
               @empty
-                <tr><td colspan="8" class="text-center text-muted py-3">No payment details found</td></tr>
+                <tr><td colspan="9" class="text-center text-muted py-3">No payment details found</td></tr>
               @endforelse
             </tbody>
           </table>

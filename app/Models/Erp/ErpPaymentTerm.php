@@ -12,9 +12,11 @@ class ErpPaymentTerm extends Model
     protected $fillable = [
         'name',
         'is_active',
+        'term_schedule',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'term_schedule' => 'array',
     ];
 }

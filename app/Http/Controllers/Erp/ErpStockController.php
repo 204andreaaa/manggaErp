@@ -33,7 +33,7 @@ class ErpStockController extends Controller
             $itemType    = $r->input('item_type'); // 'physical', 'non_physical', or ''
 
             $query = ErpStock::query()
-                ->with(['erpProduct.uom', 'erpProduct.brand', 'erpProduct.productModel', 'warehouse']);
+                ->with(['erpProduct.uom', 'erpProduct.brand', 'erpProduct.productModel', 'warehouse', 'supplier']);
 
             if ($warehouseId) {
                 $query->where('erp_warehouse_id', $warehouseId);
@@ -54,6 +54,8 @@ class ErpStockController extends Controller
                     })->orWhereHas('warehouse', function ($q) use ($search) {
                         $q->where('name', 'like', "%{$search}%")
                           ->orWhere('code', 'like', "%{$search}%");
+                    })->orWhereHas('supplier', function ($q) use ($search) {
+                        $q->where('name', 'like', "%{$search}%");
                     });
                 });
             }
@@ -66,6 +68,7 @@ class ErpStockController extends Controller
                 ->map(function ($s, $i) use ($start) {
                     $p = $s->erpProduct;
                     $wh = $s->warehouse;
+                    $supplier = $s->supplier;
 
                     $typeBadge = ($p && $p->is_physical)
                         ? '<span class="badge bg-label-primary"><i class="bx bx-package me-1"></i>Fisik</span>'
@@ -84,6 +87,7 @@ class ErpStockController extends Controller
                         'part_number'  => e($p?->part_number ?? '-'),
                         'item_type'    => $typeBadge,
                         'warehouse'    => e($wh?->name ?? '-'),
+                        'supplier'     => e($supplier?->name ?? 'Unknown Supplier'),
                         'qty_on_hand'  => number_format($s->qty_on_hand, 2, ',', '.') . ' ' . e($p?->uom?->uom_name ?? ''),
                         'stock_status' => $stockBadge,
                         'updated_at'   => $s->updated_at?->format('Y-m-d H:i') ?? '-',

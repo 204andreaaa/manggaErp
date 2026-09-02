@@ -15,10 +15,12 @@ class ApprovalConfigController extends Controller
         abort_unless(auth()->user()->hasRole('superadmin'), 403);
 
         $configs = ErpApprovalConfig::with(['role', 'user'])->orderBy('level')->get();
-        $projectConfigs = $configs->where('record_type', 'project');
-        $nonProjectConfigs = $configs->where('record_type', 'non_project');
-        $poLowConfigs = $configs->where('record_type', 'purchase_order_low');
-        $poHighConfigs = $configs->where('record_type', 'purchase_order_high');
+        
+        $rfConfigs = $configs->where('record_type', 'request_form');
+        $poConfigs = $configs->where('record_type', 'purchase_order');
+        $paConfigs = $configs->where('record_type', 'payment_advice');
+        $poVerifConfigs = $configs->where('record_type', 'po_verification');
+        $grVerifConfigs = $configs->where('record_type', 'gr_verification');
 
         $projectId = session('current_project');
         $usersQuery = User::orderBy('name');
@@ -32,10 +34,16 @@ class ApprovalConfigController extends Controller
             $users = User::orderBy('name')->get();
         }
 
-        $roles = Role::orderBy('name')->get();
+        $maxLevels = [
+            'request_form' => $rfConfigs->max('level') ?? 0,
+            'purchase_order' => $poConfigs->max('level') ?? 0,
+            'payment_advice' => $paConfigs->max('level') ?? 0,
+            'po_verification' => $poVerifConfigs->max('level') ?? 0,
+            'gr_verification' => $grVerifConfigs->max('level') ?? 0,
+        ];
 
         return view('erp.approval_configs.index', compact(
-            'projectConfigs', 'nonProjectConfigs', 'poLowConfigs', 'poHighConfigs', 'users', 'roles'
+            'rfConfigs', 'poConfigs', 'paConfigs', 'poVerifConfigs', 'grVerifConfigs', 'users', 'maxLevels'
         ));
     }
 
@@ -44,24 +52,17 @@ class ApprovalConfigController extends Controller
         abort_unless(auth()->user()->hasRole('superadmin'), 403);
 
         $data = $request->validate([
-            'record_type' => 'required|in:project,non_project,purchase_order_low,purchase_order_high',
+            'record_type' => 'required|in:request_form,purchase_order,payment_advice,po_verification,gr_verification',
             'level' => 'required|integer|min:1',
             'name' => 'required|string|max:100',
-            'role_id' => 'nullable|exists:roles,id',
-            'user_id' => 'nullable|exists:master.users,id',
+            'user_id' => 'required|exists:master.users,id',
+            'min_amount' => 'nullable|numeric|min:0',
+            'max_amount' => 'nullable|numeric|min:0',
+            'is_project' => 'nullable|in:1,0,',
         ]);
 
-        if (empty($data['role_id']) && empty($data['user_id'])) {
-            return back()->with('error', 'Silakan pilih Role atau User yang di-assign untuk Approval ini.')->withInput();
-        }
-
-        // Cek apakah level ini sudah ada untuk record_type ini
-        $exists = ErpApprovalConfig::where('record_type', $data['record_type'])
-            ->where('level', $data['level'])
-            ->exists();
-
-        if ($exists) {
-            return back()->with('error', 'Level ' . $data['level'] . ' untuk ' . ucfirst($data['record_type']) . ' sudah digunakan. Silakan gunakan level lain.')->withInput();
+        if (isset($data['is_project']) && $data['is_project'] === '') {
+            $data['is_project'] = null;
         }
 
         ErpApprovalConfig::create($data);
