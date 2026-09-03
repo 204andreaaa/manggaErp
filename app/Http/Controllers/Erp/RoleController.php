@@ -30,15 +30,8 @@ class RoleController extends Controller
         $configGroups = config('menu.groups', []);
         
         $groups = [];
-        foreach (['inventory', 'procurement', 'master', 'warehouse', 'sales', 'finance', 'admin'] as $legacyKey) {
-            $groups[$legacyKey] = $registry->where('group', $legacyKey)->values();
-        }
-
-        // Also add any new dynamic groups from config
         foreach ($configGroups as $groupKey => $groupData) {
-            if (!isset($groups[$groupKey])) {
-                $groups[$groupKey] = $registry->where('group', $groupKey)->values();
-            }
+            $groups[$groupKey] = $registry->where('group', $groupKey)->values();
         }
 
         $homeCandidates = config('menu.home_candidates', []);

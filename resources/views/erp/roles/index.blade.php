@@ -1,1210 +1,534 @@
 @extends('layouts.home')
 
+@section('title', 'Roles & Permissions')
+
 @section('content')
-    <div class="container-xxl flex-grow-1 container-p-y">
-        <meta charset="utf-8">
-        <meta name="csrf-token" content="{{ csrf_token() }}">
-        <div class="d-flex align-items-center mb-3">
-            <h4 class="mb-0">Roles & Sidebar</h4>
-            <div class="ms-auto">
-                @if (auth()->user()->hasPermission('roles.create'))
-                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#mdlAddRole">
-                        <i class="bx bx-plus"></i> New Role
-                    </button>
-                @endif
-            </div>
+<div class="container-xxl flex-grow-1 container-p-y">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+    {{-- Breadcrumb & Header --}}
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+        <div>
+            <h4 class="fw-bold mb-1"><i class="bx bx-shield-quarter text-primary me-2"></i>Roles & Sidebar Management</h4>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Dashboard</a></li>
+                    <li class="breadcrumb-item text-muted">System & Security</li>
+                    <li class="breadcrumb-item active fw-semibold">Roles & Sidebar</li>
+                </ol>
+            </nav>
         </div>
+        <div>
+            @if (auth()->user()->hasPermission('roles.create'))
+                <button class="btn btn-primary d-flex align-items-center shadow-sm" data-bs-toggle="modal" data-bs-target="#mdlAddRole">
+                    <i class="bx bx-plus me-1"></i> New Role
+                </button>
+            @endif
+        </div>
+    </div>
 
-        @if (session('success'))
-            <div class="alert alert-success">{{ session('success') }}</div>
-        @endif
+    @if (session('success'))
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bx bx-check-circle me-1"></i> {{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
 
-        <div class="card">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead>
+    {{-- Roles Table Card --}}
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0 fw-bold"><i class="bx bx-list-check me-2 text-primary"></i>Daftar Role & Akses Fitur</h5>
+            <span class="badge bg-label-primary px-3 py-2 rounded-pill">{{ count($roles) }} Total Roles</span>
+        </div>
+        <div class="table-responsive text-nowrap">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:60px" class="text-center">ID</th>
+                        <th>Role Slug</th>
+                        <th>Role Name</th>
+                        <th class="text-center">Sidebar Menus</th>
+                        <th class="text-center">Action Permissions</th>
+                        <th>Home Route</th>
+                        <th style="width:130px" class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($roles as $r)
+                        @php
+                            $menuCount = is_array($r->menu_keys) ? count($r->menu_keys) : 0;
+                            $permCount = is_array($r->permissions) ? count($r->permissions) : 0;
+                        @endphp
                         <tr>
-                            <th style="width:60px">ID</th>
-                            <th>Slug</th>
-                            <th>Name</th>
-                            <th>Menus</th>
-                            <th>Home Route</th>
-                            <th style="width:120px">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($roles as $r)
-                            <tr>
-                                <td>{{ $r->id }}</td>
-                                <td>{{ $r->slug }}</td>
-                                <td>{{ $r->name }}</td>
-                                <td>{{ is_array($r->menu_keys) ? count($r->menu_keys) : 0 }} item</td>
-                                <td><code>{{ $r->home_route ?? '-' }}</code></td>
-                                <td>
-                                    <div class="btn-group">
-
-                                        @if (auth()->user()->hasPermission('roles.update'))
-                                            <a href="#" class="btn btn-sm btn-outline-secondary js-edit"
-                                                data-id="{{ $r->id }}" data-slug="{{ $r->slug }}"
-                                                data-name="{{ $r->name }}" data-home_route="{{ $r->home_route }}"
-                                                data-menu_keys='@json($r->menu_keys)'
-                                                data-permissions='@json($r->permissions)'>
-                                                Edit
-                                            </a>
-                                        @endif
-
-                                        @if (auth()->user()->hasPermission('roles.delete'))
-                                            <a href="#" class="btn btn-sm btn-outline-danger js-del"
-                                                data-id="{{ $r->id }}">
-                                                Delete
-                                            </a>
-                                        @endif
-
+                            <td class="text-center fw-bold text-muted">{{ $r->id }}</td>
+                            <td>
+                                <span class="badge bg-label-secondary font-monospace px-2 py-1">{{ $r->slug }}</span>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar avatar-xs me-2">
+                                        <span class="avatar-initial rounded-circle bg-label-primary">
+                                            <i class="bx bx-user text-primary" style="font-size: 0.9rem;"></i>
+                                        </span>
                                     </div>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="6" class="text-center text-muted">No data</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
+                                    <span class="fw-bold text-dark">{{ $r->name }}</span>
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge {{ $menuCount > 0 ? 'bg-label-info' : 'bg-label-secondary' }} px-2 py-1">
+                                    <i class="bx bx-menu me-1"></i>{{ $menuCount }} Menu
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge {{ $permCount > 0 ? 'bg-label-success' : 'bg-label-secondary' }} px-2 py-1">
+                                    <i class="bx bx-check-shield me-1"></i>{{ $permCount }} Hak Akses
+                                </span>
+                            </td>
+                            <td>
+                                @if($r->home_route)
+                                    <span class="badge bg-label-dark font-monospace" style="font-size: 0.75rem;">
+                                        <i class="bx bx-home-alt me-1 text-muted"></i>{{ $r->home_route }}
+                                    </span>
+                                @else
+                                    <span class="text-muted small">-</span>
+                                @endif
+                            </td>
+                            <td class="text-center">
+                                <div class="btn-group">
+                                    @if (auth()->user()->hasPermission('roles.update'))
+                                        <button type="button" class="btn btn-sm btn-outline-primary js-edit"
+                                            data-id="{{ $r->id }}" 
+                                            data-slug="{{ $r->slug }}"
+                                            data-name="{{ $r->name }}" 
+                                            data-home_route="{{ $r->home_route }}"
+                                            data-menu_keys='@json($r->menu_keys ?? [])'
+                                            data-permissions='@json($r->permissions ?? [])'>
+                                            <i class="bx bx-edit-alt me-1"></i> Edit
+                                        </button>
+                                    @endif
+
+                                    @if (auth()->user()->hasPermission('roles.delete') && !in_array($r->slug, ['superadmin', 'admin']))
+                                        <button type="button" class="btn btn-sm btn-outline-danger js-del" data-id="{{ $r->id }}" data-name="{{ $r->name }}">
+                                            <i class="bx bx-trash"></i>
+                                        </button>
+                                    @endif
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-4">Belum ada role terdaftar</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{{-- =========================================================================
+     MODAL ADD ROLE
+========================================================================= --}}
+@if (auth()->user()->hasPermission('roles.create'))
+    <div class="modal fade" id="mdlAddRole" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title text-white"><i class="bx bx-plus-circle me-1"></i> Buat Role Baru</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+
+                <form id="formAddRole" method="POST" action="{{ route('erp.roles.store') }}">
+                    @csrf
+                    <div class="modal-body p-4">
+                        {{-- Top Meta Inputs --}}
+                        <div class="row g-3 mb-4 p-3 bg-light rounded-3 border">
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Role Slug <span class="text-danger">*</span></label>
+                                <input name="slug" class="form-control" placeholder="contoh: staff_procurement" required>
+                                <small class="text-muted">Gunakan huruf kecil & underscore</small>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Role Name <span class="text-danger">*</span></label>
+                                <input name="name" class="form-control" placeholder="contoh: Staff Procurement" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Home Route (Default Landing Page)</label>
+                                <select name="home_route" class="form-select">
+                                    <option value="">(Otomatis sesuai menu pertama)</option>
+                                    @foreach ($homeCandidates as $c)
+                                        <option value="{{ $c['route'] }}">{{ $c['label'] }} ({{ $c['route'] }})</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+
+                        {{-- Permission & Menu Grid --}}
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-bold mb-0 text-dark"><i class="bx bx-check-double text-primary me-1"></i>Pengaturan Sidebar Menu & Hak Akses Tombol</h6>
+                            <div class="btn-group btn-group-sm">
+                                <button type="button" class="btn btn-outline-primary js-select-all-add">Pilih Semua</button>
+                                <button type="button" class="btn btn-outline-secondary js-unselect-all-add">Batal Semua</button>
+                            </div>
+                        </div>
+
+                        <div class="row g-3">
+                            @foreach ($configGroups as $groupKey => $groupData)
+                                @php
+                                    $groupItems = $groups[$groupKey] ?? collect();
+                                @endphp
+                                @if($groupItems->isNotEmpty())
+                                    <div class="col-md-6 col-lg-4">
+                                        <div class="card h-100 border shadow-none bg-white">
+                                            <div class="card-header bg-label-primary py-2 px-3 d-flex justify-content-between align-items-center">
+                                                <span class="fw-bold fs-7">
+                                                    <i class="{{ $groupData['icon'] ?? 'bx bx-folder' }} me-1"></i>{{ $groupData['label'] }}
+                                                </span>
+                                                <a href="javascript:void(0);" class="text-primary small fw-semibold js-toggle-group-add" data-group="{{ $groupKey }}">Toggle</a>
+                                            </div>
+                                            <div class="card-body p-3">
+                                                @foreach ($groupItems as $it)
+                                                    <div class="mb-3 pb-2 border-bottom border-light">
+                                                        {{-- Menu Level Checkbox --}}
+                                                        <div class="form-check form-switch mb-1">
+                                                            <input class="form-check-input js-menu-checkbox add-menu-{{ $groupKey }}" 
+                                                                type="checkbox" 
+                                                                name="menu_keys[]" 
+                                                                value="{{ $it['key'] }}" 
+                                                                id="add_menu_{{ $it['key'] }}">
+                                                            <label class="form-check-label fw-bold text-dark" for="add_menu_{{ $it['key'] }}">
+                                                                <i class="{{ $it['icon'] ?? 'bx bx-chevron-right' }} me-1 text-primary"></i>{{ $it['label'] }}
+                                                            </label>
+                                                        </div>
+
+                                                        {{-- Granular Actions --}}
+                                                        @if(!empty($it['permissions']))
+                                                            <div class="ms-4 ps-2 mt-1 d-flex flex-wrap gap-2">
+                                                                @foreach($it['permissions'] as $perm)
+                                                                    @php
+                                                                        $permLabel = explode('.', $perm)[1] ?? $perm;
+                                                                        $permLabelFormatted = ucwords(str_replace('_', ' ', $permLabel));
+                                                                    @endphp
+                                                                    <div class="form-check form-check-inline m-0">
+                                                                        <input class="form-check-input js-perm-checkbox add-perm-{{ $it['key'] }} add-perm-all-{{ $groupKey }}" 
+                                                                            type="checkbox" 
+                                                                            name="permissions[]" 
+                                                                            value="{{ $perm }}" 
+                                                                            id="add_perm_{{ str_replace('.', '_', $perm) }}">
+                                                                        <label class="form-check-label small text-muted" for="add_perm_{{ str_replace('.', '_', $perm) }}">
+                                                                            {{ $permLabelFormatted }}
+                                                                        </label>
+                                                                    </div>
+                                                                @endforeach
+                                                            </div>
+                                                        @endif
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endif
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <div class="modal-footer bg-light">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-primary"><i class="bx bx-save me-1"></i> Simpan Role</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
-    {{-- ====== ADD ROLE ====== --}}
-    @if (auth()->user()->hasPermission('roles.create'))
-        <div class="modal fade" id="mdlAddRole" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-lg modal-dialog-centered">
-                <div class="modal-content">
+@endif
 
-                    <div class="modal-header">
-                        <h5 class="modal-title">New Role</h5>
-                        <button class="btn-close" data-bs-dismiss="modal"></button>
+{{-- =========================================================================
+     MODAL EDIT ROLE
+========================================================================= --}}
+@if (auth()->user()->hasPermission('roles.update'))
+    <div class="modal fade" id="mdlEditRole" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title text-white"><i class="bx bx-edit-alt me-1"></i> Edit Role & Hak Akses</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+
+                <form id="formEditRole" method="POST" action="">
+                    @csrf
+                    @method('PUT')
+                    <div class="modal-body p-4">
+                        {{-- Top Meta Inputs --}}
+                        <div class="row g-3 mb-4 p-3 bg-light rounded-3 border">
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Role Slug <span class="text-danger">*</span></label>
+                                <input name="slug" id="edit_slug" class="form-control" required>
+                                <small class="text-muted">Slug identifier sistem</small>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Role Name <span class="text-danger">*</span></label>
+                                <input name="name" id="edit_name" class="form-control" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Home Route</label>
+                                <select name="home_route" id="edit_home_route" class="form-select">
+                                    <option value="">(Otomatis)</option>
+                                    @foreach ($homeCandidates as $c)
+                                        <option value="{{ $c['route'] }}">{{ $c['label'] }} ({{ $c['route'] }})</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+
+                        {{-- Permission & Menu Grid --}}
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-bold mb-0 text-dark"><i class="bx bx-check-double text-primary me-1"></i>Pengaturan Sidebar Menu & Hak Akses Tombol</h6>
+                            <div class="btn-group btn-group-sm">
+                                <button type="button" class="btn btn-outline-primary js-select-all-edit">Pilih Semua</button>
+                                <button type="button" class="btn btn-outline-secondary js-unselect-all-edit">Batal Semua</button>
+                            </div>
+                        </div>
+
+                        <div class="row g-3">
+                            @foreach ($configGroups as $groupKey => $groupData)
+                                @php
+                                    $groupItems = $groups[$groupKey] ?? collect();
+                                @endphp
+                                @if($groupItems->isNotEmpty())
+                                    <div class="col-md-6 col-lg-4">
+                                        <div class="card h-100 border shadow-none bg-white">
+                                            <div class="card-header bg-label-primary py-2 px-3 d-flex justify-content-between align-items-center">
+                                                <span class="fw-bold fs-7">
+                                                    <i class="{{ $groupData['icon'] ?? 'bx bx-folder' }} me-1"></i>{{ $groupData['label'] }}
+                                                </span>
+                                                <a href="javascript:void(0);" class="text-primary small fw-semibold js-toggle-group-edit" data-group="{{ $groupKey }}">Toggle</a>
+                                            </div>
+                                            <div class="card-body p-3">
+                                                @foreach ($groupItems as $it)
+                                                    <div class="mb-3 pb-2 border-bottom border-light">
+                                                        {{-- Menu Level Checkbox --}}
+                                                        <div class="form-check form-switch mb-1">
+                                                            <input class="form-check-input js-menu-checkbox-edit edit-menu-{{ $groupKey }}" 
+                                                                type="checkbox" 
+                                                                name="menu_keys[]" 
+                                                                value="{{ $it['key'] }}" 
+                                                                id="edit_menu_{{ $it['key'] }}">
+                                                            <label class="form-check-label fw-bold text-dark" for="edit_menu_{{ $it['key'] }}">
+                                                                <i class="{{ $it['icon'] ?? 'bx bx-chevron-right' }} me-1 text-primary"></i>{{ $it['label'] }}
+                                                            </label>
+                                                        </div>
+
+                                                        {{-- Granular Actions --}}
+                                                        @if(!empty($it['permissions']))
+                                                            <div class="ms-4 ps-2 mt-1 d-flex flex-wrap gap-2">
+                                                                @foreach($it['permissions'] as $perm)
+                                                                    @php
+                                                                        $permLabel = explode('.', $perm)[1] ?? $perm;
+                                                                        $permLabelFormatted = ucwords(str_replace('_', ' ', $permLabel));
+                                                                    @endphp
+                                                                    <div class="form-check form-check-inline m-0">
+                                                                        <input class="form-check-input js-perm-checkbox-edit edit-perm-{{ $it['key'] }} edit-perm-all-{{ $groupKey }}" 
+                                                                            type="checkbox" 
+                                                                            name="permissions[]" 
+                                                                            value="{{ $perm }}" 
+                                                                            id="edit_perm_{{ str_replace('.', '_', $perm) }}">
+                                                                        <label class="form-check-label small text-muted" for="edit_perm_{{ str_replace('.', '_', $perm) }}">
+                                                                            {{ $permLabelFormatted }}
+                                                                        </label>
+                                                                    </div>
+                                                                @endforeach
+                                                            </div>
+                                                        @endif
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endif
+                            @endforeach
+                        </div>
                     </div>
 
-                    <form id="formAddRole" method="POST" action="{{ route('erp.roles.store') }}">
-                        @csrf
-
-                        <div class="modal-body">
-
-                            <div class="row g-2 mb-3">
-                                <div class="col-md-4">
-                                    <label class="form-label">Slug</label>
-                                    <input name="slug" class="form-control" required>
-                                </div>
-
-                                <div class="col-md-4">
-                                    <label class="form-label">Name</label>
-                                    <input name="name" class="form-control" required>
-                                </div>
-
-                                <div class="col-md-4">
-                                    <label class="form-label">Home Route</label>
-                                    <select name="home_route" class="form-select">
-                                        <option value="">(Auto)</option>
-                                        @foreach ($homeCandidates as $c)
-                                            <option value="{{ $c['route'] }}">{{ $c['label'] }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div class="row g-4">
-
-                                {{-- INVENTORY --}}
-                                <div class="col-md-4">
-                                    <div class="fw-semibold mb-2">Inventory</div>
-
-                                    @foreach ($groups['inventory'] as $it)
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" name="menu_keys[]"
-                                                value="{{ $it['key'] }}" id="add_{{ $it['key'] }}">
-                                            <label class="form-check-label">{{ $it['label'] }}</label>
-                                        </div>
-
-                                        @if ($it['key'] === 'products')
-                                            <div class="ms-4 mb-2">
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" name="permissions[]"
-                                                        value="products.view">
-                                                    <label class="form-check-label">View</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" name="permissions[]"
-                                                        value="products.create">
-                                                    <label class="form-check-label">Create</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" name="permissions[]"
-                                                        value="products.update">
-                                                    <label class="form-check-label">Update</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" name="permissions[]"
-                                                        value="products.delete">
-                                                    <label class="form-check-label">Delete</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" name="permissions[]"
-                                                        value="products.export">
-                                                    <label class="form-check-label">Export Excel</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" name="permissions[]"
-                                                        value="products.export_seeder">
-                                                    <label class="form-check-label">Export Seeder (CSV)</label>
-                                                </div>
-
-                                            </div>
-                                        @endif
-                                        @if ($it['key'] === 'categories')
-                                            <div class="ms-4 mb-2">
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" name="permissions[]"
-                                                        value="category.view">
-                                                    <label class="form-check-label">View</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" name="permissions[]"
-                                                        value="category.create">
-                                                    <label class="form-check-label">Create</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" name="permissions[]"
-                                                        value="category.update">
-                                                    <label class="form-check-label">Update</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" name="permissions[]"
-                                                        value="category.delete">
-                                                    <label class="form-check-label">Delete</label>
-                                                </div>
-
-                                            </div>
-                                        @endif
-                                        @if ($it['key'] === 'stock_adjustments')
-                                            <div class="ms-4 mb-2">
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input add-permission" type="checkbox"
-                                                        name="permissions[]" value="stock_adjustments.view"
-                                                        id="add_stock_adjustments_view">
-                                                    <label class="form-check-label"
-                                                        for="add_stock_adjustments_view">View</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input add-permission" type="checkbox"
-                                                        name="permissions[]" value="stock_adjustments.create"
-                                                        id="add_stock_adjustments_create">
-                                                    <label class="form-check-label"
-                                                        for="add_stock_adjustments_create">Create</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input add-permission" type="checkbox"
-                                                        name="permissions[]" value="stock_adjustments.export"
-                                                        id="add_stock_adjustments_export">
-                                                    <label class="form-check-label"
-                                                        for="add_stock_adjustments_export">Export Excel</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input add-permission" type="checkbox"
-                                                        name="permissions[]" value="stock_adjustments.view_all"
-                                                        id="add_stock_adjustments_view_all">
-                                                    <label class="form-check-label"
-                                                        for="add_stock_adjustments_view_all">View All (Global)</label>
-                                                </div>
-
-                                            </div>
-                                        @endif
-                                    @endforeach
-                                </div>
-
-                                {{-- PROCUREMENT --}}
-                                <div class="col-md-4">
-                                    <div class="fw-semibold mb-2">Procurement</div>
-                                    @foreach ($groups['procurement'] as $it)
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" name="menu_keys[]"
-                                                value="{{ $it['key'] }}" id="add_{{ $it['key'] }}">
-                                            <label class="form-check-label"
-                                                for="add_{{ $it['key'] }}">{{ $it['label'] }}</label>
-                                        </div>
-                                        @if ($it['key'] === 'suppliers')
-                                            <div class="ms-4 mb-2">
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input add-permission" type="checkbox"
-                                                        name="permissions[]" value="supplier.view"
-                                                        id="add_supplier_view">
-                                                    <label class="form-check-label" for="add_supplier_view">View</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input add-permission" type="checkbox"
-                                                        name="permissions[]" value="supplier.create"
-                                                        id="add_supplier_create">
-                                                    <label class="form-check-label"
-                                                        for="add_supplier_create">Create</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input add-permission" type="checkbox"
-                                                        name="permissions[]" value="supplier.update"
-                                                        id="add_supplier_update">
-                                                    <label class="form-check-label"
-                                                        for="add_supplier_update">Update</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input add-permission" type="checkbox"
-                                                        name="permissions[]" value="supplier.delete"
-                                                        id="add_supplier_delete">
-                                                    <label class="form-check-label"
-                                                        for="add_supplier_delete">Delete</label>
-                                                </div>
-
-                                            </div>
-                                        @endif
-
-                                        @if ($it['key'] === 'po')
-                                            <div class="ms-4 mb-2">
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input add-permission" type="checkbox"
-                                                        name="permissions[]" value="po.view"
-                                                        id="add_po_view">
-                                                    <label class="form-check-label" for="add_po_view">View</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input add-permission" type="checkbox"
-                                                        name="permissions[]" value="po.create"
-                                                        id="add_po_create">
-                                                    <label class="form-check-label"
-                                                        for="add_po_create">Create</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input add-permission" type="checkbox"
-                                                        name="permissions[]" value="po.update"
-                                                        id="add_po_update">
-                                                    <label class="form-check-label"
-                                                        for="add_po_update">Update</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input add-permission" type="checkbox"
-                                                        name="permissions[]" value="po.delete"
-                                                        id="add_po_delete">
-                                                    <label class="form-check-label"
-                                                        for="add_po_delete">Delete</label>
-                                                </div>
-
-                                            </div>
-                                        @endif
-                                    @endforeach
-                                </div>
-
-                                {{-- MASTER --}}
-                                <div class="col-md-4">
-                                    <div class="fw-semibold mb-2">Master</div>
-                                    @foreach ($groups['master'] as $it)
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" name="menu_keys[]"
-                                                value="{{ $it['key'] }}">
-                                            <label class="form-check-label">{{ $it['label'] }}</label>
-                                        </div>
-                                        @if ($it['key'] === 'packages')
-                                            <div class="ms-4 mb-2">
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" name="permissions[]"
-                                                        value="packages.view">
-                                                    <label class="form-check-label">View</label>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" name="permissions[]"
-                                                        value="packages.create">
-                                                    <label class="form-check-label">Create</label>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" name="permissions[]"
-                                                        value="packages.update">
-                                                    <label class="form-check-label">Update</label>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" name="permissions[]"
-                                                        value="packages.delete">
-                                                    <label class="form-check-label">Delete</label>
-                                                </div>
-                                            </div>
-                                        @endif
-                                        {{-- ADD MASTER PERMISSION --}}
-                                        @if ($it['key'] === 'company')
-                                            <div class="ms-4 mb-2">
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input add-permission" type="checkbox"
-                                                        name="permissions[]" value="company.view">
-                                                    <label class="form-check-label">View</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input add-permission" type="checkbox"
-                                                        name="permissions[]" value="company.create">
-                                                    <label class="form-check-label">Create</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input add-permission" type="checkbox"
-                                                        name="permissions[]" value="company.update">
-                                                    <label class="form-check-label">Update</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input add-permission" type="checkbox"
-                                                        name="permissions[]" value="company.delete">
-                                                    <label class="form-check-label">Delete</label>
-                                                </div>
-
-                                            </div>
-                                        @endif
-                                        @if ($it['key'] === 'users')
-                                            <div class="ms-4 mb-2">
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input add-permission" type="checkbox"
-                                                        name="permissions[]" value="users.view" id="add_users_view">
-                                                    <label class="form-check-label" for="add_users_view">View</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input add-permission" type="checkbox"
-                                                        name="permissions[]" value="users.create" id="add_users_create">
-                                                    <label class="form-check-label" for="add_users_create">Create</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input add-permission" type="checkbox"
-                                                        name="permissions[]" value="users.update" id="add_users_update">
-                                                    <label class="form-check-label" for="add_users_update">Update</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input add-permission" type="checkbox"
-                                                        name="permissions[]" value="users.delete" id="add_users_delete">
-                                                    <label class="form-check-label" for="add_users_delete">Delete</label>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input add-permission" type="checkbox"
-                                                        name="permissions[]" value="users.bulk_delete"
-                                                        id="add_users_bulk_delete">
-                                                    <label class="form-check-label" for="add_users_bulk_delete">Bulk
-                                                        Delete</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input add-permission" type="checkbox"
-                                                        name="permissions[]" value="users.export" id="add_users_export">
-                                                    <label class="form-check-label" for="add_users_export">Export</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input add-permission" type="checkbox"
-                                                        name="permissions[]" value="users.export_seeder"
-                                                        id="add_users_export_seeder">
-                                                    <label class="form-check-label" for="add_users_export_seeder">Export
-                                                        Seeder (CSV)</label>
-                                                </div>
-
-                                            </div>
-                                        @endif
-                                        @if ($it['key'] === 'roles')
-                                            <div class="ms-4 mb-2">
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input add-permission" type="checkbox"
-                                                        name="permissions[]" value="roles.view" id="add_roles_view">
-                                                    <label class="form-check-label" for="add_roles_view">View</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input add-permission" type="checkbox"
-                                                        name="permissions[]" value="roles.create" id="add_roles_create">
-                                                    <label class="form-check-label" for="add_roles_create">Create</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input add-permission" type="checkbox"
-                                                        name="permissions[]" value="roles.update" id="add_roles_update">
-                                                    <label class="form-check-label" for="add_roles_update">Update</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input add-permission" type="checkbox"
-                                                        name="permissions[]" value="roles.delete" id="add_roles_delete">
-                                                    <label class="form-check-label" for="add_roles_delete">Delete</label>
-                                                </div>
-
-                                            </div>
-                                        @endif
-                                        @if ($it['key'] === 'bom')
-                                            <div class="ms-4 mb-2">
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input add-permission" type="checkbox"
-                                                        name="permissions[]" value="bom.view" id="add_bom_view">
-                                                    <label class="form-check-label" for="add_bom_view">View</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input add-permission" type="checkbox"
-                                                        name="permissions[]" value="bom.create" id="add_bom_create">
-                                                    <label class="form-check-label" for="add_bom_create">Create</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input add-permission" type="checkbox"
-                                                        name="permissions[]" value="bom.update" id="add_bom_update">
-                                                    <label class="form-check-label" for="add_bom_update">Update</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input add-permission" type="checkbox"
-                                                        name="permissions[]" value="bom.delete" id="add_bom_delete">
-                                                    <label class="form-check-label" for="add_bom_delete">Delete</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input add-permission" type="checkbox"
-                                                        name="permissions[]" value="bom.produce" id="add_bom_produce">
-                                                    <label class="form-check-label" for="add_bom_produce">Produce</label>
-                                                </div>
-
-                                            </div>
-                                        @endif
-                                    @endforeach
-                                </div>
-
-
-                            </div>
-                        </div>
-
-                        <div class="modal-footer">
-                            <button class="btn btn-primary">Save</button>
-                            <button class="btn btn-outline-secondary" data-bs-dismiss="modal"
-                                type="button">Cancel</button>
-                        </div>
-
-                    </form>
-                </div>
-            </div>
-        </div>
-    @endif
-
-    {{-- ====== EDIT ROLE ====== --}}
-    @if (auth()->user()->hasPermission('roles.update'))
-        <div class="modal fade" id="mdlEditRole" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-lg modal-dialog-centered">
-                <div class="modal-content">
-
-                    <div class="modal-header">
-                        <h5 class="modal-title">Edit Role</h5>
-                        <button class="btn-close" data-bs-dismiss="modal"></button>
+                    <div class="modal-footer bg-light">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-primary"><i class="bx bx-save me-1"></i> Update Perubahan Role</button>
                     </div>
-
-                    <form id="formEditRole" method="POST">
-                        @csrf
-                        @method('PUT')
-
-                        <div class="modal-body">
-
-                            <div class="row g-2 mb-3">
-                                <div class="col-md-4">
-                                    <label class="form-label">Slug</label>
-                                    <input id="edit_slug" name="slug" class="form-control" required>
-                                </div>
-
-                                <div class="col-md-4">
-                                    <label class="form-label">Name</label>
-                                    <input id="edit_name" name="name" class="form-control" required>
-                                </div>
-
-                                <div class="col-md-4">
-                                    <label class="form-label">Home Route (optional)</label>
-                                    <select name="home_route" id="edit_home_route" class="form-select">
-                                        <option value="">(Auto from first checked)</option>
-                                        @foreach ($homeCandidates as $c)
-                                            <option value="{{ $c['route'] }}">{{ $c['label'] }}
-                                                ({{ $c['route'] }})
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div class="row g-4">
-
-                                {{-- INVENTORY --}}
-                                <div class="col-md-4">
-                                    <div class="fw-semibold mb-2">Inventory</div>
-
-                                    @foreach ($groups['inventory'] as $it)
-                                        <div class="form-check">
-                                            <input class="form-check-input edit-check" type="checkbox" name="menu_keys[]"
-                                                value="{{ $it['key'] }}" id="edit_{{ $it['key'] }}">
-
-                                            <label for="edit_{{ $it['key'] }}" class="form-check-label">
-                                                {{ $it['label'] }}
-                                            </label>
-                                        </div>
-
-                                        @if ($it['key'] === 'products')
-                                            <div class="ms-4 mb-2">
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="products.view"
-                                                        id="edit_products_view">
-                                                    <label class="form-check-label" for="edit_products_view">View</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="products.create"
-                                                        id="edit_products_create">
-                                                    <label class="form-check-label"
-                                                        for="edit_products_create">Create</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="products.update"
-                                                        id="edit_products_update">
-                                                    <label class="form-check-label"
-                                                        for="edit_products_update">Update</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="products.delete"
-                                                        id="edit_products_delete">
-                                                    <label class="form-check-label"
-                                                        for="edit_products_delete">Delete</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="products.export"
-                                                        id="edit_products_export">
-                                                    <label class="form-check-label" for="edit_products_export">Export
-                                                        Excel</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="products.export_seeder"
-                                                        id="edit_products_export_seeder">
-                                                    <label class="form-check-label"
-                                                        for="edit_products_export_seeder">Export Seeder (CSV)</label>
-                                                </div>
-
-                                            </div>
-                                        @endif
-                                        @if ($it['key'] === 'categories')
-                                            <div class="ms-4 mb-2">
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="category.view"
-                                                        id="edit_category_view">
-                                                    <label class="form-check-label" for="edit_category_view">View</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="category.create"
-                                                        id="edit_category_create">
-                                                    <label class="form-check-label"
-                                                        for="edit_category_create">Create</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="category.update"
-                                                        id="edit_category_update">
-                                                    <label class="form-check-label"
-                                                        for="edit_category_update">Update</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="category.delete"
-                                                        id="edit_category_delete">
-                                                    <label class="form-check-label"
-                                                        for="edit_category_delete">Delete</label>
-                                                </div>
-
-                                            </div>
-                                        @endif
-                                        @if ($it['key'] === 'stock_adjustments')
-                                            <div class="ms-4 mb-2">
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="stock_adjustments.view"
-                                                        id="edit_stock_adjustments_view">
-                                                    <label class="form-check-label"
-                                                        for="edit_stock_adjustments_view">View</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="stock_adjustments.create"
-                                                        id="edit_stock_adjustments_create">
-                                                    <label class="form-check-label"
-                                                        for="edit_stock_adjustments_create">Create</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="stock_adjustments.export"
-                                                        id="edit_stock_adjustments_export">
-                                                    <label class="form-check-label"
-                                                        for="edit_stock_adjustments_export">Export Excel</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="stock_adjustments.view_all"
-                                                        id="edit_stock_adjustments_view_all">
-                                                    <label class="form-check-label"
-                                                        for="edit_stock_adjustments_view_all">View All (Global)</label>
-                                                </div>
-
-                                            </div>
-                                        @endif
-                                    @endforeach
-                                </div>
-
-                                {{-- PROCUREMENT --}}
-                                <div class="col-md-4">
-                                    <div class="fw-semibold mb-2">Procurement</div>
-                                    @foreach ($groups['procurement'] as $it)
-                                        <div class="form-check">
-                                            <input class="form-check-input edit-check" type="checkbox" name="menu_keys[]"
-                                                value="{{ $it['key'] }}" id="edit_{{ $it['key'] }}">
-                                            <label for="edit_{{ $it['key'] }}" class="form-check-label">
-                                                {{ $it['label'] }}
-                                            </label>
-                                        </div>
-
-                                        @if ($it['key'] === 'suppliers')
-                                            <div class="ms-4 mb-2">
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="supplier.view"
-                                                        id="edit_supplier_view">
-                                                    <label class="form-check-label" for="edit_supplier_view">View</label>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="supplier.create"
-                                                        id="edit_supplier_create">
-                                                    <label class="form-check-label"
-                                                        for="edit_supplier_create">Create</label>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="supplier.update"
-                                                        id="edit_supplier_update">
-                                                    <label class="form-check-label"
-                                                        for="edit_supplier_update">Update</label>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="supplier.delete"
-                                                        id="edit_supplier_delete">
-                                                    <label class="form-check-label"
-                                                        for="edit_supplier_delete">Delete</label>
-                                                </div>
-                                            </div>
-                                        @endif
-
-                                        @if ($it['key'] === 'po')
-                                            <div class="ms-4 mb-2">
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="po.view"
-                                                        id="edit_po_view">
-                                                    <label class="form-check-label" for="edit_po_view">View</label>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="po.create"
-                                                        id="edit_po_create">
-                                                    <label class="form-check-label"
-                                                        for="edit_po_create">Create</label>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="po.update"
-                                                        id="edit_po_update">
-                                                    <label class="form-check-label"
-                                                        for="edit_po_update">Update</label>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="po.delete"
-                                                        id="edit_po_delete">
-                                                    <label class="form-check-label"
-                                                        for="edit_po_delete">Delete</label>
-                                                </div>
-                                            </div>
-                                        @endif
-                                    @endforeach
-                                </div>
-
-                                {{-- MASTER --}}
-                                <div class="col-md-4">
-                                    <div class="fw-semibold mb-2">Master</div>
-                                    @foreach ($groups['master'] as $it)
-                                        <div class="form-check">
-                                            <input class="form-check-input edit-check" type="checkbox" name="menu_keys[]"
-                                                value="{{ $it['key'] }}" id="edit_{{ $it['key'] }}">
-                                            <label for="edit_{{ $it['key'] }}" class="form-check-label">
-                                                {{ $it['label'] }}
-                                            </label>
-                                        </div>
-
-                                        @if ($it['key'] === 'packages')
-                                            <div class="ms-4 mb-2">
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="packages.view"
-                                                        id="edit_packages_view">
-                                                    <label class="form-check-label" for="edit_packages_view">View</label>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="packages.create"
-                                                        id="edit_packages_create">
-                                                    <label class="form-check-label"
-                                                        for="edit_packages_create">Create</label>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="packages.update"
-                                                        id="edit_packages_update">
-                                                    <label class="form-check-label"
-                                                        for="edit_packages_update">Update</label>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="packages.delete"
-                                                        id="edit_packages_delete">
-                                                    <label class="form-check-label"
-                                                        for="edit_packages_delete">Delete</label>
-                                                </div>
-                                            </div>
-                                        @endif
-
-                                        {{-- EDIT MASTER PERMISSION --}}
-                                        @if ($it['key'] === 'company')
-                                            <div class="ms-4 mb-2">
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="company.view" id="edit_company_view">
-                                                    <label class="form-check-label" for="edit_company_view">View</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="company.create"
-                                                        id="edit_company_create">
-                                                    <label class="form-check-label"
-                                                        for="edit_company_create">Create</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="company.update"
-                                                        id="edit_company_update">
-                                                    <label class="form-check-label"
-                                                        for="edit_company_update">Update</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="company.delete"
-                                                        id="edit_company_delete">
-                                                    <label class="form-check-label"
-                                                        for="edit_company_delete">Delete</label>
-                                                </div>
-
-                                            </div>
-                                        @endif
-                                        @if ($it['key'] === 'users')
-                                            <div class="ms-4 mb-2">
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="users.view" id="edit_users_view">
-                                                    <label class="form-check-label" for="edit_users_view">View</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="users.create" id="edit_users_create">
-                                                    <label class="form-check-label" for="edit_users_create">Create</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="users.update" id="edit_users_update">
-                                                    <label class="form-check-label" for="edit_users_update">Update</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="users.delete" id="edit_users_delete">
-                                                    <label class="form-check-label" for="edit_users_delete">Delete</label>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="users.bulk_delete"
-                                                        id="edit_users_bulk_delete">
-                                                    <label class="form-check-label" for="edit_users_bulk_delete">Bulk
-                                                        Delete</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="users.export" id="edit_users_export">
-                                                    <label class="form-check-label" for="edit_users_export">Export</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="users.export_seeder"
-                                                        id="edit_users_export_seeder">
-                                                    <label class="form-check-label" for="edit_users_export_seeder">Export
-                                                        Seeder (CSV)</label>
-                                                </div>
-
-                                            </div>
-                                        @endif
-                                        @if ($it['key'] === 'roles')
-                                            <div class="ms-4 mb-2">
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="roles.view">
-                                                    <label class="form-check-label">View</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="roles.create">
-                                                    <label class="form-check-label">Create</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="roles.update">
-                                                    <label class="form-check-label">Update</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="roles.delete">
-                                                    <label class="form-check-label">Delete</label>
-                                                </div>
-
-                                            </div>
-                                        @endif
-                                        @if ($it['key'] === 'bom')
-                                            <div class="ms-4 mb-2">
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="bom.view" id="edit_bom_view">
-                                                    <label class="form-check-label" for="edit_bom_view">View</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="bom.create" id="edit_bom_create">
-                                                    <label class="form-check-label" for="edit_bom_create">Create</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="bom.update" id="edit_bom_update">
-                                                    <label class="form-check-label" for="edit_bom_update">Update</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="bom.delete" id="edit_bom_delete">
-                                                    <label class="form-check-label" for="edit_bom_delete">Delete</label>
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input edit-permission" type="checkbox"
-                                                        name="permissions[]" value="bom.produce" id="edit_bom_produce">
-                                                    <label class="form-check-label" for="edit_bom_produce">Produce</label>
-                                                </div>
-
-                                            </div>
-                                        @endif
-                                    @endforeach
-                                </div>
-
-
-
-                            </div>
-                        </div>
-
-                        <div class="modal-footer">
-                            <button class="btn btn-primary">Save</button>
-                            <button class="btn btn-outline-secondary" data-bs-dismiss="modal"
-                                type="button">Cancel</button>
-                        </div>
-
-                    </form>
-                </div>
+                </form>
             </div>
         </div>
-    @endif
-@endsection
+    </div>
+@endif
 
 @push('scripts')
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const permissionMenuMap = {
-                products: 'products',
-                uom: 'packages',
-                category: 'categories',
-                supplier: 'suppliers',
-                stock_adjustments: 'stock_adjustments',
-                company: 'company',
-                users: 'users',
-                roles: 'roles',
-                bom: 'bom',
-                warehouse: 'warehouses',
-            };
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
-            function getPermissionParts(value) {
-                const [module, action] = String(value || '').split('.');
-                return {
-                    module,
-                    action
-                };
-            }
+    // ==========================================
+    // 1. ADD MODAL HELPERS
+    // ==========================================
+    document.querySelector('.js-select-all-add')?.addEventListener('click', function () {
+        document.querySelectorAll('#formAddRole input[type="checkbox"]').forEach(cb => cb.checked = true);
+    });
+    document.querySelector('.js-unselect-all-add')?.addEventListener('click', function () {
+        document.querySelectorAll('#formAddRole input[type="checkbox"]').forEach(cb => cb.checked = false);
+    });
 
-            function getMenuCheckbox(modalEl, module) {
-                const menuKey = permissionMenuMap[module];
-                if (!menuKey) {
-                    return null;
-                }
+    document.querySelectorAll('.js-toggle-group-add').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const group = this.getAttribute('data-group');
+            const checkboxes = document.querySelectorAll(`.add-menu-${group}, .add-perm-all-${group}`);
+            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+            checkboxes.forEach(cb => cb.checked = !allChecked);
+        });
+    });
 
-                return modalEl.querySelector(`input[name="menu_keys[]"][value="${menuKey}"]`);
-            }
+    // When a menu checkbox is clicked, toggle child permissions
+    document.querySelectorAll('#formAddRole .js-menu-checkbox').forEach(menuCb => {
+        menuCb.addEventListener('change', function () {
+            const key = this.value;
+            const childPerms = document.querySelectorAll(`.add-perm-${key}`);
+            childPerms.forEach(p => p.checked = this.checked);
+        });
+    });
 
-            function getPermissionCheckbox(modalEl, module, action) {
-                return modalEl.querySelector(`input[name="permissions[]"][value="${module}.${action}"]`);
-            }
-
-            function getPermissionCheckboxes(modalEl, module) {
-                return Array.from(modalEl.querySelectorAll(`input[name="permissions[]"][value^="${module}."]`));
-            }
-
-            function syncFromMenuCheckbox(modalEl, menuCheckbox) {
-                const menuKey = menuCheckbox.value;
-                const module = Object.keys(permissionMenuMap).find((key) => permissionMenuMap[key] === menuKey);
-
-                if (!module) {
-                    return;
-                }
-
-                const permissionCheckboxes = getPermissionCheckboxes(modalEl, module);
-                const viewCheckbox = getPermissionCheckbox(modalEl, module, 'view');
-
-                if (!permissionCheckboxes.length) {
-                    return;
-                }
-
-                if (menuCheckbox.checked) {
-                    if (viewCheckbox) {
-                        viewCheckbox.checked = true;
-                    }
-                    return;
-                }
-
-                permissionCheckboxes.forEach((checkbox) => {
-                    checkbox.checked = false;
-                });
-            }
-
-            function syncFromPermissionCheckbox(modalEl, permissionCheckbox) {
-                const {
-                    module,
-                    action
-                } = getPermissionParts(permissionCheckbox.value);
-                const menuCheckbox = getMenuCheckbox(modalEl, module);
-                const viewCheckbox = getPermissionCheckbox(modalEl, module, 'view');
-
-                if (!menuCheckbox) {
-                    return;
-                }
-
-                if (permissionCheckbox.checked) {
-                    menuCheckbox.checked = true;
-
-                    if (action !== 'view' && viewCheckbox) {
-                        viewCheckbox.checked = true;
-                    }
-
-                    if (action === 'view' && viewCheckbox) {
-                        viewCheckbox.checked = true;
-                    }
-
-                    return;
-                }
-
-                const hasOtherChecked = getPermissionCheckboxes(modalEl, module)
-                    .some((checkbox) => checkbox.checked);
-
-                if (!hasOtherChecked) {
-                    menuCheckbox.checked = false;
+    // When a child permission is checked, ensure parent menu is checked
+    document.querySelectorAll('#formAddRole .js-perm-checkbox').forEach(permCb => {
+        permCb.addEventListener('change', function () {
+            if (this.checked) {
+                const parentGroup = this.className.match(/add-perm-([a-zA-Z0-9_]+)/);
+                if (parentGroup && parentGroup[1]) {
+                    const parentMenu = document.getElementById(`add_menu_${parentGroup[1]}`);
+                    if (parentMenu) parentMenu.checked = true;
                 }
             }
+        });
+    });
 
-            function bindPermissionSync(modalSelector) {
-                const modalEl = document.querySelector(modalSelector);
-                if (!modalEl) {
-                    return;
-                }
 
-                modalEl.querySelectorAll('input[name="menu_keys[]"]').forEach((checkbox) => {
-                    checkbox.addEventListener('change', () => syncFromMenuCheckbox(modalEl, checkbox));
-                });
+    // ==========================================
+    // 2. EDIT MODAL HANDLERS
+    // ==========================================
+    const editModal = new bootstrap.Modal(document.getElementById('mdlEditRole'));
+    const formEdit = document.getElementById('formEditRole');
 
-                modalEl.querySelectorAll('input[name="permissions[]"]').forEach((checkbox) => {
-                    checkbox.addEventListener('change', () => syncFromPermissionCheckbox(modalEl,
-                        checkbox));
-                });
-            }
+    document.querySelectorAll('.js-edit').forEach(btn => {
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            const id = this.getAttribute('data-id');
+            const slug = this.getAttribute('data-slug');
+            const name = this.getAttribute('data-name');
+            const homeRoute = this.getAttribute('data-home_route') || '';
+            const menuKeys = JSON.parse(this.getAttribute('data-menu_keys') || '[]');
+            const permissions = JSON.parse(this.getAttribute('data-permissions') || '[]');
 
-            bindPermissionSync('#mdlAddRole');
-            bindPermissionSync('#mdlEditRole');
+            formEdit.action = `/erp/roles/${id}`;
+            document.getElementById('edit_slug').value = slug;
+            document.getElementById('edit_name').value = name;
+            document.getElementById('edit_home_route').value = homeRoute;
 
-            const editModalEl = document.getElementById('mdlEditRole');
-            const editModal = new bootstrap.Modal(editModalEl);
-            const editForm = document.getElementById('formEditRole');
+            // Reset all edit checkboxes
+            formEdit.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
 
-            document.querySelectorAll('.js-edit').forEach(btn => {
-                btn.addEventListener('click', e => {
-                    e.preventDefault();
-
-                    let keys = [];
-                    let permissions = [];
-
-                    try {
-                        keys = JSON.parse(btn.dataset.menu_keys || '[]');
-                    } catch (e) {}
-                    try {
-                        permissions = JSON.parse(btn.dataset.permissions || '[]');
-                    } catch (e) {}
-
-                    editForm.action = `{{ url('erp/roles') }}/${btn.dataset.id}`;
-
-                    document.getElementById('edit_slug').value = btn.dataset.slug;
-                    document.getElementById('edit_name').value = btn.dataset.name;
-                    document.getElementById('edit_home_route').value = btn.dataset.home_route || '';
-
-                    document.querySelectorAll('#mdlEditRole .edit-check').forEach(ch => {
-                        ch.checked = keys.includes(ch.value);
-                    });
-
-                    document.querySelectorAll('#mdlEditRole .edit-permission').forEach(ch => {
-                        ch.checked = permissions.includes(ch.value);
-                    });
-
-                    editModal.show();
-                });
+            // Check assigned menus
+            menuKeys.forEach(key => {
+                const cb = document.getElementById(`edit_menu_${key}`);
+                if (cb) cb.checked = true;
             });
 
-            document.querySelectorAll('.js-del').forEach(btn => {
-                btn.addEventListener('click', e => {
-                    e.preventDefault();
+            // Check assigned permissions
+            permissions.forEach(perm => {
+                const idStr = perm.replace(/\./g, '_');
+                const cb = document.getElementById(`edit_perm_${idStr}`);
+                if (cb) cb.checked = true;
+            });
 
-                    const id = btn.dataset.id;
+            editModal.show();
+        });
+    });
 
-                    Swal.fire({
-                        title: 'Delete role?',
-                        text: 'Role will be permanently deleted.',
-                        icon: 'warning',
-                        showCancelButton: true,
-                        confirmButtonText: 'Yes, delete',
-                        cancelButtonText: 'Cancel'
-                    }).then(result => {
+    document.querySelector('.js-select-all-edit')?.addEventListener('click', function () {
+        document.querySelectorAll('#formEditRole input[type="checkbox"]').forEach(cb => cb.checked = true);
+    });
+    document.querySelector('.js-unselect-all-edit')?.addEventListener('click', function () {
+        document.querySelectorAll('#formEditRole input[type="checkbox"]').forEach(cb => cb.checked = false);
+    });
 
-                        if (result.isConfirmed) {
+    document.querySelectorAll('.js-toggle-group-edit').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const group = this.getAttribute('data-group');
+            const checkboxes = document.querySelectorAll(`.edit-menu-${group}, .edit-perm-all-${group}`);
+            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+            checkboxes.forEach(cb => cb.checked = !allChecked);
+        });
+    });
 
-                            fetch(`{{ url('erp/roles') }}/${id}`, {
-                                    method: 'DELETE',
-                                    headers: {
-                                        'X-CSRF-TOKEN': document.querySelector(
-                                                'meta[name="csrf-token"]')?.content ||
-                                            '',
-                                        'Accept': 'application/json',
-                                        'X-Requested-With': 'XMLHttpRequest'
-                                    }
-                                })
-                                .then(async res => {
-                                    const data = await res.json();
+    document.querySelectorAll('#formEditRole .js-menu-checkbox-edit').forEach(menuCb => {
+        menuCb.addEventListener('change', function () {
+            const key = this.value;
+            const childPerms = document.querySelectorAll(`.edit-perm-${key}`);
+            childPerms.forEach(p => p.checked = this.checked);
+        });
+    });
 
-                                    if (!res.ok) {
-                                        throw new Error(data.message ||
-                                            'Delete failed');
-                                    }
+    document.querySelectorAll('#formEditRole .js-perm-checkbox-edit').forEach(permCb => {
+        permCb.addEventListener('change', function () {
+            if (this.checked) {
+                const parentGroup = this.className.match(/edit-perm-([a-zA-Z0-9_]+)/);
+                if (parentGroup && parentGroup[1]) {
+                    const parentMenu = document.getElementById(`edit_menu_${parentGroup[1]}`);
+                    if (parentMenu) parentMenu.checked = true;
+                }
+            }
+        });
+    });
 
-                                    Swal.fire({
-                                        icon: 'success',
-                                        title: 'Deleted',
-                                        timer: 1000,
-                                        showConfirmButton: false
-                                    }).then(() => location.reload());
-                                })
-                                .catch(err => {
-                                    console.error(err);
-                                    Swal.fire('Error', err.message, 'error');
-                                });
 
+    // ==========================================
+    // 3. DELETE ROLE HANDLER
+    // ==========================================
+    document.querySelectorAll('.js-del').forEach(btn => {
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            const id = this.getAttribute('data-id');
+            const name = this.getAttribute('data-name');
+
+            Swal.fire({
+                title: 'Hapus Role?',
+                text: `Apakah Anda yakin ingin menghapus role "${name}"?`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Ya, Hapus!',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch(`/erp/roles/${id}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json'
                         }
-
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire('Terhapus!', 'Role berhasil dihapus.', 'success')
+                                .then(() => window.location.reload());
+                        } else {
+                            Swal.fire('Gagal!', data.message || 'Terjadi kesalahan saat menghapus.', 'error');
+                        }
+                    })
+                    .catch(() => {
+                        Swal.fire('Error!', 'Tidak dapat terhubung ke server.', 'error');
                     });
-                });
+                }
             });
         });
-    </script>
+    });
+});
+</script>
 @endpush
-
-
+@endsection

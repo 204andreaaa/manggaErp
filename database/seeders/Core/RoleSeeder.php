@@ -4,138 +4,149 @@ namespace Database\Seeders\Core;
 
 use Illuminate\Database\Seeder;
 use App\Models\Role;
+use Illuminate\Support\Facades\DB;
 
 class RoleSeeder extends Seeder
 {
     public function run(): void
     {
-        /*
-        |--------------------------------------------------------------------------
-        | ROLES
-        |--------------------------------------------------------------------------
-        */
-        $basicRoles = [
-            'superadmin'  => ['name' => 'Super Admin'],
-            'admin'       => ['name' => 'Admin'],
-            'warehouse'   => ['name' => 'Warehouse'],
-            'procurement' => ['name' => 'Procurement'],
-            'ceo'         => ['name' => 'CEO'],
-            'sales'       => ['name' => 'Sales'],
+        // 1. Clean legacy roles if any
+        Role::whereIn('slug', ['warehouse', 'sales'])->delete();
+
+        // 2. Definisi Roles Resmi ERP
+        $rolesData = [
+            'superadmin' => [
+                'name'        => 'Super Admin',
+                'home_route'  => 'dashboard',
+            ],
+            'admin' => [
+                'name'        => 'Admin',
+                'home_route'  => 'dashboard',
+            ],
+            'admin_project' => [
+                'name'        => 'Admin Project',
+                'home_route'  => 'erp.work-items.index',
+            ],
+            'general_affair' => [
+                'name'        => 'General Affair (GA)',
+                'home_route'  => 'erp.goods-receipts.index',
+            ],
+            'procurement' => [
+                'name'        => 'Procurement',
+                'home_route'  => 'erp.purchase-orders.index',
+            ],
+            'logistik' => [
+                'name'        => 'Logistik & Gudang',
+                'home_route'  => 'erp.stocks.index',
+            ],
+            'finance' => [
+                'name'        => 'Finance',
+                'home_route'  => 'erp.payment-advices.index',
+            ],
+            'ceo' => [
+                'name'        => 'Chief Executive Officer (CEO)',
+                'home_route'  => 'dashboard',
+            ],
         ];
 
-        foreach ($basicRoles as $slug => $data) {
-            Role::updateOrCreate(
-                ['slug' => $slug],
-                ['name' => $data['name']]
-            );
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | MENU KEYS
-        |--------------------------------------------------------------------------
-        */
         $items   = collect(config('menu.items', []));
         $allKeys = $items->pluck('key')->filter()->values()->all();
 
-        $pickByOrder = function (array $wanted) use ($allKeys) {
-            return array_values(array_intersect($allKeys, $wanted));
-        };
+        // Kumpulkan seluruh permission dari menu.php
+        $allPermissions = [];
+        foreach ($items as $item) {
+            if (!empty($item['permissions'])) {
+                foreach ($item['permissions'] as $p) {
+                    $allPermissions[] = $p;
+                }
+            }
+        }
+        $allPermissions = array_values(array_unique($allPermissions));
 
-        /*
-        |--------------------------------------------------------------------------
-        | FULL PERMISSIONS SUPERADMIN / ADMIN
-        |--------------------------------------------------------------------------
-        */
-        $allPermissions = [
-            'products.view','products.create','products.update','products.delete',
-
-            'uom.view','uom.create','uom.update','uom.delete',
-
-            'category.view','category.create','category.update','category.delete',
-
-            'supplier.view','supplier.create','supplier.update','supplier.delete',
-
-            'stock_adjustments.view','stock_adjustments.create','stock_adjustments.export',
-
-            'company.view','company.create','company.update','company.delete',
-
-            'users.view','users.create','users.update','users.delete',
-            'users.bulk_delete','users.export',
-
-            'roles.view','roles.create','roles.update','roles.delete',
-
-            'bom.view','bom.create','bom.update','bom.delete','bom.produce',
-
-            'warehouse.view','warehouse.create','warehouse.update','warehouse.delete',
-        ];
-
-        /*
-        |--------------------------------------------------------------------------
-        | MENU ROLE
-        |--------------------------------------------------------------------------
-        */
-        $warehouseKeys = $pickByOrder(array_merge(
-            $items->where('group', 'warehouse')->pluck('key')->all(),
-            ['wh_restock','users']
-        ));
-
-        $salesKeys = $items->where('group', 'sales')->pluck('key')->all();
-
-        $procurementKeys = $pickByOrder([
-            'products','packages','categories','suppliers',
-            'warehouses','wh_restock','restock_request_ap','po','company',
-        ]);
-
-        $ceoKeys = $pickByOrder([
-            'po','wh_sales_reports','reports','company',
-        ]);
-
-        $roleMenuRows = [
-            [
-                'slug' => 'superadmin',
-                'home_route' => 'admin.dashboard',
-                'menu_keys' => $allKeys,
+        // Mapping menus & permissions per role
+        $roleConfigs = [
+            'superadmin' => [
+                'menu_keys'   => $allKeys,
                 'permissions' => $allPermissions,
             ],
-            [
-                'slug' => 'admin',
-                'home_route' => 'admin.dashboard',
-                'menu_keys' => $allKeys,
+            'admin' => [
+                'menu_keys'   => $allKeys,
                 'permissions' => $allPermissions,
             ],
-            [
-                'slug' => 'warehouse',
-                'home_route' => 'warehouse.dashboard',
-                'menu_keys' => $warehouseKeys,
-                'permissions' => [],
+            'admin_project' => [
+                'menu_keys'   => ['budget_parents', 'sub_projects', 'work_items', 'request_forms', 'products'],
+                'permissions' => [
+                    'budget_parents.view', 'budget_parents.create', 'budget_parents.update', 'budget_parents.delete',
+                    'sub_projects.view', 'sub_projects.create', 'sub_projects.update', 'sub_projects.delete',
+                    'work_items.view', 'work_items.create', 'work_items.update', 'work_items.delete',
+                    'request_forms.view', 'request_forms.create', 'request_forms.update', 'request_forms.submit',
+                    'products.view'
+                ],
             ],
-            [
-                'slug' => 'sales',
-                'home_route' => 'sales.dashboard',
-                'menu_keys' => $salesKeys,
-                'permissions' => [],
+            'general_affair' => [
+                'menu_keys'   => ['request_forms', 'goods_receipts', 'products'],
+                'permissions' => [
+                    'request_forms.view', 'request_forms.create', 'request_forms.update', 'request_forms.submit',
+                    'goods_receipts.view', 'goods_receipts.create', 'goods_receipts.update', 'goods_receipts.verify', 'goods_receipts.print',
+                    'products.view'
+                ],
             ],
-            [
-                'slug' => 'procurement',
-                'home_route' => 'admin.dashboard',
-                'menu_keys' => $procurementKeys,
-                'permissions' => [],
+            'procurement' => [
+                'menu_keys'   => ['request_forms', 'purchase_orders', 'goods_receipts', 'suppliers', 'payment_terms', 'products', 'product_families', 'product_types', 'brands', 'product_models', 'currencies', 'uoms'],
+                'permissions' => [
+                    'request_forms.view', 'request_forms.update', 'request_forms.approve', 'request_forms.reject',
+                    'purchase_orders.view', 'purchase_orders.create', 'purchase_orders.update', 'purchase_orders.delete', 'purchase_orders.verify', 'purchase_orders.submit', 'purchase_orders.approve', 'purchase_orders.reject', 'purchase_orders.print',
+                    'goods_receipts.view', 'goods_receipts.print',
+                    'suppliers.view', 'suppliers.create', 'suppliers.update', 'suppliers.delete',
+                    'payment_terms.view', 'payment_terms.create', 'payment_terms.update', 'payment_terms.delete',
+                    'products.view', 'products.create', 'products.update', 'products.export',
+                    'product_families.view', 'product_types.view', 'brands.view', 'product_models.view', 'currencies.view', 'uoms.view'
+                ],
             ],
-            [
-                'slug' => 'ceo',
-                'home_route' => 'admin.dashboard',
-                'menu_keys' => $ceoKeys,
-                'permissions' => [],
+            'logistik' => [
+                'menu_keys'   => ['request_forms', 'goods_receipts', 'stocks', 'warehouses', 'products', 'uoms'],
+                'permissions' => [
+                    'request_forms.view', 'request_forms.create', 'request_forms.submit',
+                    'goods_receipts.view', 'goods_receipts.create', 'goods_receipts.update', 'goods_receipts.verify', 'goods_receipts.print',
+                    'stocks.view', 'stocks.adjust',
+                    'warehouses.view', 'warehouses.create', 'warehouses.update', 'warehouses.delete',
+                    'products.view', 'uoms.view'
+                ],
+            ],
+            'finance' => [
+                'menu_keys'   => ['purchase_orders', 'goods_receipts', 'payment_advices', 'payment_advice_details', 'suppliers', 'payment_terms'],
+                'permissions' => [
+                    'purchase_orders.view', 'purchase_orders.print',
+                    'goods_receipts.view', 'goods_receipts.print',
+                    'payment_advices.view', 'payment_advices.update',
+                    'payment_advice_details.view', 'payment_advice_details.update_invoice', 'payment_advice_details.submit', 'payment_advice_details.approve', 'payment_advice_details.reject', 'payment_advice_details.mark_paid',
+                    'suppliers.view', 'payment_terms.view'
+                ],
+            ],
+            'ceo' => [
+                'menu_keys'   => ['budget_parents', 'sub_projects', 'work_items', 'request_forms', 'purchase_orders', 'goods_receipts', 'payment_advices', 'payment_advice_details', 'stocks', 'products', 'approval_configs'],
+                'permissions' => [
+                    'budget_parents.view', 'sub_projects.view', 'work_items.view',
+                    'request_forms.view', 'request_forms.approve', 'request_forms.reject',
+                    'purchase_orders.view', 'purchase_orders.approve', 'purchase_orders.reject', 'purchase_orders.print',
+                    'goods_receipts.view', 'goods_receipts.print',
+                    'payment_advices.view', 'payment_advice_details.view', 'payment_advice_details.approve', 'payment_advice_details.reject', 'payment_advice_details.mark_paid',
+                    'stocks.view', 'products.view', 'approval_configs.view'
+                ],
             ],
         ];
 
-        foreach ($roleMenuRows as $row) {
-            Role::where('slug', $row['slug'])->update([
-                'home_route'   => $row['home_route'],
-                'menu_keys'    => $row['menu_keys'],
-                'permissions'  => $row['permissions'],
-            ]);
+        foreach ($rolesData as $slug => $data) {
+            $conf = $roleConfigs[$slug] ?? ['menu_keys' => [], 'permissions' => []];
+            Role::updateOrCreate(
+                ['slug' => $slug],
+                [
+                    'name'        => $data['name'],
+                    'home_route'  => $data['home_route'],
+                    'menu_keys'   => $conf['menu_keys'],
+                    'permissions' => $conf['permissions'],
+                ]
+            );
         }
     }
 }

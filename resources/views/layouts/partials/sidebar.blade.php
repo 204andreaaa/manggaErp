@@ -14,13 +14,14 @@ $dashboardRoute = 'dashboard';
 
 // Role checks
 $isSuperAdmin = $u?->hasRole('superadmin') || $u?->hasRole('admin');
-$isAdminProject = $isSuperAdmin || $u?->hasRole(['admin_project', 'project_admin']);
-$isGA = $isSuperAdmin || $u?->hasRole(['ga', 'general_affair']);
-$isProcurement = $isSuperAdmin || $u?->hasRole('procurement');
-$isFinance = $isSuperAdmin || $u?->hasRole('finance');
-$isLogistik = $isSuperAdmin || $u?->hasRole(['logistik', 'warehouse']);
+$isAdminProject = $isSuperAdmin || $u?->hasRole(['admin_project', 'project_admin']) || $u?->canSeeMenu('work_items') || $u?->canSeeMenu('budget_parents') || $u?->canSeeMenu('sub_projects');
+$isGA = $isSuperAdmin || $u?->hasRole(['ga', 'general_affair']) || $u?->canSeeMenu('goods_receipts');
+$isProcurement = $isSuperAdmin || $u?->hasRole('procurement') || $u?->canSeeMenu('purchase_orders') || $u?->canSeeMenu('suppliers');
+$isFinance = $isSuperAdmin || $u?->hasRole('finance') || $u?->canSeeMenu('payment_advices') || $u?->canSeeMenu('payment_advice_details');
+$isLogistik = $isSuperAdmin || $u?->hasRole(['logistik', 'warehouse']) || $u?->canSeeMenu('stocks') || $u?->canSeeMenu('warehouses');
 $isCEO = $isSuperAdmin || $u?->hasRole('ceo');
-$isMaster = $isSuperAdmin || $u?->hasRole('procurement');
+$isMaster = $isSuperAdmin || $u?->hasRole('procurement') || $u?->canSeeMenu('products') || $u?->canSeeMenu('uoms');
+$isSystem = $isSuperAdmin || $u?->canSeeMenu('users') || $u?->canSeeMenu('roles') || $u?->canSeeMenu('projects') || $u?->canSeeMenu('approval_configs');
 
 // Route Active States
 $isProjectOpen = request()->routeIs('erp.budget-parents.*')
