@@ -267,6 +267,7 @@
 </div>
 
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const reportType = @json($reportType);
@@ -291,6 +292,27 @@ document.addEventListener('DOMContentLoaded', function () {
     const tableBody = document.getElementById('reportTableBody');
     const tableFoot = document.getElementById('reportTableFoot');
     const badgeRowCount = document.getElementById('badgeRowCount');
+    const tableArea = document.querySelector('.table-responsive');
+
+    // Initialize SortableJS for reordering chips
+    let sortableInstance = null;
+    if (typeof Sortable !== 'undefined') {
+        sortableInstance = new Sortable(container, {
+            animation: 180,
+            ghostClass: 'bg-primary-subtle',
+            chosenClass: 'border-primary',
+            onEnd: function () {
+                const reordered = [];
+                container.querySelectorAll('.column-chip').forEach(chip => {
+                    const k = chip.getAttribute('data-key');
+                    const found = allFieldsMeta.find(f => f.key === k);
+                    if (found) reordered.push(found);
+                });
+                activeColumns = reordered;
+                fetchPreviewData();
+            }
+        });
+    }
 
     // Render Column Chips
     function renderColumnChips() {
@@ -299,11 +321,12 @@ document.addEventListener('DOMContentLoaded', function () {
             const chip = document.createElement('div');
             chip.className = 'column-chip';
             chip.setAttribute('draggable', 'true');
+            chip.setAttribute('data-key', col.key);
             chip.dataset.index = idx;
             chip.innerHTML = `
                 <i class="bx bx-grid-vertical me-1 text-muted"></i>
                 <span>${col.label}</span>
-                <i class="bx bx-x ms-2 text-danger fs-6 js-remove-col" data-key="${col.key}" style="cursor:pointer;"></i>
+                <i class="bx bx-x ms-2 text-danger fs-6 js-remove-col" data-key="${col.key}" style="cursor:pointer;" title="Hapus Kolom"></i>
             `;
             container.appendChild(chip);
         });
@@ -320,11 +343,15 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Add Field
-    function addField(key) {
+    function addField(key, atIndex = null) {
         if (!activeColumns.some(c => c.key === key)) {
             const found = allFieldsMeta.find(f => f.key === key);
             if (found) {
-                activeColumns.push(found);
+                if (atIndex !== null && atIndex >= 0) {
+                    activeColumns.splice(atIndex, 0, found);
+                } else {
+                    activeColumns.push(found);
+                }
                 renderColumnChips();
                 fetchPreviewData();
             }
@@ -337,6 +364,47 @@ document.addEventListener('DOMContentLoaded', function () {
         renderColumnChips();
         fetchPreviewData();
     }
+
+    // ============================================================
+    // DRAG AND DROP HANDLERS (From Left Catalogue to Workspace)
+    // ============================================================
+    document.querySelectorAll('#availableFieldsList .field-item').forEach(item => {
+        item.addEventListener('dragstart', function(e) {
+            const key = this.getAttribute('data-key');
+            e.dataTransfer.setData('text/plain', key);
+            e.dataTransfer.effectAllowed = 'copy';
+            this.style.opacity = '0.5';
+        });
+
+        item.addEventListener('dragend', function() {
+            this.style.opacity = '1';
+        });
+    });
+
+    // Dropzone 1: Selected Columns Container
+    [container, tableArea].forEach(dropzone => {
+        dropzone.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+            this.classList.add('border-primary');
+            this.style.backgroundColor = '#f4f5ff';
+        });
+
+        dropzone.addEventListener('dragleave', function() {
+            this.classList.remove('border-primary');
+            this.style.backgroundColor = '';
+        });
+
+        dropzone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('border-primary');
+            this.style.backgroundColor = '';
+            const key = e.dataTransfer.getData('text/plain');
+            if (key) {
+                addField(key);
+            }
+        });
+    });
 
     // Quick Add on click left
     document.querySelectorAll('.js-add-field').forEach(btn => {
@@ -353,7 +421,8 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     document.querySelectorAll('#availableFieldsList .field-item').forEach(item => {
-        item.addEventListener('click', function() {
+        item.addEventListener('click', function(e) {
+            if (e.target.closest('.js-add-field')) return;
             const key = this.getAttribute('data-key');
             if (activeColumns.some(c => c.key === key)) {
                 removeField(key);
@@ -465,6 +534,8 @@ document.addEventListener('DOMContentLoaded', function () {
             if (data.success) {
                 renderTable(data.columns, data.rows, data.summaries);
                 badgeRowCount.textContent = `${data.total_rows} Baris Data`;
+            } else {
+                tableBody.innerHTML = `<tr><td colspan="${activeColumns.length}" class="text-center text-danger py-4">${data.message || 'Gagal memuat data.'}</td></tr>`;
             }
         })
         .catch(err => {
