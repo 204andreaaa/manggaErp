@@ -10,6 +10,20 @@ class ReportSchemaService
     public static function getReportTypes(): array
     {
         return [
+            'procurement_flow' => [
+                'name'        => 'All-in-One: End-to-End Procurement Flow',
+                'icon'        => 'bx-git-merge',
+                'badge'       => 'Cross-Module (Joined)',
+                'description' => 'Laporan gabungan lintas divisi: Budget WID ➡️ Request Form ➡️ Purchase Order ➡️ Penerimaan Gudang (GRN) ➡️ Invoice / Pembayaran Finance.',
+                'date_fields' => [
+                    'po_date'       => 'Tanggal PO',
+                    'rf_date'       => 'Tanggal RF',
+                    'grn_date'      => 'Tanggal Terima Gudang',
+                    'due_date'      => 'Jatuh Tempo Invoice',
+                    'created_at'    => 'Tanggal Dibuat',
+                ],
+                'default_date_field' => 'po_date',
+            ],
             'purchase_orders' => [
                 'name'        => 'Purchase Orders (PO)',
                 'icon'        => 'bx-receipt',
@@ -95,6 +109,43 @@ class ReportSchemaService
     public static function getFields(string $reportType): array
     {
         switch ($reportType) {
+            case 'procurement_flow':
+                return [
+                    // PO Fields
+                    ['key' => 'po_no',                     'label' => '[PO] No. PO',                 'type' => 'text',     'default' => true],
+                    ['key' => 'supplier_name',             'label' => '[PO] Supplier / Vendor',      'type' => 'text',     'default' => true],
+                    ['key' => 'po_date',                   'label' => '[PO] Tanggal PO',             'type' => 'date',     'default' => true],
+                    ['key' => 'total_po_amount_with_tax',  'label' => '[PO] Total Nilai PO (IDR)',   'type' => 'currency', 'default' => true],
+                    ['key' => 'po_status',                 'label' => '[PO] Status PO',              'type' => 'badge',    'default' => true],
+                    ['key' => 'payment_terms',             'label' => '[PO] Termin (TOP)',           'type' => 'text',     'default' => false],
+                    
+                    // RF Fields
+                    ['key' => 'rf_no',                     'label' => '[RF] No. Request Form',       'type' => 'text',     'default' => true],
+                    ['key' => 'rf_date',                   'label' => '[RF] Tanggal Pengajuan RF',   'type' => 'date',     'default' => false],
+                    ['key' => 'requestor',                 'label' => '[RF] Pemohon (Requestor)',    'type' => 'text',     'default' => false],
+                    ['key' => 'rf_type',                   'label' => '[RF] Tipe Pengajuan',         'type' => 'text',     'default' => false],
+
+                    // Project & Budget Fields
+                    ['key' => 'wid_code',                  'label' => '[Budget] Kode WID',           'type' => 'text',     'default' => true],
+                    ['key' => 'wid_name',                  'label' => '[Budget] Pos Pekerjaan',      'type' => 'text',     'default' => false],
+                    ['key' => 'allocated_budget',          'label' => '[Budget] Pagu Anggaran (IDR)','type' => 'currency', 'default' => false],
+                    ['key' => 'remaining_budget',          'label' => '[Budget] Sisa Budget (IDR)',  'type' => 'currency', 'default' => false],
+
+                    // GRN Fields
+                    ['key' => 'do_no',                     'label' => '[Gudang] No. GRN',            'type' => 'text',     'default' => false],
+                    ['key' => 'grn_date',                  'label' => '[Gudang] Tgl Terima Barang',  'type' => 'date',     'default' => false],
+                    ['key' => 'supplier_do_no',            'label' => '[Gudang] No. Surat Jalan',    'type' => 'text',     'default' => false],
+                    ['key' => 'receiving_contact',         'label' => '[Gudang] Penerima Gudang',    'type' => 'text',     'default' => false],
+                    ['key' => 'grn_status',                'label' => '[Gudang] Status Penerimaan',  'type' => 'badge',    'default' => false],
+
+                    // Finance Invoice Fields
+                    ['key' => 'supplier_invoice_no',       'label' => '[Finance] No. Invoice Tagihan','type' => 'text',     'default' => false],
+                    ['key' => 'due_date',                  'label' => '[Finance] Jatuh Tempo Bayar', 'type' => 'date',     'default' => false],
+                    ['key' => 'total_invoice_amount_with_tax', 'label' => '[Finance] Tagihan + Pajak', 'type' => 'currency', 'default' => false],
+                    ['key' => 'outstanding',               'label' => '[Finance] Sisa Tagihan (IDR)','type' => 'currency', 'default' => false],
+                    ['key' => 'pa_status',                 'label' => '[Finance] Status Pembayaran', 'type' => 'badge',    'default' => false],
+                ];
+
             case 'purchase_orders':
                 return [
                     ['key' => 'po_no',                     'label' => 'PO: PO No',               'type' => 'text',     'default' => true],

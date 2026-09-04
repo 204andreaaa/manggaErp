@@ -174,6 +174,64 @@ class CustomReportController extends Controller
         $summaries = [];
 
         switch ($reportType) {
+            case 'procurement_flow':
+                $q = DB::connection('tenant')->table('erp_purchase_orders as po')
+                    ->leftJoin('request_forms as rf', 'po.request_form_id', '=', 'rf.id')
+                    ->leftJoin('erp_work_items as wi', 'rf.work_item_id', '=', 'wi.id')
+                    ->leftJoin('erp_suppliers as sup', 'po.supplier_id', '=', 'sup.id')
+                    ->leftJoin('erp_goods_receipts as gr', 'gr.erp_purchase_order_id', '=', 'po.id')
+                    ->leftJoin('erp_payment_advices as pa', 'pa.erp_purchase_order_id', '=', 'po.id')
+                    ->select([
+                        'po.id',
+                        'po.po_no',
+                        'po.date as po_date',
+                        'sup.name as supplier_name',
+                        'po.total_po_amount_with_tax',
+                        'po.status as po_status',
+                        'po.payment_terms',
+                        'rf.rf_no',
+                        'rf.rf_date',
+                        'rf.requestor',
+                        'rf.rf_type',
+                        'wi.wid_code',
+                        'wi.name as wid_name',
+                        'wi.allocated_budget',
+                        'wi.remaining_budget',
+                        'gr.do_no',
+                        'gr.date as grn_date',
+                        'gr.supplier_do_no',
+                        'gr.receiving_contact',
+                        'gr.status as grn_status',
+                        'pa.supplier_invoice_no',
+                        'pa.due_date',
+                        'pa.total_invoice_amount_with_tax',
+                        'pa.outstanding',
+                        'pa.status as pa_status',
+                        'po.created_at',
+                    ]);
+
+                if ($dateField && $dateFrom && $dateTo) {
+                    $columnName = match ($dateField) {
+                        'rf_date'    => 'rf.rf_date',
+                        'grn_date'   => 'gr.date',
+                        'due_date'   => 'pa.due_date',
+                        'created_at' => 'po.created_at',
+                        default      => 'po.date',
+                    };
+                    $q->whereBetween($columnName, [$dateFrom, $dateTo]);
+                }
+                if ($status) {
+                    $q->where('po.status', $status);
+                }
+
+                $rawRows = $q->latest('po.id')->limit($limit)->get();
+                $rows = $rawRows->map(fn($r) => (array) $r)->toArray();
+                
+                $summaries['total_po_amount_with_tax']     = $rawRows->sum('total_po_amount_with_tax');
+                $summaries['total_invoice_amount_with_tax'] = $rawRows->sum('total_invoice_amount_with_tax');
+                $summaries['outstanding']                   = $rawRows->sum('outstanding');
+                break;
+
             case 'purchase_orders':
                 $q = DB::connection('tenant')->table('erp_purchase_orders as po')
                     ->leftJoin('erp_suppliers as sup', 'po.supplier_id', '=', 'sup.id')

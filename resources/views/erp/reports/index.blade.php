@@ -2,6 +2,25 @@
 
 @section('title', 'Custom Report Builder')
 
+@push('styles')
+<style>
+    .report-type-card {
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: 2px solid transparent;
+    }
+    .report-type-card:hover {
+        border-color: #696cff;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(105, 108, 255, 0.12);
+    }
+    .report-type-card.active {
+        border-color: #696cff;
+        background-color: #f4f5ff;
+    }
+</style>
+@endpush
+
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y">
     {{-- Header --}}
@@ -17,9 +36,9 @@
             </nav>
         </div>
         <div>
-            <a href="{{ route('erp.reports.builder') }}" class="btn btn-primary shadow-sm">
+            <button type="button" class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#mdlSelectReportType">
                 <i class="bx bx-plus me-1"></i> Buat Laporan Baru
-            </a>
+            </button>
         </div>
     </div>
 
@@ -126,38 +145,96 @@
     </div>
 </div>
 
+{{-- =========================================================================
+     MODAL CREATE NEW REPORT - SELECT REPORT TYPE (Salesforce Style)
+========================================================================= --}}
+<div class="modal fade" id="mdlSelectReportType" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title text-white"><i class="bx bx-layer-plus me-1"></i> Create New Report - Pilih Sumber Data</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="text-muted small mb-3">
+                    Pilih modul atau tipe dataset yang ingin Anda buatkan laporannya. Anda juga bisa memilih <strong>Cross-Module (Joined)</strong> untuk menggabungkan data dari beberapa divisi sekaligus.
+                </p>
+
+                <div class="row g-3">
+                    @foreach($reportTypes as $tKey => $t)
+                        <div class="col-md-6">
+                            <div class="card h-100 p-3 border rounded-3 report-type-card" data-url="{{ route('erp.reports.builder', ['type' => $tKey]) }}">
+                                <div class="d-flex align-items-start gap-3">
+                                    <div class="avatar avatar-md bg-label-primary rounded-3 flex-shrink-0 d-flex align-items-center justify-content-center">
+                                        <i class="bx {{ $t['icon'] }} fs-4 text-primary"></i>
+                                    </div>
+                                    <div>
+                                        <div class="d-flex align-items-center gap-1 mb-1">
+                                            <h6 class="fw-bold text-dark mb-0">{{ $t['name'] }}</h6>
+                                        </div>
+                                        <span class="badge bg-label-secondary font-monospace mb-2" style="font-size:0.7rem;">{{ $t['badge'] }}</span>
+                                        <p class="text-muted small mb-0" style="font-size:0.8rem; line-height: 1.3;">
+                                            {{ $t['description'] }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @push('scripts')
 <script>
-document.querySelectorAll('.js-delete-report').forEach(btn => {
-    btn.addEventListener('click', function() {
-        const id = this.getAttribute('data-id');
-        const title = this.getAttribute('data-title');
-        
-        Swal.fire({
-            title: 'Hapus Template?',
-            text: `Yakin ingin menghapus template laporan "${title}"?`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#6c757d',
-            confirmButtonText: 'Ya, Hapus!',
-            cancelButtonText: 'Batal'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                fetch(`/erp/reports/${id}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'Accept': 'application/json'
-                    }
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        Swal.fire('Terhapus!', data.message, 'success').then(() => window.location.reload());
-                    }
-                });
+document.addEventListener('DOMContentLoaded', function() {
+    // Select Report Type Card Click
+    document.querySelectorAll('.report-type-card').forEach(card => {
+        card.addEventListener('click', function() {
+            const url = this.getAttribute('data-url');
+            if (url) {
+                window.location.href = url;
             }
+        });
+    });
+
+    // Delete Template
+    document.querySelectorAll('.js-delete-report').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const id = this.getAttribute('data-id');
+            const title = this.getAttribute('data-title');
+            
+            Swal.fire({
+                title: 'Hapus Template?',
+                text: `Yakin ingin menghapus template laporan "${title}"?`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Ya, Hapus!',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch(`/erp/reports/${id}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Accept': 'application/json'
+                        }
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire('Terhapus!', data.message, 'success').then(() => window.location.reload());
+                        }
+                    });
+                }
+            });
         });
     });
 });
