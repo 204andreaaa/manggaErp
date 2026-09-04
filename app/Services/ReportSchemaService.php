@@ -14,7 +14,7 @@ class ReportSchemaService
                 'name'        => 'All-in-One: End-to-End Procurement Flow',
                 'icon'        => 'bx-git-merge',
                 'badge'       => 'Cross-Module (Joined)',
-                'description' => 'Laporan gabungan lintas divisi: Budget WID ➡️ Request Form ➡️ Purchase Order ➡️ Penerimaan Gudang (GRN) ➡️ Invoice / Pembayaran Finance.',
+                'description' => 'Laporan gabungan komprehensif lintas divisi: Budget WID ➡️ Request Form ➡️ Purchase Order ➡️ Penerimaan Gudang (GRN) ➡️ Invoice / Pembayaran Finance.',
                 'date_fields' => [
                     'po_date'       => 'Tanggal PO',
                     'rf_date'       => 'Tanggal RF',
@@ -104,7 +104,7 @@ class ReportSchemaService
     }
 
     /**
-     * Definisi Kolom / Field untuk masing-masing Report Type
+     * Definisi Kolom / Field untuk masing-masing Report Type (dengan Folder Group)
      */
     public static function getFields(string $reportType): array
     {
@@ -112,128 +112,128 @@ class ReportSchemaService
             case 'procurement_flow':
                 return [
                     // PO Fields
-                    ['key' => 'po_no',                     'label' => '[PO] No. PO',                 'type' => 'text',     'default' => true],
-                    ['key' => 'supplier_name',             'label' => '[PO] Supplier / Vendor',      'type' => 'text',     'default' => true],
-                    ['key' => 'po_date',                   'label' => '[PO] Tanggal PO',             'type' => 'date',     'default' => true],
-                    ['key' => 'total_po_amount_with_tax',  'label' => '[PO] Total Nilai PO (IDR)',   'type' => 'currency', 'default' => true],
-                    ['key' => 'po_status',                 'label' => '[PO] Status PO',              'type' => 'badge',    'default' => true],
-                    ['key' => 'payment_terms',             'label' => '[PO] Termin (TOP)',           'type' => 'text',     'default' => false],
+                    ['key' => 'po_no',                     'label' => 'No. Purchase Order (PO)',     'folder' => 'Purchase Order (PO)', 'type' => 'text',     'default' => true],
+                    ['key' => 'supplier_name',             'label' => 'Nama Supplier / Vendor',      'folder' => 'Purchase Order (PO)', 'type' => 'text',     'default' => true],
+                    ['key' => 'po_date',                   'label' => 'Tanggal Terbit PO',           'folder' => 'Purchase Order (PO)', 'type' => 'date',     'default' => true],
+                    ['key' => 'total_po_amount_with_tax',  'label' => 'Total Nilai PO (+ PPN)',      'folder' => 'Purchase Order (PO)', 'type' => 'currency', 'default' => true],
+                    ['key' => 'po_status',                 'label' => 'Status Approval PO',          'folder' => 'Purchase Order (PO)', 'type' => 'badge',    'default' => true],
+                    ['key' => 'payment_terms',             'label' => 'Termin Pembayaran (TOP)',     'folder' => 'Purchase Order (PO)', 'type' => 'text',     'default' => false],
                     
                     // RF Fields
-                    ['key' => 'rf_no',                     'label' => '[RF] No. Request Form',       'type' => 'text',     'default' => true],
-                    ['key' => 'rf_date',                   'label' => '[RF] Tanggal Pengajuan RF',   'type' => 'date',     'default' => false],
-                    ['key' => 'requestor',                 'label' => '[RF] Pemohon (Requestor)',    'type' => 'text',     'default' => false],
-                    ['key' => 'rf_type',                   'label' => '[RF] Tipe Pengajuan',         'type' => 'text',     'default' => false],
+                    ['key' => 'rf_no',                     'label' => 'No. Request Form (RF)',       'folder' => 'Request Form (RF)',   'type' => 'text',     'default' => true],
+                    ['key' => 'rf_date',                   'label' => 'Tanggal Pengajuan RF',        'folder' => 'Request Form (RF)',   'type' => 'date',     'default' => false],
+                    ['key' => 'requestor',                 'label' => 'Pemohon (Requestor)',         'folder' => 'Request Form (RF)',   'type' => 'text',     'default' => false],
+                    ['key' => 'rf_type',                   'label' => 'Tipe Pengajuan RF',           'folder' => 'Request Form (RF)',   'type' => 'text',     'default' => false],
 
                     // Project & Budget Fields
-                    ['key' => 'wid_code',                  'label' => '[Budget] Kode WID',           'type' => 'text',     'default' => true],
-                    ['key' => 'wid_name',                  'label' => '[Budget] Pos Pekerjaan',      'type' => 'text',     'default' => false],
-                    ['key' => 'allocated_budget',          'label' => '[Budget] Pagu Anggaran (IDR)','type' => 'currency', 'default' => false],
-                    ['key' => 'remaining_budget',          'label' => '[Budget] Sisa Budget (IDR)',  'type' => 'currency', 'default' => false],
+                    ['key' => 'wid_code',                  'label' => 'Kode Pos Anggaran (WID)',     'folder' => 'Project & Budget',    'type' => 'text',     'default' => true],
+                    ['key' => 'wid_name',                  'label' => 'Nama Pos Pekerjaan',          'folder' => 'Project & Budget',    'type' => 'text',     'default' => false],
+                    ['key' => 'allocated_budget',          'label' => 'Pagu Anggaran WID (IDR)',     'folder' => 'Project & Budget',    'type' => 'currency', 'default' => false],
+                    ['key' => 'remaining_budget',          'label' => 'Sisa Budget WID (IDR)',       'folder' => 'Project & Budget',    'type' => 'currency', 'default' => false],
 
                     // GRN Fields
-                    ['key' => 'do_no',                     'label' => '[Gudang] No. GRN',            'type' => 'text',     'default' => false],
-                    ['key' => 'grn_date',                  'label' => '[Gudang] Tgl Terima Barang',  'type' => 'date',     'default' => false],
-                    ['key' => 'supplier_do_no',            'label' => '[Gudang] No. Surat Jalan',    'type' => 'text',     'default' => false],
-                    ['key' => 'receiving_contact',         'label' => '[Gudang] Penerima Gudang',    'type' => 'text',     'default' => false],
-                    ['key' => 'grn_status',                'label' => '[Gudang] Status Penerimaan',  'type' => 'badge',    'default' => false],
+                    ['key' => 'do_no',                     'label' => 'No. Surat Masuk (GRN)',       'folder' => 'Logistik & Gudang',   'type' => 'text',     'default' => false],
+                    ['key' => 'grn_date',                  'label' => 'Tanggal Barang Diterima',     'folder' => 'Logistik & Gudang',   'type' => 'date',     'default' => false],
+                    ['key' => 'supplier_do_no',            'label' => 'No. Surat Jalan Vendor',      'folder' => 'Logistik & Gudang',   'type' => 'text',     'default' => false],
+                    ['key' => 'receiving_contact',         'label' => 'Penerima di Gudang / Site',   'folder' => 'Logistik & Gudang',   'type' => 'text',     'default' => false],
+                    ['key' => 'grn_status',                'label' => 'Status Penerimaan Gudang',    'folder' => 'Logistik & Gudang',   'type' => 'badge',    'default' => false],
 
                     // Finance Invoice Fields
-                    ['key' => 'supplier_invoice_no',       'label' => '[Finance] No. Invoice Tagihan','type' => 'text',     'default' => false],
-                    ['key' => 'due_date',                  'label' => '[Finance] Jatuh Tempo Bayar', 'type' => 'date',     'default' => false],
-                    ['key' => 'total_invoice_amount_with_tax', 'label' => '[Finance] Tagihan + Pajak', 'type' => 'currency', 'default' => false],
-                    ['key' => 'outstanding',               'label' => '[Finance] Sisa Tagihan (IDR)','type' => 'currency', 'default' => false],
-                    ['key' => 'pa_status',                 'label' => '[Finance] Status Pembayaran', 'type' => 'badge',    'default' => false],
+                    ['key' => 'supplier_invoice_no',       'label' => 'No. Dokumen Tagihan (PA)',    'folder' => 'Finance & Tagihan',   'type' => 'text',     'default' => false],
+                    ['key' => 'due_date',                  'label' => 'Tanggal Jatuh Tempo Bayar',   'folder' => 'Finance & Tagihan',   'type' => 'date',     'default' => false],
+                    ['key' => 'total_invoice_amount_with_tax', 'label' => 'Total Tagihan Supplier',  'folder' => 'Finance & Tagihan',   'type' => 'currency', 'default' => false],
+                    ['key' => 'outstanding',               'label' => 'Sisa Tagihan Belum Dibayar',  'folder' => 'Finance & Tagihan',   'type' => 'currency', 'default' => false],
+                    ['key' => 'pa_status',                 'label' => 'Status Pembayaran Finance',   'folder' => 'Finance & Tagihan',   'type' => 'badge',    'default' => false],
                 ];
 
             case 'purchase_orders':
                 return [
-                    ['key' => 'po_no',                     'label' => 'PO: PO No',               'type' => 'text',     'default' => true],
-                    ['key' => 'supplier_name',             'label' => 'Supplier Name',           'type' => 'text',     'default' => true],
-                    ['key' => 'date',                      'label' => 'PO Date',                 'type' => 'date',     'default' => true],
-                    ['key' => 'total_po_amount',           'label' => 'Total PO Amount (DPP)',   'type' => 'currency', 'default' => true],
-                    ['key' => 'tax',                       'label' => 'Tax',                     'type' => 'currency', 'default' => true],
-                    ['key' => 'total_po_amount_with_tax',  'label' => 'Total PO Amount With Tax', 'type' => 'currency', 'default' => true],
-                    ['key' => 'balance_amount',            'label' => 'Balance Amount',          'type' => 'currency', 'default' => false],
-                    ['key' => 'amount_paid',               'label' => 'Amount Paid',             'type' => 'currency', 'default' => false],
-                    ['key' => 'status',                    'label' => 'Status',                  'type' => 'badge',    'default' => true],
-                    ['key' => 'description',               'label' => 'Description',            'type' => 'text',     'default' => false],
-                    ['key' => 'destination',               'label' => 'Destination',            'type' => 'text',     'default' => false],
-                    ['key' => 'payment_terms',             'label' => 'Payment Terms',           'type' => 'text',     'default' => false],
-                    ['key' => 'attention_to',              'label' => 'Attention To',            'type' => 'text',     'default' => false],
-                    ['key' => 'invoice_to',                'label' => 'Invoice To',              'type' => 'text',     'default' => false],
-                    ['key' => 'approved_date',             'label' => 'Approved Date',           'type' => 'date',     'default' => false],
+                    ['key' => 'po_no',                     'label' => 'PO: PO No',               'folder' => 'PO: Info', 'type' => 'text',     'default' => true],
+                    ['key' => 'supplier_name',             'label' => 'Supplier Name',           'folder' => 'PO: Info', 'type' => 'text',     'default' => true],
+                    ['key' => 'date',                      'label' => 'PO Date',                 'folder' => 'PO: Info', 'type' => 'date',     'default' => true],
+                    ['key' => 'total_po_amount',           'label' => 'Total PO Amount (DPP)',   'folder' => 'PO: Financial', 'type' => 'currency', 'default' => true],
+                    ['key' => 'tax',                       'label' => 'Tax Amount',              'folder' => 'PO: Financial', 'type' => 'currency', 'default' => true],
+                    ['key' => 'total_po_amount_with_tax',  'label' => 'Total PO Amount With Tax', 'folder' => 'PO: Financial', 'type' => 'currency', 'default' => true],
+                    ['key' => 'balance_amount',            'label' => 'Balance Amount',          'folder' => 'PO: Financial', 'type' => 'currency', 'default' => false],
+                    ['key' => 'amount_paid',               'label' => 'Amount Paid',             'folder' => 'PO: Financial', 'type' => 'currency', 'default' => false],
+                    ['key' => 'status',                    'label' => 'Status PO',               'folder' => 'PO: Info', 'type' => 'badge',    'default' => true],
+                    ['key' => 'description',               'label' => 'Description / Catatan',   'folder' => 'PO: Info', 'type' => 'text',     'default' => false],
+                    ['key' => 'destination',               'label' => 'Destination Gudang/Site', 'folder' => 'PO: Logistics', 'type' => 'text',     'default' => false],
+                    ['key' => 'payment_terms',             'label' => 'Payment Terms (TOP)',     'folder' => 'PO: Financial', 'type' => 'text',     'default' => false],
+                    ['key' => 'attention_to',              'label' => 'Attention To',            'folder' => 'PO: Contact', 'type' => 'text',     'default' => false],
+                    ['key' => 'invoice_to',                'label' => 'Invoice To PT',           'folder' => 'PO: Contact', 'type' => 'text',     'default' => false],
+                    ['key' => 'approved_date',             'label' => 'Approved Date',           'folder' => 'PO: Info', 'type' => 'date',     'default' => false],
                 ];
 
             case 'request_forms':
                 return [
-                    ['key' => 'rf_no',             'label' => 'RF Number',             'type' => 'text',     'default' => true],
-                    ['key' => 'rf_date',           'label' => 'Tanggal RF',            'type' => 'date',     'default' => true],
-                    ['key' => 'requestor',         'label' => 'Pemohon (Requestor)',   'type' => 'text',     'default' => true],
-                    ['key' => 'rf_type',           'label' => 'Tipe RF',               'type' => 'text',     'default' => true],
-                    ['key' => 'work_item_name',    'label' => 'Alokasi Budget (WID)',  'type' => 'text',     'default' => true],
-                    ['key' => 'total_amount',      'label' => 'Total Biaya (IDR)',     'type' => 'currency', 'default' => true],
-                    ['key' => 'status',            'label' => 'Status Pengajuan',      'type' => 'badge',    'default' => true],
-                    ['key' => 'remark',            'label' => 'Keperluan / Remark',    'type' => 'text',     'default' => false],
+                    ['key' => 'rf_no',             'label' => 'RF Number',             'folder' => 'RF: Info', 'type' => 'text',     'default' => true],
+                    ['key' => 'rf_date',           'label' => 'Tanggal RF',            'folder' => 'RF: Info', 'type' => 'date',     'default' => true],
+                    ['key' => 'requestor',         'label' => 'Pemohon (Requestor)',   'folder' => 'RF: Info', 'type' => 'text',     'default' => true],
+                    ['key' => 'rf_type',           'label' => 'Tipe RF',               'folder' => 'RF: Info', 'type' => 'text',     'default' => true],
+                    ['key' => 'work_item_name',    'label' => 'Alokasi Budget (WID)',  'folder' => 'RF: Budget', 'type' => 'text',     'default' => true],
+                    ['key' => 'total_amount',      'label' => 'Total Biaya (IDR)',     'folder' => 'RF: Budget', 'type' => 'currency', 'default' => true],
+                    ['key' => 'status',            'label' => 'Status Pengajuan',      'folder' => 'RF: Info', 'type' => 'badge',    'default' => true],
+                    ['key' => 'remark',            'label' => 'Keperluan / Remark',    'folder' => 'RF: Info', 'type' => 'text',     'default' => false],
                 ];
 
             case 'goods_receipts':
                 return [
-                    ['key' => 'do_no',             'label' => 'No. GRN (DO No)',       'type' => 'text',     'default' => true],
-                    ['key' => 'date',              'label' => 'Tanggal Penerimaan',    'type' => 'date',     'default' => true],
-                    ['key' => 'po_no',             'label' => 'No. PO Terkait',        'type' => 'text',     'default' => true],
-                    ['key' => 'supplier_name',     'label' => 'Supplier / Vendor',     'type' => 'text',     'default' => true],
-                    ['key' => 'supplier_do_no',    'label' => 'Surat Jalan Vendor',    'type' => 'text',     'default' => true],
-                    ['key' => 'receiving_contact', 'label' => 'Penerima Barang',       'type' => 'text',     'default' => true],
-                    ['key' => 'total_received_qty','label' => 'Total Qty Masuk',       'type' => 'number',   'default' => true],
-                    ['key' => 'status',            'label' => 'Status GRN',            'type' => 'badge',    'default' => true],
-                    ['key' => 'remarks',           'label' => 'Catatan Fisik',         'type' => 'text',     'default' => false],
+                    ['key' => 'do_no',             'label' => 'No. GRN (DO No)',       'folder' => 'GRN: Info', 'type' => 'text',     'default' => true],
+                    ['key' => 'date',              'label' => 'Tanggal Penerimaan',    'folder' => 'GRN: Info', 'type' => 'date',     'default' => true],
+                    ['key' => 'po_no',             'label' => 'No. PO Terkait',        'folder' => 'GRN: PO',   'type' => 'text',     'default' => true],
+                    ['key' => 'supplier_name',     'label' => 'Supplier / Vendor',     'folder' => 'GRN: PO',   'type' => 'text',     'default' => true],
+                    ['key' => 'supplier_do_no',    'label' => 'Surat Jalan Vendor',    'folder' => 'GRN: Info', 'type' => 'text',     'default' => true],
+                    ['key' => 'receiving_contact', 'label' => 'Penerima Barang',       'folder' => 'GRN: Info', 'type' => 'text',     'default' => true],
+                    ['key' => 'total_received_qty','label' => 'Total Qty Masuk',       'folder' => 'GRN: Qty',  'type' => 'number',   'default' => true],
+                    ['key' => 'status',            'label' => 'Status GRN',            'folder' => 'GRN: Info', 'type' => 'badge',    'default' => true],
+                    ['key' => 'remarks',           'label' => 'Catatan Fisik',         'folder' => 'GRN: Info', 'type' => 'text',     'default' => false],
                 ];
 
             case 'payment_advices':
                 return [
-                    ['key' => 'supplier_invoice_no', 'label' => 'No. Invoice Supplier', 'type' => 'text',     'default' => true],
-                    ['key' => 'po_no',               'label' => 'No. PO Terkait',      'type' => 'text',     'default' => true],
-                    ['key' => 'supplier_name',       'label' => 'Supplier / Vendor',   'type' => 'text',     'default' => true],
-                    ['key' => 'due_date',            'label' => 'Jatuh Tempo',         'type' => 'date',     'default' => true],
-                    ['key' => 'total_invoice_amount','label' => 'Total Invoice (DPP)', 'type' => 'currency', 'default' => true],
-                    ['key' => 'total_invoice_amount_with_tax', 'label' => 'Total Tagihan + PPN', 'type' => 'currency', 'default' => true],
-                    ['key' => 'outstanding',         'label' => 'Sisa Tagihan (Outstanding)', 'type' => 'currency', 'default' => true],
-                    ['key' => 'status',              'label' => 'Status PA',           'type' => 'badge',    'default' => true],
+                    ['key' => 'supplier_invoice_no', 'label' => 'No. Invoice Supplier', 'folder' => 'PA: Info', 'type' => 'text',     'default' => true],
+                    ['key' => 'po_no',               'label' => 'No. PO Terkait',      'folder' => 'PA: PO',   'type' => 'text',     'default' => true],
+                    ['key' => 'supplier_name',       'label' => 'Supplier / Vendor',   'folder' => 'PA: PO',   'type' => 'text',     'default' => true],
+                    ['key' => 'due_date',            'label' => 'Jatuh Tempo',         'folder' => 'PA: Date', 'type' => 'date',     'default' => true],
+                    ['key' => 'total_invoice_amount','label' => 'Total Invoice (DPP)', 'folder' => 'PA: Amount', 'type' => 'currency', 'default' => true],
+                    ['key' => 'total_invoice_amount_with_tax', 'label' => 'Total Tagihan + PPN', 'folder' => 'PA: Amount', 'type' => 'currency', 'default' => true],
+                    ['key' => 'outstanding',         'label' => 'Sisa Tagihan (Outstanding)', 'folder' => 'PA: Amount', 'type' => 'currency', 'default' => true],
+                    ['key' => 'status',              'label' => 'Status PA',           'folder' => 'PA: Info', 'type' => 'badge',    'default' => true],
                 ];
 
             case 'work_items':
                 return [
-                    ['key' => 'budget_parent_name', 'label' => 'Budget Parent',        'type' => 'text',     'default' => true],
-                    ['key' => 'sub_project_name',  'label' => 'Sub Project',           'type' => 'text',     'default' => true],
-                    ['key' => 'wid_code',          'label' => 'Kode WID',              'type' => 'text',     'default' => true],
-                    ['key' => 'wid_name',          'label' => 'Nama Pos Pekerjaan',    'type' => 'text',     'default' => true],
-                    ['key' => 'allocated_budget',  'label' => 'Pagu Anggaran (IDR)',   'type' => 'currency', 'default' => true],
-                    ['key' => 'realized_budget',   'label' => 'Realisasi Serapan (IDR)', 'type' => 'currency', 'default' => true],
-                    ['key' => 'remaining_budget',  'label' => 'Sisa Anggaran (IDR)',   'type' => 'currency', 'default' => true],
+                    ['key' => 'budget_parent_name', 'label' => 'Budget Parent',        'folder' => 'Budget: Parent', 'type' => 'text',     'default' => true],
+                    ['key' => 'sub_project_name',  'label' => 'Sub Project',           'folder' => 'Budget: Parent', 'type' => 'text',     'default' => true],
+                    ['key' => 'wid_code',          'label' => 'Kode WID',              'folder' => 'WID: Info',      'type' => 'text',     'default' => true],
+                    ['key' => 'wid_name',          'label' => 'Nama Pos Pekerjaan',    'folder' => 'WID: Info',      'type' => 'text',     'default' => true],
+                    ['key' => 'allocated_budget',  'label' => 'Pagu Anggaran (IDR)',   'folder' => 'WID: Budget',    'type' => 'currency', 'default' => true],
+                    ['key' => 'realized_budget',   'label' => 'Realisasi Serapan (IDR)', 'folder' => 'WID: Budget',    'type' => 'currency', 'default' => true],
+                    ['key' => 'remaining_budget',  'label' => 'Sisa Anggaran (IDR)',   'folder' => 'WID: Budget',    'type' => 'currency', 'default' => true],
                 ];
 
             case 'stocks':
                 return [
-                    ['key' => 'product_code',      'label' => 'Kode Produk/Barang',    'type' => 'text',     'default' => true],
-                    ['key' => 'product_name',      'label' => 'Nama Produk',           'type' => 'text',     'default' => true],
-                    ['key' => 'part_number',       'label' => 'Part Number',           'type' => 'text',     'default' => false],
-                    ['key' => 'uom_name',          'label' => 'Satuan (UOM)',          'type' => 'text',     'default' => true],
-                    ['key' => 'qty_on_hand',       'label' => 'Stok Tersedia',         'type' => 'number',   'default' => true],
-                    ['key' => 'warehouse_name',    'label' => 'Gudang / Lokasi',       'type' => 'text',     'default' => true],
+                    ['key' => 'product_code',      'label' => 'Kode Produk/Barang',    'folder' => 'Product: Info', 'type' => 'text',     'default' => true],
+                    ['key' => 'product_name',      'label' => 'Nama Produk',           'folder' => 'Product: Info', 'type' => 'text',     'default' => true],
+                    ['key' => 'part_number',       'label' => 'Part Number',           'folder' => 'Product: Info', 'type' => 'text',     'default' => false],
+                    ['key' => 'uom_name',          'label' => 'Satuan (UOM)',          'folder' => 'Product: Unit', 'type' => 'text',     'default' => true],
+                    ['key' => 'qty_on_hand',       'label' => 'Stok Tersedia',         'folder' => 'Stock: Qty',    'type' => 'number',   'default' => true],
+                    ['key' => 'warehouse_name',    'label' => 'Gudang / Lokasi',       'folder' => 'Stock: Warehouse', 'type' => 'text',     'default' => true],
                 ];
 
             case 'employees':
                 return [
-                    ['key' => 'nik',               'label' => 'NIP / NIK Karyawan',    'type' => 'text',     'default' => true],
-                    ['key' => 'name',              'label' => 'Nama Lengkap',          'type' => 'text',     'default' => true],
-                    ['key' => 'department',        'label' => 'Divisi / Departemen',   'type' => 'text',     'default' => true],
-                    ['key' => 'position',          'label' => 'Jabatan',               'type' => 'text',     'default' => true],
-                    ['key' => 'employment_status', 'label' => 'Status Karyawan',       'type' => 'text',     'default' => true],
-                    ['key' => 'email',             'label' => 'Email',                 'type' => 'text',     'default' => false],
-                    ['key' => 'phone',             'label' => 'No. Telepon / WA',      'type' => 'text',     'default' => true],
-                    ['key' => 'join_date',         'label' => 'Tanggal Bergabung',     'type' => 'date',     'default' => true],
-                    ['key' => 'status',            'label' => 'Status Akun',           'type' => 'badge',    'default' => true],
+                    ['key' => 'nik',               'label' => 'NIP / NIK Karyawan',    'folder' => 'HR: Identity', 'type' => 'text',     'default' => true],
+                    ['key' => 'name',              'label' => 'Nama Lengkap',          'folder' => 'HR: Identity', 'type' => 'text',     'default' => true],
+                    ['key' => 'department',        'label' => 'Divisi / Departemen',   'folder' => 'HR: Position', 'type' => 'text',     'default' => true],
+                    ['key' => 'position',          'label' => 'Jabatan',               'folder' => 'HR: Position', 'type' => 'text',     'default' => true],
+                    ['key' => 'employment_status', 'label' => 'Status Karyawan',       'folder' => 'HR: Position', 'type' => 'text',     'default' => true],
+                    ['key' => 'email',             'label' => 'Email',                 'folder' => 'HR: Contact',  'type' => 'text',     'default' => false],
+                    ['key' => 'phone',             'label' => 'No. Telepon / WA',      'folder' => 'HR: Contact',  'type' => 'text',     'default' => true],
+                    ['key' => 'join_date',         'label' => 'Tanggal Bergabung',     'folder' => 'HR: Identity', 'type' => 'date',     'default' => true],
+                    ['key' => 'status',            'label' => 'Status Akun',           'folder' => 'HR: Identity', 'type' => 'badge',    'default' => true],
                 ];
 
             default:

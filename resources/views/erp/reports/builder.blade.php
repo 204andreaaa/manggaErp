@@ -167,31 +167,55 @@
                 </div>
 
                 <div class="card-body p-2" id="availableFieldsList">
-                    @foreach($allFields as $f)
-                        @php
-                            $typeIcon = match($f['type']) {
-                                'currency' => 'bx-dollar text-success',
-                                'number'   => 'bx-hash text-warning',
-                                'date'     => 'bx-calendar text-info',
-                                'badge'    => 'bx-tag text-danger',
-                                default    => 'bx-font text-primary'
-                            };
-                        @endphp
-                        <div class="field-item p-2 mb-1 rounded border d-flex justify-content-between align-items-center" 
-                             data-key="{{ $f['key'] }}" 
-                             data-label="{{ $f['label'] }}" 
-                             data-type="{{ $f['type'] }}"
-                             draggable="true">
-                            <div class="d-flex align-items-center text-truncate">
-                                <i class="bx bx-grid-vertical text-muted me-1 fs-6"></i>
-                                <i class="bx {{ $typeIcon }} me-2"></i>
-                                <span class="small text-dark field-label">{{ $f['label'] }}</span>
+                    @php
+                        $groupedFields = collect($allFields)->groupBy('folder');
+                    @endphp
+
+                    <div class="accordion accordion-flush" id="fieldsAccordion">
+                        @foreach($groupedFields as $folderName => $fieldsInFolder)
+                            @php
+                                $folderId = 'folder_' . md5($folderName);
+                            @endphp
+                            <div class="accordion-item border-0 mb-2 field-folder-group">
+                                <h2 class="accordion-header" id="heading_{{ $folderId }}">
+                                    <button class="accordion-button py-2 px-2 bg-light rounded text-dark fw-bold small" type="button" data-bs-toggle="collapse" data-bs-target="#collapse_{{ $folderId }}" aria-expanded="true">
+                                        <i class="bx bx-folder text-primary me-2"></i>
+                                        <span class="folder-title">{{ $folderName }}</span>
+                                        <span class="badge bg-label-secondary rounded-pill ms-auto me-2" style="font-size:0.68rem;">{{ count($fieldsInFolder) }}</span>
+                                    </button>
+                                </h2>
+                                <div id="collapse_{{ $folderId }}" class="accordion-collapse collapse show">
+                                    <div class="accordion-body p-1 pt-2">
+                                        @foreach($fieldsInFolder as $f)
+                                            @php
+                                                $typeIcon = match($f['type']) {
+                                                    'currency' => 'bx-dollar text-success',
+                                                    'number'   => 'bx-hash text-warning',
+                                                    'date'     => 'bx-calendar text-info',
+                                                    'badge'    => 'bx-tag text-danger',
+                                                    default    => 'bx-font text-primary'
+                                                };
+                                            @endphp
+                                            <div class="field-item p-2 mb-1 rounded border d-flex justify-content-between align-items-center bg-white" 
+                                                 data-key="{{ $f['key'] }}" 
+                                                 data-label="{{ $f['label'] }}" 
+                                                 data-type="{{ $f['type'] }}"
+                                                 draggable="true">
+                                                <div class="d-flex align-items-center text-truncate">
+                                                    <i class="bx bx-grid-vertical text-muted me-1 fs-6"></i>
+                                                    <i class="bx {{ $typeIcon }} me-2"></i>
+                                                    <span class="small text-dark field-label">{{ $f['label'] }}</span>
+                                                </div>
+                                                <button type="button" class="btn btn-xs btn-icon btn-outline-primary js-add-field" title="Tambah / Hapus Kolom">
+                                                    <i class="bx bx-plus"></i>
+                                                </button>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
                             </div>
-                            <button type="button" class="btn btn-xs btn-icon btn-outline-primary js-add-field" title="Tambah ke Kolom">
-                                <i class="bx bx-plus"></i>
-                            </button>
-                        </div>
-                    @endforeach
+                        @endforeach
+                    </div>
                 </div>
             </div>
         </div>
