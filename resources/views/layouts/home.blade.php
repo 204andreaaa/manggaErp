@@ -26,6 +26,10 @@
         <link rel="stylesheet" href="{{ asset('sneat/assets/vendor/libs/apex-charts/apex-charts.css') }}" />
         <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 
+        <!-- Helpers & Config -->
+        <script src="{{ asset('sneat/assets/vendor/js/helpers.js') }}"></script>
+        <script src="{{ asset('sneat/assets/js/config.js') }}"></script>
+
         {{-- Custom Theme (dark/light sync) --}}
         <style>
             :root {
@@ -43,6 +47,28 @@
             body {
                 background: var(--bg-body);
                 color: var(--text);
+            }
+
+            /* Smooth Sidebar Collapse for Desktop */
+            @media (min-width: 1200px) {
+                #layout-menu {
+                    transition: transform 0.25s ease-in-out, width 0.25s ease-in-out !important;
+                }
+                .layout-page {
+                    transition: padding-left 0.25s ease-in-out !important;
+                }
+                html.layout-menu-collapsed #layout-menu {
+                    transform: translate3d(-100%, 0, 0) !important;
+                }
+                html.layout-menu-collapsed .layout-page {
+                    padding-left: 0 !important;
+                }
+                .layout-menu-toggle i {
+                    transition: transform 0.25s ease;
+                }
+                html.layout-menu-collapsed .layout-menu-toggle i.bx-chevron-left {
+                    transform: rotate(180deg);
+                }
             }
 
             .layout-menu.menu {
@@ -544,6 +570,25 @@
                     document.querySelectorAll('form[data-submitting="true"]').forEach(form => window.resetSubmitButton(form));
                 }
             };
+
+            // ✅ GLOBAL DESKTOP & MOBILE SIDEBAR TOGGLE HANDLER
+            document.addEventListener('DOMContentLoaded', function () {
+                if (localStorage.getItem('mangga_menu_collapsed') === 'true' && window.innerWidth >= 1200) {
+                    document.documentElement.classList.add('layout-menu-collapsed');
+                }
+
+                document.querySelectorAll('.layout-menu-toggle').forEach(function (btn) {
+                    btn.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        if (window.innerWidth >= 1200) {
+                            const isCollapsed = document.documentElement.classList.toggle('layout-menu-collapsed');
+                            localStorage.setItem('mangga_menu_collapsed', isCollapsed ? 'true' : 'false');
+                        } else {
+                            document.documentElement.classList.toggle('layout-menu-expanded');
+                        }
+                    });
+                });
+            });
         </script>
     </body>
 
