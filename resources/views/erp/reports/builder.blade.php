@@ -25,7 +25,7 @@
         border: 1px solid #d9dee3;
         border-radius: 6px;
         padding: 4px 10px;
-        font-size: 0.82rem;
+        font-size: 0.8rem;
         font-weight: 600;
         color: #566a7f;
         cursor: move;
@@ -43,25 +43,48 @@
         letter-spacing: 0.04em;
         background-color: #f8f9fa;
         white-space: nowrap;
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
     }
     .table-report tbody td {
-        font-size: 0.85rem;
+        font-size: 0.84rem;
         vertical-align: middle;
         white-space: nowrap;
     }
+    /* Compact View Mode */
+    .compact-table .table-report thead th {
+        font-size: 0.75rem;
+        padding: 6px 8px !important;
+    }
+    .compact-table .table-report tbody td {
+        font-size: 0.78rem;
+        padding: 5px 8px !important;
+    }
+    .compact-table .table-report tfoot td {
+        font-size: 0.8rem;
+        padding: 6px 8px !important;
+    }
+
     .builder-sidebar {
-        max-height: calc(100vh - 210px);
+        max-height: calc(100vh - 180px);
         overflow-y: auto;
     }
     .builder-content {
-        max-height: calc(100vh - 210px);
+        max-height: calc(100vh - 180px);
         overflow-y: auto;
+    }
+    .floating-expand-btn {
+        position: sticky;
+        top: 10px;
+        z-index: 10;
     }
 </style>
 @endpush
 
 @section('content')
-<div class="container-fluid flex-grow-1 container-p-y">
+<div class="container-fluid flex-grow-1 container-p-y px-3" id="builderMainContainer">
     {{-- Top Action Bar --}}
     <div class="card shadow-sm border-0 mb-3">
         <div class="card-body p-3">
@@ -75,11 +98,11 @@
                             <span class="badge bg-label-primary px-2 py-1"><i class="bx {{ $activeTypeConfig['icon'] }} me-1"></i>{{ $activeTypeConfig['badge'] }}</span>
                             <h5 class="fw-bold mb-0 text-dark" id="reportTitleDisplay">{{ $savedReport->title ?? $activeTypeConfig['name'] }}</h5>
                         </div>
-                        <small class="text-muted">Dynamic Ad-Hoc Report Generator</small>
+                        <small class="text-muted">Dynamic Salesforce-Style Report Generator</small>
                     </div>
                 </div>
 
-                {{-- Action Buttons --}}
+                {{-- Action & View Mode Buttons --}}
                 <div class="d-flex flex-wrap align-items-center gap-2">
                     {{-- Switch Dataset --}}
                     <div class="dropdown">
@@ -96,6 +119,19 @@
                             @endforeach
                         </ul>
                     </div>
+
+                    {{-- View Width & Density Controls --}}
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btnToggleFieldsPanel" title="Sembunyikan/Tampilkan Panel Field Katalog">
+                        <i class="bx bx-sidebar me-1"></i> <span id="labelToggleFields">Sembunyikan Panel Field</span>
+                    </button>
+
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btnToggleFocusMode" title="Layar Penuh / Sembunyikan Menu Navigasi Sidebar">
+                        <i class="bx bx-fullscreen me-1"></i> <span id="labelFocusMode">Mode Layar Lebar</span>
+                    </button>
+
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btnToggleDensity" title="Rapatkan Tampilan Baris & Kolom">
+                        <i class="bx bx-collapse-vertical me-1"></i> <span id="labelDensity">Mode Rapat</span>
+                    </button>
 
                     <button type="button" class="btn btn-sm btn-primary shadow-sm" id="btnRunReport">
                         <i class="bx bx-play me-1"></i> Run Report
@@ -151,14 +187,16 @@
     </div>
 
     {{-- Main Workspace Grid --}}
-    <div class="row g-3">
+    <div class="row g-3" id="builderWorkspaceGrid">
         {{-- Left: Available Fields Sidebar --}}
-        <div class="col-md-3 col-xl-3">
+        <div class="col-md-3 col-xl-3" id="colFieldsSidebar">
             <div class="card shadow-sm border-0 builder-sidebar">
                 <div class="card-header bg-white border-bottom p-3">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <h6 class="fw-bold text-dark mb-0"><i class="bx bx-list-ul text-primary me-1"></i>Fields Katalog</h6>
-                        <small class="text-muted">{{ count($allFields) }} Fields</small>
+                        <button type="button" class="btn btn-xs btn-icon btn-light" id="btnCloseSidebarInline" title="Tutup Panel Field">
+                            <i class="bx bx-chevron-left fs-5"></i>
+                        </button>
                     </div>
                     <div class="input-group input-group-sm">
                         <span class="input-group-text bg-light border-end-0"><i class="bx bx-search"></i></span>
@@ -221,24 +259,37 @@
         </div>
 
         {{-- Right: Columns & Live Preview Table --}}
-        <div class="col-md-9 col-xl-9">
-            <div class="card shadow-sm border-0 builder-content">
+        <div class="col-md-9 col-xl-9" id="colPreviewContent">
+            <div class="card shadow-sm border-0 builder-content" id="cardTableWrapper">
                 {{-- Selected Columns Bar --}}
                 <div class="card-header bg-white border-bottom p-3">
-                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-2 gap-2">
-                        <span class="fw-bold text-dark small"><i class="bx bx-columns text-primary me-1"></i>Kolom Aktif (Seret untuk ubah urutan):</span>
-                        <div class="btn-group btn-group-sm">
-                            <button type="button" class="btn btn-xs btn-outline-secondary" id="btnAddAllFields">Pilih Semua</button>
-                            <button type="button" class="btn btn-xs btn-outline-danger" id="btnRemoveAllFields">Hapus Semua</button>
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <button type="button" class="btn btn-xs btn-outline-primary d-none" id="btnOpenSidebarInline" title="Buka Panel Field Katalog">
+                                <i class="bx bx-sidebar me-1"></i> Buka Katalog Field
+                            </button>
+                            <span class="fw-bold text-dark small"><i class="bx bx-columns text-primary me-1"></i>Kolom Aktif (<span id="activeColCountBadge">0</span> Kolom):</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <button type="button" class="btn btn-xs btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#selectedColumnsCollapse" aria-expanded="true">
+                                <i class="bx bx-slider me-1"></i> Atur / Sembunyikan Chips
+                            </button>
+                            <div class="btn-group btn-group-sm">
+                                <button type="button" class="btn btn-xs btn-outline-secondary" id="btnAddAllFields">Pilih Semua</button>
+                                <button type="button" class="btn btn-xs btn-outline-danger" id="btnRemoveAllFields">Hapus Semua</button>
+                            </div>
                         </div>
                     </div>
-                    <div class="d-flex flex-wrap gap-2 p-2 bg-light rounded border min-height-40" id="selectedColumnsContainer">
-                        {{-- Injected dynamically --}}
+
+                    <div class="collapse show mt-2" id="selectedColumnsCollapse">
+                        <div class="d-flex flex-wrap gap-2 p-2 bg-light rounded border min-height-40" id="selectedColumnsContainer">
+                            {{-- Injected dynamically --}}
+                        </div>
                     </div>
                 </div>
 
                 {{-- Table Preview Area --}}
-                <div class="table-responsive text-nowrap" style="min-height: 380px;">
+                <div class="table-responsive text-nowrap" style="min-height: 420px;" id="tableContainerResponsive">
                     <table class="table table-hover table-report table-striped mb-0" id="reportPreviewTable">
                         <thead id="reportTableHead">
                             {{-- Injected dynamically --}}
@@ -317,6 +368,73 @@ document.addEventListener('DOMContentLoaded', function () {
     const tableFoot = document.getElementById('reportTableFoot');
     const badgeRowCount = document.getElementById('badgeRowCount');
     const tableArea = document.querySelector('.table-responsive');
+    const activeColCountBadge = document.getElementById('activeColCountBadge');
+
+    // Layout Panels Elements
+    const colFieldsSidebar = document.getElementById('colFieldsSidebar');
+    const colPreviewContent = document.getElementById('colPreviewContent');
+    const btnToggleFieldsPanel = document.getElementById('btnToggleFieldsPanel');
+    const labelToggleFields = document.getElementById('labelToggleFields');
+    const btnCloseSidebarInline = document.getElementById('btnCloseSidebarInline');
+    const btnOpenSidebarInline = document.getElementById('btnOpenSidebarInline');
+    const btnToggleFocusMode = document.getElementById('btnToggleFocusMode');
+    const labelFocusMode = document.getElementById('labelFocusMode');
+    const btnToggleDensity = document.getElementById('btnToggleDensity');
+    const labelDensity = document.getElementById('labelDensity');
+    const cardTableWrapper = document.getElementById('cardTableWrapper');
+
+    // Panel Toggle Logic (Sembunyikan / Buka Panel Field)
+    let isFieldPanelHidden = false;
+    function setFieldPanelVisibility(hide) {
+        isFieldPanelHidden = hide;
+        if (hide) {
+            colFieldsSidebar.classList.add('d-none');
+            colPreviewContent.classList.remove('col-md-9', 'col-xl-9');
+            colPreviewContent.classList.add('col-12');
+            btnOpenSidebarInline.classList.remove('d-none');
+            labelToggleFields.textContent = 'Buka Panel Field';
+            btnToggleFieldsPanel.classList.replace('btn-outline-secondary', 'btn-primary');
+        } else {
+            colFieldsSidebar.classList.remove('d-none');
+            colPreviewContent.classList.add('col-md-9', 'col-xl-9');
+            colPreviewContent.classList.remove('col-12');
+            btnOpenSidebarInline.classList.add('d-none');
+            labelToggleFields.textContent = 'Sembunyikan Panel Field';
+            btnToggleFieldsPanel.classList.replace('btn-primary', 'btn-outline-secondary');
+        }
+    }
+
+    btnToggleFieldsPanel.addEventListener('click', () => setFieldPanelVisibility(!isFieldPanelHidden));
+    btnCloseSidebarInline.addEventListener('click', () => setFieldPanelVisibility(true));
+    btnOpenSidebarInline.addEventListener('click', () => setFieldPanelVisibility(false));
+
+    // Focus / Fullscreen Mode (Collapse Main App Sidebar)
+    let isFocusMode = false;
+    btnToggleFocusMode.addEventListener('click', function() {
+        isFocusMode = !isFocusMode;
+        document.documentElement.classList.toggle('layout-menu-collapsed');
+        if (isFocusMode) {
+            this.classList.replace('btn-outline-secondary', 'btn-primary');
+            labelFocusMode.textContent = 'Menu Normal';
+        } else {
+            this.classList.replace('btn-primary', 'btn-outline-secondary');
+            labelFocusMode.textContent = 'Mode Layar Lebar';
+        }
+    });
+
+    // Compact Table Density Mode
+    let isCompact = false;
+    btnToggleDensity.addEventListener('click', function() {
+        isCompact = !isCompact;
+        cardTableWrapper.classList.toggle('compact-table');
+        if (isCompact) {
+            this.classList.replace('btn-outline-secondary', 'btn-info');
+            labelDensity.textContent = 'Mode Normal';
+        } else {
+            this.classList.replace('btn-info', 'btn-outline-secondary');
+            labelDensity.textContent = 'Mode Rapat';
+        }
+    });
 
     // Cache data for instant re-ordering without flicker
     let cachedRows = [];
@@ -358,6 +476,10 @@ document.addEventListener('DOMContentLoaded', function () {
             `;
             container.appendChild(chip);
         });
+
+        if (activeColCountBadge) {
+            activeColCountBadge.textContent = activeColumns.length;
+        }
 
         // Update active class on left sidebar
         document.querySelectorAll('#availableFieldsList .field-item').forEach(el => {
