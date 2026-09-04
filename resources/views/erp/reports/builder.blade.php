@@ -294,6 +294,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const badgeRowCount = document.getElementById('badgeRowCount');
     const tableArea = document.querySelector('.table-responsive');
 
+    // Cache data for instant re-ordering without flicker
+    let cachedRows = [];
+    let cachedSummaries = {};
+
     // Initialize SortableJS for reordering chips
     let sortableInstance = null;
     if (typeof Sortable !== 'undefined') {
@@ -309,7 +313,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (found) reordered.push(found);
                 });
                 activeColumns = reordered;
-                fetchPreviewData();
+                renderTable(activeColumns, cachedRows, cachedSummaries);
             }
         });
     }
@@ -362,7 +366,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function removeField(key) {
         activeColumns = activeColumns.filter(c => c.key !== key);
         renderColumnChips();
-        fetchPreviewData();
+        renderTable(activeColumns, cachedRows, cachedSummaries);
     }
 
     // ============================================================
@@ -450,7 +454,7 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('btnRemoveAllFields').addEventListener('click', () => {
         activeColumns = [];
         renderColumnChips();
-        fetchPreviewData();
+        renderTable(activeColumns, [], {});
     });
 
     // Search Field Filter
@@ -532,7 +536,9 @@ document.addEventListener('DOMContentLoaded', function () {
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                renderTable(data.columns, data.rows, data.summaries);
+                cachedRows = data.rows || [];
+                cachedSummaries = data.summaries || {};
+                renderTable(activeColumns, cachedRows, cachedSummaries);
                 badgeRowCount.textContent = `${data.total_rows} Baris Data`;
             } else {
                 tableBody.innerHTML = `<tr><td colspan="${activeColumns.length}" class="text-center text-danger py-4">${data.message || 'Gagal memuat data.'}</td></tr>`;
@@ -575,7 +581,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     });
                     activeColumns = reordered;
                     renderColumnChips();
-                    fetchPreviewData();
+                    renderTable(activeColumns, cachedRows, cachedSummaries);
                 }
             });
         }

@@ -158,11 +158,16 @@ class CustomReportController extends Controller
     protected function fetchReportData(string $reportType, array $selectedKeys, ?string $dateField, ?string $dateFrom, ?string $dateTo, ?string $status, int $limit): array
     {
         $allFields = collect(ReportSchemaService::getFields($reportType));
+        $allFieldsByKey = $allFields->keyBy('key');
         
         if (empty($selectedKeys)) {
             $selectedColumns = $allFields->where('default', true)->values()->all();
         } else {
-            $selectedColumns = $allFields->filter(fn($f) => in_array($f['key'], $selectedKeys))->values()->all();
+            $selectedColumns = collect($selectedKeys)
+                ->map(fn($k) => $allFieldsByKey->get($k))
+                ->filter()
+                ->values()
+                ->all();
         }
 
         $rows = [];
