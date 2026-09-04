@@ -177,7 +177,10 @@ class CustomReportController extends Controller
             case 'procurement_flow':
                 $q = DB::connection('tenant')->table('erp_purchase_orders as po')
                     ->leftJoin('request_forms as rf', 'po.request_form_id', '=', 'rf.id')
-                    ->leftJoin('erp_work_items as wi', 'rf.work_item_id', '=', 'wi.id')
+                    ->leftJoin('erp_work_items as wi', function($join) {
+                        $join->on('rf.work_item_id', '=', 'wi.id')
+                             ->orWhere('wi.wid_code', '=', DB::raw('(SELECT rfi.wid FROM request_form_items rfi WHERE rfi.request_form_id = rf.id AND rfi.wid IS NOT NULL LIMIT 1)'));
+                    })
                     ->leftJoin('erp_suppliers as sup', 'po.supplier_id', '=', 'sup.id')
                     ->leftJoin('erp_goods_receipts as gr', 'gr.erp_purchase_order_id', '=', 'po.id')
                     ->leftJoin('erp_payment_advices as pa', 'pa.erp_purchase_order_id', '=', 'po.id')
@@ -186,12 +189,22 @@ class CustomReportController extends Controller
                         'po.po_no',
                         'po.date as po_date',
                         'sup.name as supplier_name',
+                        'po.total_po_amount',
+                        'po.tax',
                         'po.total_po_amount_with_tax',
+                        'po.amount_paid',
+                        'po.balance_amount',
                         'po.status as po_status',
                         'po.payment_terms',
+                        'po.description as po_description',
                         'rf.rf_no',
                         'rf.rf_date',
                         'rf.requestor',
+                        'rf.status as rf_status',
+                        'rf.total_amount as rf_total_amount',
+                        'rf.project_code as rf_project_code',
+                        'rf.remark as rf_remark',
+                        'rf.priority as rf_priority',
                         'rf.rf_type',
                         'wi.wid_code',
                         'wi.name as wid_name',
@@ -227,7 +240,11 @@ class CustomReportController extends Controller
                 $rawRows = $q->latest('po.id')->limit($limit)->get();
                 $rows = $rawRows->map(fn($r) => (array) $r)->toArray();
                 
+                $summaries['total_po_amount']               = $rawRows->sum('total_po_amount');
                 $summaries['total_po_amount_with_tax']     = $rawRows->sum('total_po_amount_with_tax');
+                $summaries['amount_paid']                  = $rawRows->sum('amount_paid');
+                $summaries['balance_amount']               = $rawRows->sum('balance_amount');
+                $summaries['rf_total_amount']              = $rawRows->sum('rf_total_amount');
                 $summaries['total_invoice_amount_with_tax'] = $rawRows->sum('total_invoice_amount_with_tax');
                 $summaries['outstanding']                   = $rawRows->sum('outstanding');
                 break;
@@ -235,6 +252,11 @@ class CustomReportController extends Controller
             case 'purchase_orders':
                 $q = DB::connection('tenant')->table('erp_purchase_orders as po')
                     ->leftJoin('erp_suppliers as sup', 'po.supplier_id', '=', 'sup.id')
+                    ->leftJoin('request_forms as rf', 'po.request_form_id', '=', 'rf.id')
+                    ->leftJoin('erp_work_items as wi', function($join) {
+                        $join->on('rf.work_item_id', '=', 'wi.id')
+                             ->orWhere('wi.wid_code', '=', DB::raw('(SELECT rfi.wid FROM request_form_items rfi WHERE rfi.request_form_id = rf.id AND rfi.wid IS NOT NULL LIMIT 1)'));
+                    })
                     ->select([
                         'po.id',
                         'po.po_no',
@@ -252,6 +274,12 @@ class CustomReportController extends Controller
                         'po.status',
                         'po.description',
                         'po.approved_date',
+                        'rf.rf_no',
+                        'rf.rf_date',
+                        'rf.requestor',
+                        'rf.status as rf_status',
+                        'wi.wid_code',
+                        'wi.name as wid_name',
                         'po.created_at',
                     ]);
 
@@ -275,17 +303,31 @@ class CustomReportController extends Controller
 
             case 'request_forms':
                 $q = DB::connection('tenant')->table('request_forms as rf')
-                    ->leftJoin('erp_work_items as wi', 'rf.work_item_id', '=', 'wi.id')
+                    ->leftJoin('erp_work_items as wi', function($join) {
+                        $join->on('rf.work_item_id', '=', 'wi.id')
+                             ->orWhere('wi.wid_code', '=', DB::raw('(SELECT rfi.wid FROM request_form_items rfi WHERE rfi.request_form_id = rf.id AND rfi.wid IS NOT NULL LIMIT 1)'));
+                    })
+                    ->leftJoin('erp_purchase_orders as po', 'po.request_form_id', '=', 'rf.id')
+                    ->leftJoin('erp_suppliers as sup', 'po.supplier_id', '=', 'sup.id')
                     ->select([
                         'rf.id',
                         'rf.rf_no',
                         'rf.rf_date',
                         'rf.requestor',
                         'rf.rf_type',
-                        'wi.name as work_item_name',
-                        'rf.total_amount',
                         'rf.status',
+                        'rf.total_amount',
+                        'rf.project_code',
+                        'rf.priority',
                         'rf.remark',
+                        'wi.wid_code',
+                        'wi.name as wid_name',
+                        'wi.allocated_budget',
+                        'wi.remaining_budget',
+                        'po.po_no',
+                        'sup.name as supplier_name',
+                        'po.total_po_amount_with_tax',
+                        'po.status as po_status',
                         'rf.created_at',
                     ]);
 
