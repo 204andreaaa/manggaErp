@@ -37,34 +37,73 @@
         background: #e7e7ff;
         color: #696cff;
     }
+    
+    /* Ultra Compact Table (Fit to Screen) */
+    .table-report {
+        font-size: 0.77rem;
+        width: 100% !important;
+    }
     .table-report thead th {
-        font-size: 0.8rem;
+        font-size: 0.72rem;
+        font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.04em;
+        letter-spacing: 0.01em;
         background-color: #f8f9fa;
-        white-space: nowrap;
+        white-space: normal !important;
+        line-height: 1.15;
+        padding: 6px 6px !important;
         position: sticky;
         top: 0;
         z-index: 5;
         box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        vertical-align: middle;
     }
     .table-report tbody td {
-        font-size: 0.84rem;
+        font-size: 0.77rem;
         vertical-align: middle;
-        white-space: nowrap;
+        padding: 4px 6px !important;
+        line-height: 1.25;
     }
-    /* Compact View Mode */
-    .compact-table .table-report thead th {
-        font-size: 0.75rem;
-        padding: 6px 8px !important;
+    .table-report tfoot td {
+        font-size: 0.77rem;
+        padding: 6px 6px !important;
     }
-    .compact-table .table-report tbody td {
-        font-size: 0.78rem;
-        padding: 5px 8px !important;
+    .table-report .badge {
+        font-size: 0.65rem !important;
+        padding: 2px 5px !important;
+        font-weight: 700;
     }
-    .compact-table .table-report tfoot td {
-        font-size: 0.8rem;
-        padding: 6px 8px !important;
+
+    /* Density View Modes */
+    .table-mode-fit .table-report {
+        table-layout: auto;
+    }
+    .table-mode-fit .table-report thead th {
+        max-width: 140px;
+    }
+    .table-mode-fit .table-report tbody td {
+        max-width: 160px;
+    }
+
+    .table-mode-scroll .table-report {
+        table-layout: auto;
+    }
+    .table-mode-scroll .table-report thead th,
+    .table-mode-scroll .table-report tbody td {
+        white-space: nowrap !important;
+    }
+
+    /* Zoom / Scaling Modes */
+    .table-zoom-85 .table-report {
+        font-size: 0.70rem !important;
+    }
+    .table-zoom-85 .table-report thead th {
+        font-size: 0.66rem !important;
+        padding: 4px 4px !important;
+    }
+    .table-zoom-85 .table-report tbody td {
+        font-size: 0.70rem !important;
+        padding: 3px 4px !important;
     }
 
     .builder-sidebar {
@@ -74,11 +113,6 @@
     .builder-content {
         max-height: calc(100vh - 180px);
         overflow-y: auto;
-    }
-    .floating-expand-btn {
-        position: sticky;
-        top: 10px;
-        z-index: 10;
     }
 </style>
 @endpush
@@ -120,7 +154,7 @@
                         </ul>
                     </div>
 
-                    {{-- View Width & Density Controls --}}
+                    {{-- View Width & Fit Controls --}}
                     <button type="button" class="btn btn-sm btn-outline-secondary" id="btnToggleFieldsPanel" title="Sembunyikan/Tampilkan Panel Field Katalog">
                         <i class="bx bx-sidebar me-1"></i> <span id="labelToggleFields">Sembunyikan Panel Field</span>
                     </button>
@@ -129,8 +163,12 @@
                         <i class="bx bx-fullscreen me-1"></i> <span id="labelFocusMode">Mode Layar Lebar</span>
                     </button>
 
-                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btnToggleDensity" title="Rapatkan Tampilan Baris & Kolom">
-                        <i class="bx bx-collapse-vertical me-1"></i> <span id="labelDensity">Mode Rapat</span>
+                    <button type="button" class="btn btn-sm btn-primary" id="btnToggleFitScreen" title="Rapatkan tabel agar pas 1 layar tanpa scroll horizontal">
+                        <i class="bx bx-compress me-1"></i> <span id="labelFitScreen">Fit Layar (No Scroll)</span>
+                    </button>
+
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btnToggleZoom" title="Perkecil ukuran font & spasi tabel agar muat lebih banyak kolom">
+                        <i class="bx bx-zoom-out me-1"></i> <span id="labelZoom">Zoom 85%</span>
                     </button>
 
                     <button type="button" class="btn btn-sm btn-primary shadow-sm" id="btnRunReport">
@@ -260,7 +298,7 @@
 
         {{-- Right: Columns & Live Preview Table --}}
         <div class="col-md-9 col-xl-9" id="colPreviewContent">
-            <div class="card shadow-sm border-0 builder-content" id="cardTableWrapper">
+            <div class="card shadow-sm border-0 builder-content table-mode-fit" id="cardTableWrapper">
                 {{-- Selected Columns Bar --}}
                 <div class="card-header bg-white border-bottom p-3">
                     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
@@ -422,17 +460,40 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // Compact Table Density Mode
-    let isCompact = false;
-    btnToggleDensity.addEventListener('click', function() {
-        isCompact = !isCompact;
-        cardTableWrapper.classList.toggle('compact-table');
-        if (isCompact) {
+    // Fit Screen Mode (No Scroll vs Wide Scroll)
+    const btnToggleFitScreen = document.getElementById('btnToggleFitScreen');
+    const labelFitScreen = document.getElementById('labelFitScreen');
+    let isFitScreen = true; // Default Fit Screen (No horizontal scroll)
+
+    btnToggleFitScreen.addEventListener('click', function() {
+        isFitScreen = !isFitScreen;
+        if (isFitScreen) {
+            cardTableWrapper.classList.remove('table-mode-scroll');
+            cardTableWrapper.classList.add('table-mode-fit');
+            this.classList.replace('btn-outline-secondary', 'btn-primary');
+            labelFitScreen.textContent = 'Fit Layar (No Scroll)';
+        } else {
+            cardTableWrapper.classList.remove('table-mode-fit');
+            cardTableWrapper.classList.add('table-mode-scroll');
+            this.classList.replace('btn-primary', 'btn-outline-secondary');
+            labelFitScreen.textContent = 'Mode Scroll Lebar';
+        }
+    });
+
+    // Zoom Scaling Mode (85% vs 100%)
+    const btnToggleZoom = document.getElementById('btnToggleZoom');
+    const labelZoom = document.getElementById('labelZoom');
+    let isZoom85 = false;
+
+    btnToggleZoom.addEventListener('click', function() {
+        isZoom85 = !isZoom85;
+        cardTableWrapper.classList.toggle('table-zoom-85', isZoom85);
+        if (isZoom85) {
             this.classList.replace('btn-outline-secondary', 'btn-info');
-            labelDensity.textContent = 'Mode Normal';
+            labelZoom.textContent = 'Zoom 100%';
         } else {
             this.classList.replace('btn-info', 'btn-outline-secondary');
-            labelDensity.textContent = 'Mode Rapat';
+            labelZoom.textContent = 'Zoom 85%';
         }
     });
 
