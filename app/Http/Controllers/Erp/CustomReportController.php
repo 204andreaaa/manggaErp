@@ -51,17 +51,24 @@ class CustomReportController extends Controller
         $dateFrom   = $request->input('date_from');
         $dateTo     = $request->input('date_to');
         $status     = $request->input('status');
-        $limit      = (int) $request->input('limit', 200);
+        $limit      = (int) $request->input('limit', 300);
 
-        $data = $this->fetchReportData($reportType, $columns, $dateField, $dateFrom, $dateTo, $status, $limit);
+        try {
+            $data = $this->fetchReportData($reportType, $columns, $dateField, $dateFrom, $dateTo, $status, $limit);
 
-        return response()->json([
-            'success'     => true,
-            'total_rows'  => count($data['rows']),
-            'columns'     => $data['columns'],
-            'rows'        => $data['rows'],
-            'summaries'   => $data['summaries'],
-        ]);
+            return response()->json([
+                'success'     => true,
+                'total_rows'  => count($data['rows']),
+                'columns'     => $data['columns'],
+                'rows'        => $data['rows'],
+                'summaries'   => $data['summaries'],
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function exportExcel(Request $request)
@@ -152,7 +159,6 @@ class CustomReportController extends Controller
     {
         $allFields = collect(ReportSchemaService::getFields($reportType));
         
-        // If no columns specified, use default active fields
         if (empty($selectedKeys)) {
             $selectedColumns = $allFields->where('default', true)->values()->all();
         } else {
@@ -166,28 +172,28 @@ class CustomReportController extends Controller
             case 'purchase_orders':
                 $q = DB::connection('tenant')->table('erp_purchase_orders as po')
                     ->leftJoin('erp_suppliers as sup', 'po.supplier_id', '=', 'sup.id')
-                    ->leftJoin('erp_work_items as wi', 'po.work_item_id', '=', 'wi.id')
-                    ->leftJoin('erp_sub_projects as sp', 'wi.sub_project_id', '=', 'sp.id')
-                    ->leftJoin('erp_payment_terms as pt', 'po.payment_term_id', '=', 'pt.id')
                     ->select([
                         'po.id',
-                        'po.po_number',
-                        'po.po_date',
+                        'po.po_no',
+                        'po.date',
                         'sup.name as supplier_name',
-                        'sp.name as sub_project_name',
-                        'wi.name as work_item_name',
-                        'po.subtotal',
-                        'po.tax_amount',
-                        'po.grand_total',
-                        'pt.name as payment_term',
-                        'po.delivery_location',
+                        'po.total_po_amount',
+                        'po.tax',
+                        'po.total_po_amount_with_tax',
+                        'po.balance_amount',
+                        'po.amount_paid',
+                        'po.payment_terms',
+                        'po.destination',
+                        'po.attention_to',
+                        'po.invoice_to',
                         'po.status',
-                        'po.notes',
+                        'po.description',
+                        'po.approved_date',
                         'po.created_at',
                     ]);
 
                 if ($dateField && $dateFrom && $dateTo) {
-                    $columnName = ($dateField === 'po_date') ? 'po.po_date' : 'po.created_at';
+                    $columnName = in_array($dateField, ['date', 'approved_date']) ? "po.$dateField" : 'po.created_at';
                     $q->whereBetween($columnName, [$dateFrom, $dateTo]);
                 }
                 if ($status) {
@@ -197,9 +203,11 @@ class CustomReportController extends Controller
                 $rawRows = $q->latest('po.id')->limit($limit)->get();
                 $rows = $rawRows->map(fn($r) => (array) $r)->toArray();
                 
-                $summaries['grand_total'] = $rawRows->sum('grand_total');
-                $summaries['subtotal']    = $rawRows->sum('subtotal');
-                $summaries['tax_amount']  = $rawRows->sum('tax_amount');
+                $summaries['total_po_amount']          = $rawRows->sum('total_po_amount');
+                $summaries['tax']                      = $rawRows->sum('tax');
+                $summaries['total_po_amount_with_tax'] = $rawRows->sum('total_po_amount_with_tax');
+                $summaries['balance_amount']           = $rawRows->sum('balance_amount');
+                $summaries['amount_paid']              = $rawRows->sum('amount_paid');
                 break;
 
             case 'request_forms':
@@ -207,19 +215,19 @@ class CustomReportController extends Controller
                     ->leftJoin('erp_work_items as wi', 'rf.work_item_id', '=', 'wi.id')
                     ->select([
                         'rf.id',
-                        'rf.form_number as rf_number',
-                        'rf.request_date as rf_date',
-                        'rf.department',
-                        'rf.requestor_name',
+                        'rf.rf_no',
+                        'rf.rf_date',
+                        'rf.requestor',
+                        'rf.rf_type',
                         'wi.name as work_item_name',
-                        'rf.total_estimated_cost',
+                        'rf.total_amount',
                         'rf.status',
-                        'rf.notes',
+                        'rf.remark',
                         'rf.created_at',
                     ]);
 
                 if ($dateField && $dateFrom && $dateTo) {
-                    $q->whereBetween('rf.request_date', [$dateFrom, $dateTo]);
+                    $q->whereBetween('rf.rf_date', [$dateFrom, $dateTo]);
                 }
                 if ($status) {
                     $q->where('rf.status', $status);
@@ -227,28 +235,29 @@ class CustomReportController extends Controller
 
                 $rawRows = $q->latest('rf.id')->limit($limit)->get();
                 $rows = $rawRows->map(fn($r) => (array) $r)->toArray();
-                $summaries['total_estimated_cost'] = $rawRows->sum('total_estimated_cost');
+                $summaries['total_amount'] = $rawRows->sum('total_amount');
                 break;
 
             case 'goods_receipts':
                 $q = DB::connection('tenant')->table('erp_goods_receipts as gr')
-                    ->leftJoin('erp_purchase_orders as po', 'gr.purchase_order_id', '=', 'po.id')
-                    ->leftJoin('erp_suppliers as sup', 'po.supplier_id', '=', 'sup.id')
+                    ->leftJoin('erp_purchase_orders as po', 'gr.erp_purchase_order_id', '=', 'po.id')
+                    ->leftJoin('erp_suppliers as sup', 'gr.supplier_id', '=', 'sup.id')
                     ->select([
                         'gr.id',
-                        'gr.grn_number',
-                        'gr.received_date',
-                        'po.po_number',
+                        'gr.do_no',
+                        'gr.date',
+                        'po.po_no',
                         'sup.name as supplier_name',
-                        'gr.delivery_order_number',
-                        'gr.receiver_name as received_by',
+                        'gr.supplier_do_no',
+                        'gr.receiving_contact',
+                        'gr.total_received_qty',
                         'gr.status',
-                        'gr.notes',
+                        'gr.remarks',
                         'gr.created_at',
                     ]);
 
                 if ($dateField && $dateFrom && $dateTo) {
-                    $q->whereBetween('gr.received_date', [$dateFrom, $dateTo]);
+                    $q->whereBetween('gr.date', [$dateFrom, $dateTo]);
                 }
                 if ($status) {
                     $q->where('gr.status', $status);
@@ -256,35 +265,37 @@ class CustomReportController extends Controller
 
                 $rawRows = $q->latest('gr.id')->limit($limit)->get();
                 $rows = $rawRows->map(fn($r) => (array) $r)->toArray();
+                $summaries['total_received_qty'] = $rawRows->sum('total_received_qty');
                 break;
 
             case 'payment_advices':
-                $q = DB::connection('tenant')->table('erp_payment_advice_details as pad')
-                    ->leftJoin('erp_payment_advices as pa', 'pad.payment_advice_id', '=', 'pa.id')
-                    ->leftJoin('erp_purchase_orders as po', 'pad.purchase_order_id', '=', 'po.id')
-                    ->leftJoin('erp_suppliers as sup', 'po.supplier_id', '=', 'sup.id')
+                $q = DB::connection('tenant')->table('erp_payment_advices as pa')
+                    ->leftJoin('erp_purchase_orders as po', 'pa.erp_purchase_order_id', '=', 'po.id')
+                    ->leftJoin('erp_suppliers as sup', 'pa.supplier_id', '=', 'sup.id')
                     ->select([
-                        'pad.id',
-                        'pad.invoice_number',
-                        'po.po_number',
+                        'pa.id',
+                        'pa.supplier_invoice_no',
+                        'po.po_no',
                         'sup.name as supplier_name',
-                        'pad.due_date',
-                        'pad.amount_to_pay',
-                        'pad.payment_type',
-                        'pa.advice_number as pa_number',
-                        'pad.status',
+                        'pa.due_date',
+                        'pa.total_invoice_amount',
+                        'pa.total_invoice_amount_with_tax',
+                        'pa.outstanding',
+                        'pa.status',
                     ]);
 
                 if ($dateField && $dateFrom && $dateTo) {
-                    $q->whereBetween('pad.due_date', [$dateFrom, $dateTo]);
+                    $q->whereBetween('pa.due_date', [$dateFrom, $dateTo]);
                 }
                 if ($status) {
-                    $q->where('pad.status', $status);
+                    $q->where('pa.status', $status);
                 }
 
-                $rawRows = $q->latest('pad.id')->limit($limit)->get();
+                $rawRows = $q->latest('pa.id')->limit($limit)->get();
                 $rows = $rawRows->map(fn($r) => (array) $r)->toArray();
-                $summaries['amount_to_pay'] = $rawRows->sum('amount_to_pay');
+                $summaries['total_invoice_amount']          = $rawRows->sum('total_invoice_amount');
+                $summaries['total_invoice_amount_with_tax'] = $rawRows->sum('total_invoice_amount_with_tax');
+                $summaries['outstanding']                   = $rawRows->sum('outstanding');
                 break;
 
             case 'work_items':
@@ -295,15 +306,14 @@ class CustomReportController extends Controller
                         'wi.id',
                         'bp.name as budget_parent_name',
                         'sp.name as sub_project_name',
-                        'wi.code as wid_code',
+                        'wi.wid_code',
                         'wi.name as wid_name',
                         'wi.allocated_budget',
-                        'wi.realized_budget',
                         'wi.remaining_budget',
-                        'wi.status',
+                        DB::raw('(wi.allocated_budget - wi.remaining_budget) as realized_budget'),
                     ]);
 
-                $rawRows = $q->orderBy('wi.code')->limit($limit)->get();
+                $rawRows = $q->orderBy('wi.wid_code')->limit($limit)->get();
                 $rows = $rawRows->map(fn($r) => (array) $r)->toArray();
                 $summaries['allocated_budget'] = $rawRows->sum('allocated_budget');
                 $summaries['realized_budget']  = $rawRows->sum('realized_budget');
@@ -312,23 +322,22 @@ class CustomReportController extends Controller
 
             case 'stocks':
                 $q = DB::connection('tenant')->table('erp_stocks as st')
-                    ->leftJoin('erp_products as p', 'st.product_id', '=', 'p.id')
-                    ->leftJoin('erp_warehouses as w', 'st.warehouse_id', '=', 'w.id')
+                    ->leftJoin('erp_products as p', 'st.erp_product_id', '=', 'p.id')
+                    ->leftJoin('erp_warehouses as w', 'st.erp_warehouse_id', '=', 'w.id')
                     ->leftJoin('uoms as u', 'p.uom_id', '=', 'u.id')
                     ->select([
                         'st.id',
-                        'p.code as product_code',
+                        'p.product_code',
                         'p.name as product_name',
-                        'p.type as category_name',
+                        'p.part_number',
                         'u.name as uom_name',
-                        'st.current_stock',
-                        'st.min_stock',
+                        'st.qty_on_hand',
                         'w.name as warehouse_name',
                     ]);
 
                 $rawRows = $q->orderBy('p.name')->limit($limit)->get();
                 $rows = $rawRows->map(fn($r) => (array) $r)->toArray();
-                $summaries['current_stock'] = $rawRows->sum('current_stock');
+                $summaries['qty_on_hand'] = $rawRows->sum('qty_on_hand');
                 break;
 
             case 'employees':
