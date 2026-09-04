@@ -2,6 +2,68 @@
 
 @section('title', 'Roles & Permissions')
 
+@push('styles')
+<style>
+    /* Modal Dialog & Scrollbar Enhancements */
+    #mdlAddRole .modal-dialog,
+    #mdlEditRole .modal-dialog {
+        max-height: 90vh;
+        margin-top: 5vh;
+        margin-bottom: 5vh;
+    }
+    #mdlAddRole .modal-content,
+    #mdlEditRole .modal-content {
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        border-radius: 0.75rem;
+    }
+    #formAddRole,
+    #formEditRole {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        overflow: hidden;
+        min-height: 0;
+    }
+    #mdlAddRole .modal-body,
+    #mdlEditRole .modal-body {
+        overflow-y: auto !important;
+        flex: 1 1 auto;
+        max-height: calc(90vh - 135px) !important;
+        scrollbar-width: thin;
+        scrollbar-color: #696cff #f1f1f1;
+        padding: 1.5rem !important;
+    }
+    #mdlAddRole .modal-body::-webkit-scrollbar,
+    #mdlEditRole .modal-body::-webkit-scrollbar {
+        width: 8px;
+    }
+    #mdlAddRole .modal-body::-webkit-scrollbar-track,
+    #mdlEditRole .modal-body::-webkit-scrollbar-track {
+        background: #f1f2f6;
+        border-radius: 4px;
+    }
+    #mdlAddRole .modal-body::-webkit-scrollbar-thumb,
+    #mdlEditRole .modal-body::-webkit-scrollbar-thumb {
+        background: #b0b5c0;
+        border-radius: 4px;
+    }
+    #mdlAddRole .modal-body::-webkit-scrollbar-thumb:hover,
+    #mdlEditRole .modal-body::-webkit-scrollbar-thumb:hover {
+        background: #696cff;
+    }
+    #mdlAddRole .modal-footer,
+    #mdlEditRole .modal-footer {
+        flex-shrink: 0;
+        background: #f8f9fa;
+        border-top: 1px solid #e7eaf3;
+        z-index: 5;
+    }
+</style>
+@endpush
+
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y">
     <meta name="csrf-token" content="{{ csrf_token() }}">
