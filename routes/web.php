@@ -185,6 +185,16 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::get('attendances', [\App\Http\Controllers\Erp\HrEmployeeController::class, 'attendances'])->name('attendances.index');
             Route::get('payroll', [\App\Http\Controllers\Erp\HrEmployeeController::class, 'payroll'])->name('payroll.index');
         });
+
+        // Custom Reports (Dynamic Report Builder)
+        Route::prefix('reports')->name('reports.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Erp\CustomReportController::class, 'index'])->name('index');
+            Route::get('builder', [\App\Http\Controllers\Erp\CustomReportController::class, 'builder'])->name('builder');
+            Route::post('preview', [\App\Http\Controllers\Erp\CustomReportController::class, 'preview'])->name('preview');
+            Route::post('export', [\App\Http\Controllers\Erp\CustomReportController::class, 'exportExcel'])->name('export');
+            Route::post('store', [\App\Http\Controllers\Erp\CustomReportController::class, 'store'])->name('store');
+            Route::delete('{customReport}', [\App\Http\Controllers\Erp\CustomReportController::class, 'destroy'])->name('destroy');
+        });
     });
 
 

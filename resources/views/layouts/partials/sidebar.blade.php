@@ -402,6 +402,18 @@ $isSystemOpen = request()->routeIs('erp.users.*')
         </li>
         @endif
 
+        {{-- ==================== REPORTS & ANALYTICS ==================== --}}
+        <li class="menu-header small text-uppercase">
+            <span class="menu-header-text">Laporan & Analitik</span>
+        </li>
+        <li id="menu-item-erp-reports" class="menu-item {{ request()->routeIs('erp.reports.*') ? 'active' : '' }}">
+            <a href="{{ $rl('erp.reports.index') }}" class="menu-link d-flex align-items-center">
+                <i class="menu-icon tf-icons bx bx-bar-chart-alt-2 text-primary"></i>
+                <div class="text-truncate">Custom Reports</div>
+                <span class="badge bg-label-success rounded-pill ms-auto">Pro</span>
+            </a>
+        </li>
+
         {{-- ==================== SYSTEM & SETTINGS ==================== --}}
         @if($isSuperAdmin)
         <li class="menu-header small text-uppercase">

@@ -221,6 +221,16 @@ return [
             'icon'        => 'bx bx-wallet-alt',
             'permissions' => ['hr_payroll.view', 'hr_payroll.manage'],
         ],
+
+        // ================== CUSTOM REPORTS ==================
+        [
+            'key'         => 'custom_reports',
+            'label'       => 'Custom Report Builder',
+            'route'       => 'erp.reports.index',
+            'group'       => 'master',
+            'icon'        => 'bx bx-bar-chart-alt-2',
+            'permissions' => ['custom_reports.view', 'custom_reports.create', 'custom_reports.export', 'custom_reports.delete'],
+        ],
     ],
 
     'groups' => [
