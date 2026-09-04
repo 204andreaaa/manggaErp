@@ -545,14 +545,40 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Render Table Output
     function renderTable(columns, rows, summaries) {
-        // Headers
-        let thHtml = '<tr><th style="width:40px" class="text-center">#</th>';
+        // Headers with Sortable & Drag capability
+        let thHtml = '<tr><th style="width:40px" class="text-center" data-no-drag="true">#</th>';
         columns.forEach(c => {
             const align = (c.type === 'currency' || c.type === 'number') ? 'text-end' : (c.type === 'badge' ? 'text-center' : 'text-start');
-            thHtml += `<th class="${align}">${c.label}</th>`;
+            thHtml += `<th class="${align} th-draggable" data-key="${c.key}" style="cursor:move; user-select:none;" title="Geser untuk ubah urutan">
+                <div class="d-inline-flex align-items-center">
+                    <i class="bx bx-grid-vertical text-muted me-1 small"></i>
+                    <span>${c.label}</span>
+                </div>
+            </th>`;
         });
         thHtml += '</tr>';
         tableHead.innerHTML = thHtml;
+
+        // Attach Sortable to Header row
+        const trHeader = tableHead.querySelector('tr');
+        if (trHeader && typeof Sortable !== 'undefined') {
+            new Sortable(trHeader, {
+                animation: 180,
+                draggable: '.th-draggable',
+                ghostClass: 'bg-primary-subtle',
+                onEnd: function () {
+                    const reordered = [];
+                    trHeader.querySelectorAll('.th-draggable').forEach(th => {
+                        const k = th.getAttribute('data-key');
+                        const found = allFieldsMeta.find(f => f.key === k);
+                        if (found) reordered.push(found);
+                    });
+                    activeColumns = reordered;
+                    renderColumnChips();
+                    fetchPreviewData();
+                }
+            });
+        }
 
         // Rows
         if (!rows || rows.length === 0) {
