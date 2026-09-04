@@ -19,11 +19,13 @@ $isGA = $isSuperAdmin || $u?->hasRole(['ga', 'general_affair']) || $u?->canSeeMe
 $isProcurement = $isSuperAdmin || $u?->hasRole('procurement') || $u?->canSeeMenu('purchase_orders') || $u?->canSeeMenu('suppliers');
 $isFinance = $isSuperAdmin || $u?->hasRole('finance') || $u?->canSeeMenu('payment_advices') || $u?->canSeeMenu('payment_advice_details');
 $isLogistik = $isSuperAdmin || $u?->hasRole(['logistik', 'warehouse']) || $u?->canSeeMenu('stocks') || $u?->canSeeMenu('warehouses');
+$isHRIS = $isSuperAdmin || $u?->hasRole(['hrd', 'hr_manager']) || $u?->canSeeMenu('employees') || $u?->canSeeMenu('hr_attendances') || $u?->canSeeMenu('hr_payroll');
 $isCEO = $isSuperAdmin || $u?->hasRole('ceo');
 $isMaster = $isSuperAdmin || $u?->hasRole('procurement') || $u?->canSeeMenu('products') || $u?->canSeeMenu('uoms');
 $isSystem = $isSuperAdmin || $u?->canSeeMenu('users') || $u?->canSeeMenu('roles') || $u?->canSeeMenu('projects') || $u?->canSeeMenu('approval_configs');
 
 // Route Active States
+$isHrOpen = request()->routeIs('erp.hr.*');
 $isProjectOpen = request()->routeIs('erp.budget-parents.*')
     || request()->routeIs('erp.sub-projects.*')
     || request()->routeIs('erp.work-items.*');
@@ -290,7 +292,38 @@ $isSystemOpen = request()->routeIs('erp.users.*')
         </li>
         @endif
 
-        {{-- 6. CEO & EXECUTIVE --}}
+        {{-- 6. HUMAN RESOURCE (HRIS) --}}
+        @if($isHRIS)
+        <li class="menu-item {{ $isHrOpen ? 'active open' : '' }}">
+            <a href="javascript:void(0);" class="menu-link menu-toggle">
+                <i class="menu-icon tf-icons bx bx-user-pin text-primary"></i>
+                <div class="text-truncate">Human Resource (HR)</div>
+                <span class="badge bg-label-warning rounded-pill ms-auto me-3">Beta</span>
+            </a>
+            <ul class="menu-sub">
+                <li class="menu-item {{ request()->routeIs('erp.hr.employees.*') ? 'active' : '' }}">
+                    <a href="{{ route('erp.hr.employees.index') }}" class="menu-link">
+                        <i class="bx bx-id-card me-2"></i>
+                        <div class="text-truncate">Data Karyawan</div>
+                    </a>
+                </li>
+                <li class="menu-item {{ request()->routeIs('erp.hr.attendances.*') ? 'active' : '' }}">
+                    <a href="{{ route('erp.hr.attendances.index') }}" class="menu-link">
+                        <i class="bx bx-calendar-check me-2"></i>
+                        <div class="text-truncate">Absensi & Cuti</div>
+                    </a>
+                </li>
+                <li class="menu-item {{ request()->routeIs('erp.hr.payroll.*') ? 'active' : '' }}">
+                    <a href="{{ route('erp.hr.payroll.index') }}" class="menu-link">
+                        <i class="bx bx-wallet-alt me-2"></i>
+                        <div class="text-truncate">Payroll / Gaji</div>
+                    </a>
+                </li>
+            </ul>
+        </li>
+        @endif
+
+        {{-- 7. CEO & EXECUTIVE --}}
         @if($isCEO)
         <li class="menu-item {{ request()->routeIs('erp.purchase-orders.index') || request()->routeIs('erp.payment-advices.index') ? 'active open' : '' }}">
             <a href="javascript:void(0);" class="menu-link menu-toggle">

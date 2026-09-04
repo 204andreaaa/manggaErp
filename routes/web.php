@@ -178,6 +178,14 @@ Route::middleware(['auth', 'active'])->group(function () {
         
         // Projects (Tenants)
         Route::resource('projects', \App\Http\Controllers\Erp\ProjectController::class)->except(['create', 'edit', 'show']);
+
+        // Human Resource (HRIS)
+        Route::prefix('hr')->name('hr.')->group(function () {
+            Route::get('employees', [\App\Http\Controllers\Erp\HrEmployeeController::class, 'index'])->name('employees.index');
+            Route::get('attendances', [\App\Http\Controllers\Erp\HrEmployeeController::class, 'attendances'])->name('attendances.index');
+            Route::get('payroll', [\App\Http\Controllers\Erp\HrEmployeeController::class, 'payroll'])->name('payroll.index');
+        });
     });
+
 
 });

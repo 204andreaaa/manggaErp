@@ -43,6 +43,10 @@ class RoleSeeder extends Seeder
                 'name'        => 'Finance',
                 'home_route'  => 'erp.payment-advices.index',
             ],
+            'hrd' => [
+                'name'        => 'Human Resource (HRD)',
+                'home_route'  => 'erp.hr.employees.index',
+            ],
             'ceo' => [
                 'name'        => 'Chief Executive Officer (CEO)',
                 'home_route'  => 'dashboard',
@@ -121,6 +125,14 @@ class RoleSeeder extends Seeder
                     'payment_advices.view', 'payment_advices.update',
                     'payment_advice_details.view', 'payment_advice_details.update_invoice', 'payment_advice_details.submit', 'payment_advice_details.approve', 'payment_advice_details.reject', 'payment_advice_details.mark_paid',
                     'suppliers.view', 'payment_terms.view'
+                ],
+            ],
+            'hrd' => [
+                'menu_keys'   => ['employees', 'hr_attendances', 'hr_payroll'],
+                'permissions' => [
+                    'employees.view', 'employees.create', 'employees.update', 'employees.delete',
+                    'hr_attendances.view', 'hr_attendances.manage',
+                    'hr_payroll.view', 'hr_payroll.manage',
                 ],
             ],
             'ceo' => [

@@ -45,6 +45,11 @@ class User extends Authenticatable
         return $this->belongsToMany(Project::class, 'project_user', 'user_id', 'project_id');
     }
 
+    public function employee()
+    {
+        return $this->hasOne(Employee::class, 'user_id');
+    }
+
 
     /* ================== HELPER ROLE ================== */
 

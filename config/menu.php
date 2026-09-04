@@ -195,6 +195,32 @@ return [
             'icon'        => 'bx bx-check-shield',
             'permissions' => ['approval_configs.view', 'approval_configs.create', 'approval_configs.delete'],
         ],
+
+        // ================== HUMAN RESOURCE (HRIS) ==================
+        [
+            'key'         => 'employees',
+            'label'       => 'Data Karyawan',
+            'route'       => 'erp.hr.employees.index',
+            'group'       => 'hris',
+            'icon'        => 'bx bx-id-card',
+            'permissions' => ['employees.view', 'employees.create', 'employees.update', 'employees.delete'],
+        ],
+        [
+            'key'         => 'hr_attendances',
+            'label'       => 'Absensi & Kehadiran',
+            'route'       => 'erp.hr.attendances.index',
+            'group'       => 'hris',
+            'icon'        => 'bx bx-calendar-check',
+            'permissions' => ['hr_attendances.view', 'hr_attendances.manage'],
+        ],
+        [
+            'key'         => 'hr_payroll',
+            'label'       => 'Payroll & Penggajian',
+            'route'       => 'erp.hr.payroll.index',
+            'group'       => 'hris',
+            'icon'        => 'bx bx-wallet-alt',
+            'permissions' => ['hr_payroll.view', 'hr_payroll.manage'],
+        ],
     ],
 
     'groups' => [
@@ -202,6 +228,7 @@ return [
         'procurement' => ['label' => 'Procurement & GA',    'icon' => 'bx bx-cart'],
         'finance'     => ['label' => 'Finance & Accounting','icon' => 'bx bx-dollar'],
         'inventory'   => ['label' => 'Inventory & Catalog', 'icon' => 'bx bx-box'],
+        'hris'        => ['label' => 'Human Resource (HRIS)','icon' => 'bx bx-user-pin'],
         'master'      => ['label' => 'System & Security',   'icon' => 'bx bx-slider-alt'],
     ],
 
@@ -212,6 +239,7 @@ return [
         ['label' => 'Goods Receipts (GR)', 'route' => 'erp.goods-receipts.index'],
         ['label' => 'Finance Payment Advices', 'route' => 'erp.payment-advices.index'],
         ['label' => 'Logistik Stocks', 'route' => 'erp.stocks.index'],
+        ['label' => 'HRIS Data Karyawan', 'route' => 'erp.hr.employees.index'],
     ]
 ];
 
