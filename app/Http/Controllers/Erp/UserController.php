@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Erp;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Role;
+use App\Models\Employee;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -26,16 +27,24 @@ class UserController extends Controller
         return $me;
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        $me = $this->ensureCanManageUsers('users.view');
-        $query = User::with(['roles'])->orderBy('id');
-        $users = $query->get();
+        $this->ensureCanManageUsers('users.view');
 
-        $warehouses = collect();
-        $allRoles = Role::orderBy('name')->get(['id','name','slug']);
+        $query = User::on('master')->with('roles');
 
-        return view('erp.users.index', compact('users','warehouses','allRoles','me'));
+        if ($request->filled('role')) {
+            $query->whereHas('roles', fn ($q) => $q->where('slug', $request->role));
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        $users = $query->latest('id')->paginate(10)->withQueryString();
+        $roles = Role::orderBy('name')->get();
+
+        return view('erp.users.index', compact('users', 'roles'));
     }
 
     public function store(Request $request)
@@ -96,6 +105,7 @@ class UserController extends Controller
         DB::transaction(function () use ($payload, $roleIds) {
             $user = User::create($payload);
             $user->roles()->sync($roleIds);
+            $this->syncEmployeeProfile($user);
         });
 
         return back()->with('success', 'User created successfully.');
@@ -171,9 +181,45 @@ class UserController extends Controller
         DB::transaction(function () use ($user, $payload, $roleIds) {
             $user->update($payload);
             $user->roles()->sync($roleIds);
+            $this->syncEmployeeProfile($user);
         });
 
         return back()->with('edit_success', 'User updated.');
+    }
+
+    /**
+     * Otomatis Sinkronisasi Profil Karyawan (HRIS) saat Akun User dibuat / diubah
+     */
+    protected function syncEmployeeProfile(User $user): void
+    {
+        $dept = 'Umum';
+        if ($user->hasRole(['admin_project', 'project_manager', 'site_engineer'])) {
+            $dept = 'Project Management';
+        } elseif ($user->hasRole(['procurement', 'general_affair'])) {
+            $dept = 'Procurement & GA';
+        } elseif ($user->hasRole(['logistik', 'warehouse'])) {
+            $dept = 'Logistik & Gudang';
+        } elseif ($user->hasRole(['finance', 'accounting'])) {
+            $dept = 'Finance & Accounting';
+        } elseif ($user->hasRole(['ceo', 'superadmin', 'admin'])) {
+            $dept = 'Executive & Management';
+        }
+
+        Employee::on('master')->updateOrCreate(
+            ['user_id' => $user->id],
+            [
+                'nik'               => sprintf('EMP-%04d', $user->id),
+                'name'              => $user->name,
+                'email'             => $user->email,
+                'phone'             => $user->phone,
+                'position'          => $user->position ?? 'Staff',
+                'department'        => $dept,
+                'signature_path'    => $user->signature_path,
+                'employment_status' => 'permanent',
+                'status'            => $user->status ?? 'active',
+                'join_date'         => now()->toDateString(),
+            ]
+        );
     }
 
     public function destroy(User $user)
