@@ -711,7 +711,7 @@
             const modalEl = document.getElementById('glassEditUser');
             const modal = modalEl ? new bootstrap.Modal(modalEl) : null;
             const form = document.getElementById('formEditUser');
-            const baseUrl = @json(url('users'));
+            const baseUrl = @json(route('erp.users.index'));
 
             function toggleEditWarehouse() {
                 @if ($isWarehouseUser)
