@@ -3,6 +3,7 @@
 @section('content')
     @php
         /** @var \App\Models\User $me */
+        $me = $me ?? auth()->user();
         $isWarehouseUser = $me?->hasRole('warehouse');
     @endphp
 

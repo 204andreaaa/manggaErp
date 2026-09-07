@@ -27,24 +27,16 @@ class UserController extends Controller
         return $me;
     }
 
-    public function index(Request $request)
+    public function index()
     {
-        $this->ensureCanManageUsers('users.view');
+        $me = $this->ensureCanManageUsers('users.view');
+        $query = User::on('master')->with(['roles'])->orderBy('id');
+        $users = $query->get();
 
-        $query = User::on('master')->with('roles');
+        $warehouses = collect();
+        $allRoles = Role::orderBy('name')->get(['id', 'name', 'slug']);
 
-        if ($request->filled('role')) {
-            $query->whereHas('roles', fn ($q) => $q->where('slug', $request->role));
-        }
-
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-
-        $users = $query->latest('id')->paginate(10)->withQueryString();
-        $roles = Role::orderBy('name')->get();
-
-        return view('erp.users.index', compact('users', 'roles'));
+        return view('erp.users.index', compact('users', 'warehouses', 'allRoles', 'me'));
     }
 
     public function store(Request $request)
