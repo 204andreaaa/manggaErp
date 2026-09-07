@@ -128,8 +128,9 @@ class RoleSeeder extends Seeder
                 ],
             ],
             'hrd' => [
-                'menu_keys'   => ['employees', 'hr_attendances', 'hr_payroll'],
+                'menu_keys'   => ['departments', 'employees', 'hr_attendances', 'hr_payroll'],
                 'permissions' => [
+                    'departments.view', 'departments.create', 'departments.update', 'departments.delete',
                     'employees.view', 'employees.create', 'employees.update', 'employees.delete',
                     'hr_attendances.view', 'hr_attendances.manage',
                     'hr_payroll.view', 'hr_payroll.manage',

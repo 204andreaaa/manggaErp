@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Role;
 use App\Models\Employee;
+use App\Models\Department;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -30,13 +31,14 @@ class UserController extends Controller
     public function index()
     {
         $me = $this->ensureCanManageUsers('users.view');
-        $query = User::on('master')->with(['roles'])->orderBy('id');
+        $query = User::on('master')->with(['roles', 'employee'])->orderBy('id');
         $users = $query->get();
 
         $warehouses = collect();
         $allRoles = Role::orderBy('name')->get(['id', 'name', 'slug']);
+        $departments = Department::where('status', 'active')->orderBy('name')->get(['id', 'code', 'name']);
 
-        return view('erp.users.index', compact('users', 'warehouses', 'allRoles', 'me'));
+        return view('erp.users.index', compact('users', 'warehouses', 'allRoles', 'departments', 'me'));
     }
 
     public function store(Request $request)
@@ -50,6 +52,7 @@ class UserController extends Controller
             'email'        => ['required','email','max:190','unique:master.users,email'],
             'phone'        => ['nullable','string','max:20','unique:master.users,phone'],
             'position'     => ['nullable','string','max:100'],
+            'department'   => ['nullable','string','max:100'],
             'signature'    => ['nullable','image','mimes:jpg,jpeg,png,webp','max:2048'],
             'password'     => ['required','confirmed','min:6'],
             'roles'        => ['array','min:1'],
@@ -94,10 +97,12 @@ class UserController extends Controller
             $payload['signature_path'] = $signaturePath;
         }
 
-        DB::transaction(function () use ($payload, $roleIds) {
+        $customDept = $data['department'] ?? null;
+
+        DB::transaction(function () use ($payload, $roleIds, $customDept) {
             $user = User::create($payload);
             $user->roles()->sync($roleIds);
-            $this->syncEmployeeProfile($user);
+            $this->syncEmployeeProfile($user, $customDept);
         });
 
         return back()->with('success', 'User created successfully.');
@@ -122,6 +127,7 @@ class UserController extends Controller
             'email'        => ['required','email','max:190', Rule::unique('master.users','email')->ignore($user->id)],
             'phone'        => ['nullable','string','max:20', Rule::unique('master.users','phone')->ignore($user->id)],
             'position'     => ['nullable','string','max:100'],
+            'department'   => ['nullable','string','max:100'],
             'signature'    => ['nullable','image','mimes:jpg,jpeg,png,webp','max:2048'],
             'password'     => ['nullable','confirmed','min:6'],
             'roles'        => ['array','min:1'],
@@ -169,11 +175,12 @@ class UserController extends Controller
         }
 
         $payload['signature_path'] = $signaturePath;
+        $customDept = $data['department'] ?? null;
 
-        DB::transaction(function () use ($user, $payload, $roleIds) {
+        DB::transaction(function () use ($user, $payload, $roleIds, $customDept) {
             $user->update($payload);
             $user->roles()->sync($roleIds);
-            $this->syncEmployeeProfile($user);
+            $this->syncEmployeeProfile($user, $customDept);
         });
 
         return back()->with('edit_success', 'User updated.');
@@ -182,19 +189,24 @@ class UserController extends Controller
     /**
      * Otomatis Sinkronisasi Profil Karyawan (HRIS) saat Akun User dibuat / diubah
      */
-    protected function syncEmployeeProfile(User $user): void
+    protected function syncEmployeeProfile(User $user, ?string $customDept = null): void
     {
-        $dept = 'Umum';
-        if ($user->hasRole(['admin_project', 'project_manager', 'site_engineer'])) {
-            $dept = 'Project Management';
-        } elseif ($user->hasRole(['procurement', 'general_affair'])) {
-            $dept = 'Procurement & GA';
-        } elseif ($user->hasRole(['logistik', 'warehouse'])) {
-            $dept = 'Logistik & Gudang';
-        } elseif ($user->hasRole(['finance', 'accounting'])) {
-            $dept = 'Finance & Accounting';
-        } elseif ($user->hasRole(['ceo', 'superadmin', 'admin'])) {
-            $dept = 'Executive & Management';
+        $dept = $customDept;
+        if (empty($dept)) {
+            $dept = 'Umum';
+            if ($user->hasRole(['admin_project', 'project_manager', 'site_engineer'])) {
+                $dept = 'Project Management';
+            } elseif ($user->hasRole(['procurement', 'general_affair'])) {
+                $dept = 'Procurement & GA';
+            } elseif ($user->hasRole(['logistik', 'warehouse'])) {
+                $dept = 'Logistik & Gudang';
+            } elseif ($user->hasRole(['finance', 'accounting'])) {
+                $dept = 'Finance & Accounting';
+            } elseif ($user->hasRole(['hrd'])) {
+                $dept = 'Human Resource (HRD)';
+            } elseif ($user->hasRole(['ceo', 'superadmin', 'admin'])) {
+                $dept = 'Executive & Management';
+            }
         }
 
         Employee::on('master')->updateOrCreate(

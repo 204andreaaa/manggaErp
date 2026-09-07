@@ -198,6 +198,14 @@ return [
 
         // ================== HUMAN RESOURCE (HRIS) ==================
         [
+            'key'         => 'departments',
+            'label'       => 'Master Departemen',
+            'route'       => 'erp.departments.index',
+            'group'       => 'hris',
+            'icon'        => 'bx bx-sitemap',
+            'permissions' => ['departments.view', 'departments.create', 'departments.update', 'departments.delete'],
+        ],
+        [
             'key'         => 'employees',
             'label'       => 'Data Karyawan',
             'route'       => 'erp.hr.employees.index',

@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Database\Seeders\Core\CompanySeeder;
 use Database\Seeders\Core\RoleSeeder;
+use Database\Seeders\Core\DepartmentSeeder;
 use Database\Seeders\Erp\ErpSetupSeeder;
 use Database\Seeders\ErpProductCatalogSeeder;
 use Database\Seeders\MasterUserSeeder;
@@ -15,6 +16,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             CompanySeeder::class,
+            DepartmentSeeder::class,
             RoleSeeder::class,
             ErpSetupSeeder::class,
             \Database\Seeders\Core\UserSeeder::class,

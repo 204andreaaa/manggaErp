@@ -129,7 +129,12 @@
                                 <td>{{ $u->username }}</td>
                                 <td>{{ $u->email }}</td>
                                 <td>{{ $u->phone ?? '-' }}</td>
-                                <td>{{ $u->position ?? '-' }}</td>
+                                <td>
+                                    <div class="fw-semibold">{{ $u->position ?? '-' }}</div>
+                                    <div class="text-muted small" style="font-size:0.75rem;">
+                                        <i class="bx bx-sitemap me-1 text-primary"></i>{{ $u->employee?->department ?? 'Umum' }}
+                                    </div>
+                                </td>
                                 <td class="text-center">
                                     @php
                                         $signature = $u->signature_path;
@@ -176,6 +181,7 @@
                                                 data-email="{{ $u->email }}"
                                                 data-phone="{{ $u->phone }}"
                                                 data-position="{{ $u->position }}"
+                                                data-department="{{ $u->employee?->department ?? '' }}"
                                                 data-roles="{{ $rolesAttr }}"
                                                 data-role_names="{{ $roleText }}"
                                                 data-status="{{ $u->status }}"
@@ -257,10 +263,23 @@
                             class="form-control bg-transparent border-secondary">
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Position (optional)</label>
-                        <input name="position" value="{{ old('position') }}"
-                            class="form-control bg-transparent border-secondary">
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Position (optional)</label>
+                            <input name="position" value="{{ old('position') }}"
+                                class="form-control bg-transparent border-secondary" placeholder="e.g. Staff, Manager">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Department / Divisi</label>
+                            <select name="department" class="form-select bg-transparent border-secondary">
+                                <option value="">— Auto (sesuai Role) —</option>
+                                @foreach ($departments ?? [] as $dept)
+                                    <option value="{{ $dept->name }}" {{ old('department') === $dept->name ? 'selected' : '' }}>
+                                        {{ $dept->name }} ({{ $dept->code }})
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
                     </div>
 
                     <div class="mb-3">
@@ -374,9 +393,20 @@
                         <input id="edit_phone" name="phone" class="form-control bg-transparent border-secondary">
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Position (optional)</label>
-                        <input id="edit_position" name="position" class="form-control bg-transparent border-secondary">
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Position (optional)</label>
+                            <input id="edit_position" name="position" class="form-control bg-transparent border-secondary" placeholder="e.g. Staff">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Department / Divisi</label>
+                            <select id="edit_department" name="department" class="form-select bg-transparent border-secondary">
+                                <option value="">— Auto (sesuai Role) —</option>
+                                @foreach ($departments ?? [] as $dept)
+                                    <option value="{{ $dept->name }}">{{ $dept->name }} ({{ $dept->code }})</option>
+                                @endforeach
+                            </select>
+                        </div>
                     </div>
 
                     <div class="mb-3">
@@ -735,6 +765,7 @@
                 $('#edit_email').val(d.email || '');
                 $('#edit_phone').val(d.phone || '');
                 $('#edit_position').val(d.position || '');
+                $('#edit_department').val(d.department || '');
 
                 @if ($isWarehouseUser)
                     const rolesArr = (d.roles || '').split(',').filter(Boolean);

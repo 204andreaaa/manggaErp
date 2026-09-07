@@ -176,6 +176,10 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::resource('users', \App\Http\Controllers\Erp\UserController::class)->except(['create', 'edit', 'show']);
         Route::resource('roles', \App\Http\Controllers\Erp\RoleController::class)->except(['create', 'edit', 'show']);
         
+        // Master Departments
+        Route::patch('departments/{department}/toggle-status', [\App\Http\Controllers\Erp\DepartmentController::class, 'toggleStatus'])->name('departments.toggle_status');
+        Route::resource('departments', \App\Http\Controllers\Erp\DepartmentController::class)->except(['create', 'edit', 'show']);
+
         // Projects (Tenants)
         Route::resource('projects', \App\Http\Controllers\Erp\ProjectController::class)->except(['create', 'edit', 'show']);
 
