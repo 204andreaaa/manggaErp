@@ -221,11 +221,11 @@
             color: var(--text-main) !important;
         }
 
-        /* ================== HORIZONTAL NAV LAYOUT CSS (FIXED DROPDOWNS & Z-INDEX) ================== */
+        /* ================== HORIZONTAL NAV LAYOUT CSS (ISOLATED CLEAN DROPDOWNS) ================== */
         .horizontal-nav-wrapper {
             background-color: var(--navbar-bg);
             border-bottom: 1px solid var(--border-color);
-            padding: 0.4rem 0;
+            padding: 0.35rem 0;
             position: sticky;
             top: 0;
             z-index: 1040;
@@ -235,7 +235,7 @@
         }
 
         .horizontal-nav-list {
-            gap: 0.35rem;
+            gap: 0.3rem;
             flex-wrap: wrap;
             overflow: visible !important;
             margin: 0;
@@ -244,14 +244,14 @@
         }
 
         .horizontal-nav-list .nav-item {
-            position: relative;
+            position: relative !important;
         }
 
         .horizontal-nav-list .nav-link {
             color: var(--text-main);
-            font-size: 0.84rem;
+            font-size: 0.83rem;
             font-weight: 500;
-            padding: 0.45rem 0.85rem;
+            padding: 0.42rem 0.8rem;
             border-radius: 0.5rem;
             white-space: nowrap;
             display: inline-flex;
@@ -271,31 +271,34 @@
             box-shadow: 0 2px 4px rgba(105, 108, 255, 0.3);
         }
 
-        /* Dropdown Popover on Hover and Click */
-        .horizontal-nav-list .dropdown:hover > .dropdown-menu,
-        .horizontal-nav-list .dropdown.show > .dropdown-menu {
-            display: block !important;
-            opacity: 1 !important;
-            visibility: visible !important;
-            margin-top: 0.25rem !important;
-        }
-
+        /* STRICT DROPDOWN POPOVER: Hidden by default, only active one shows */
         .horizontal-nav-list .dropdown-menu {
+            display: none !important;
             position: absolute !important;
             top: 100% !important;
             left: 0 !important;
-            z-index: 1070 !important;
-            min-width: 230px !important;
+            right: auto !important;
+            z-index: 1080 !important;
+            min-width: 220px !important;
             border-radius: 0.65rem !important;
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
             background-color: var(--bg-card) !important;
             border: 1px solid var(--border-color) !important;
             padding: 0.45rem 0 !important;
+            margin-top: 0.25rem !important;
+        }
+
+        /* Show ONLY the single hovered or clicked dropdown */
+        .horizontal-nav-list .nav-item.dropdown:hover > .dropdown-menu,
+        .horizontal-nav-list .dropdown-menu.show {
+            display: block !important;
+            opacity: 1 !important;
+            visibility: visible !important;
         }
 
         .horizontal-nav-list .dropdown-item {
-            padding: 0.55rem 1rem !important;
-            font-size: 0.83rem !important;
+            padding: 0.5rem 1rem !important;
+            font-size: 0.82rem !important;
             color: var(--text-main) !important;
             display: flex;
             align-items: center;
@@ -594,27 +597,34 @@
                 });
             }
 
-            // 7. Horizontal Menu Click Dropdown Handler
-            document.querySelectorAll('.horizontal-nav-list .dropdown-toggle').forEach(toggle => {
-                toggle.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const parent = this.closest('.dropdown');
-                    const isOpen = parent.classList.contains('show');
-                    
-                    // Close all other dropdowns
-                    document.querySelectorAll('.horizontal-nav-list .dropdown').forEach(d => d.classList.remove('show'));
-                    
-                    if (!isOpen) {
-                        parent.classList.add('show');
-                    }
+            // 7. Horizontal Menu Clean Handler (Strictly only ONE open menu at a time)
+            document.querySelectorAll('.horizontal-nav-list .nav-item.dropdown').forEach(item => {
+                const menu = item.querySelector('.dropdown-menu');
+                if (!menu) return;
+
+                item.addEventListener('mouseenter', function() {
+                    document.querySelectorAll('.horizontal-nav-list .dropdown-menu').forEach(m => {
+                        if (m !== menu) m.classList.remove('show');
+                    });
                 });
+
+                const toggle = item.querySelector('.dropdown-toggle');
+                if (toggle) {
+                    toggle.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const isShown = menu.classList.contains('show');
+                        document.querySelectorAll('.horizontal-nav-list .dropdown-menu').forEach(m => m.classList.remove('show'));
+                        if (!isShown) {
+                            menu.classList.add('show');
+                        }
+                    });
+                }
             });
 
-            // Close horizontal dropdowns when clicking outside
             document.addEventListener('click', function(e) {
                 if (!e.target.closest('.horizontal-nav-list')) {
-                    document.querySelectorAll('.horizontal-nav-list .dropdown').forEach(d => d.classList.remove('show'));
+                    document.querySelectorAll('.horizontal-nav-list .dropdown-menu').forEach(m => m.classList.remove('show'));
                 }
             });
 
