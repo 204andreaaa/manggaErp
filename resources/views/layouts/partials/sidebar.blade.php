@@ -301,6 +301,12 @@ $isSystemOpen = request()->routeIs('erp.users.*')
                 <span class="badge bg-label-warning rounded-pill ms-auto me-3">Beta</span>
             </a>
             <ul class="menu-sub">
+                <li class="menu-item {{ request()->routeIs('erp.departments.*') ? 'active' : '' }}">
+                    <a href="{{ route('erp.departments.index') }}" class="menu-link">
+                        <i class="bx bx-sitemap me-2 text-primary"></i>
+                        <div class="text-truncate">Master Departemen</div>
+                    </a>
+                </li>
                 <li class="menu-item {{ request()->routeIs('erp.hr.employees.*') ? 'active' : '' }}">
                     <a href="{{ route('erp.hr.employees.index') }}" class="menu-link">
                         <i class="bx bx-id-card me-2"></i>
