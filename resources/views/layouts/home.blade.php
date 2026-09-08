@@ -51,14 +51,14 @@
 
     {{-- Comprehensive Theme (Dark/Light) & Navigation CSS Engine --}}
     <style>
-        /* Light Theme Tokens */
+        /* ================== LIGHT THEME TOKENS ================== */
         :root {
             --primary-accent: #696cff;
             --bg-body: #f5f7fb;
             --bg-card: #ffffff;
-            --text-main: #1f2937;
-            --text-muted: #6b7280;
-            --border-color: #e5e7eb;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
             --menu-bg: #ffffff;
             --navbar-bg: #ffffff;
             --footer-bg: #ffffff;
@@ -67,7 +67,7 @@
             --table-header: #f8f9fa;
         }
 
-        /* Dark Theme Tokens */
+        /* ================== DARK THEME TOKENS ================== */
         html[data-theme="dark"] {
             --bg-body: #0f172a;
             --bg-card: #1e293b;
@@ -83,13 +83,38 @@
         }
 
         body {
-            background: var(--bg-body) !important;
+            background-color: var(--bg-body) !important;
             color: var(--text-main) !important;
             transition: background-color 0.2s ease, color 0.2s ease;
         }
 
-        /* Elements Styling in Dark & Light */
-        .card,
+        /* Typography Auto Adapt */
+        html[data-theme="light"] h1:not(.text-white),
+        html[data-theme="light"] h2:not(.text-white),
+        html[data-theme="light"] h3:not(.text-white),
+        html[data-theme="light"] h4:not(.text-white),
+        html[data-theme="light"] h5:not(.text-white),
+        html[data-theme="light"] h6:not(.text-white),
+        html[data-theme="light"] .text-dark {
+            color: #1e293b !important;
+        }
+
+        html[data-theme="dark"] h1:not(.text-white):not(.text-primary):not(.text-warning):not(.text-success):not(.text-danger):not(.text-info),
+        html[data-theme="dark"] h2:not(.text-white):not(.text-primary):not(.text-warning):not(.text-success):not(.text-danger):not(.text-info),
+        html[data-theme="dark"] h3:not(.text-white):not(.text-primary):not(.text-warning):not(.text-success):not(.text-danger):not(.text-info),
+        html[data-theme="dark"] h4:not(.text-white):not(.text-primary):not(.text-warning):not(.text-success):not(.text-danger):not(.text-info),
+        html[data-theme="dark"] h5:not(.text-white):not(.text-primary):not(.text-warning):not(.text-success):not(.text-danger):not(.text-info),
+        html[data-theme="dark"] h6:not(.text-white):not(.text-primary):not(.text-warning):not(.text-success):not(.text-danger):not(.text-info),
+        html[data-theme="dark"] .text-dark {
+            color: #f1f5f9 !important;
+        }
+
+        html[data-theme="dark"] .text-muted {
+            color: var(--text-muted) !important;
+        }
+
+        /* Card & Containers Styling (Never override colored cards like bg-primary) */
+        .card:not([class*="bg-"]),
         .modal-content,
         .dropdown-menu,
         .offcanvas,
@@ -99,7 +124,21 @@
             border-color: var(--border-color) !important;
         }
 
-        .card-header,
+        /* Preserve and Enhance bg-primary Banners in both modes */
+        .card.bg-primary {
+            background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%) !important;
+            color: #ffffff !important;
+        }
+        .card.bg-primary .text-white {
+            color: #ffffff !important;
+        }
+        html[data-theme="dark"] .card.bg-primary {
+            background: linear-gradient(135deg, #1e1b4b 0%, #312e81 60%, #1e293b 100%) !important;
+            border: 1px solid #4338ca !important;
+            color: #ffffff !important;
+        }
+
+        .card-header:not([class*="bg-"]),
         .modal-header,
         .modal-footer {
             background-color: var(--bg-card) !important;
@@ -159,17 +198,14 @@
         }
 
         html[data-theme="dark"] .dropdown-item {
-            color: var(--text-main);
+            color: var(--text-main) !important;
         }
         html[data-theme="dark"] .dropdown-item:hover {
-            background-color: #334155;
-            color: #fff;
+            background-color: #334155 !important;
+            color: #ffffff !important;
         }
         html[data-theme="dark"] .dropdown-divider {
-            border-color: var(--border-color);
-        }
-        html[data-theme="dark"] .text-dark {
-            color: #f1f5f9 !important;
+            border-color: var(--border-color) !important;
         }
         html[data-theme="dark"] .bg-light {
             background-color: #1e293b !important;
@@ -180,60 +216,98 @@
             border-color: var(--border-color) !important;
         }
         html[data-theme="dark"] .list-group-item {
-            background-color: var(--bg-card);
-            border-color: var(--border-color);
-            color: var(--text-main);
+            background-color: var(--bg-card) !important;
+            border-color: var(--border-color) !important;
+            color: var(--text-main) !important;
         }
 
-        /* ================== HORIZONTAL NAV LAYOUT CSS ================== */
+        /* ================== HORIZONTAL NAV LAYOUT CSS (FIXED DROPDOWNS & Z-INDEX) ================== */
         .horizontal-nav-wrapper {
             background-color: var(--navbar-bg);
             border-bottom: 1px solid var(--border-color);
-            padding: 0.35rem 0;
+            padding: 0.4rem 0;
             position: sticky;
             top: 0;
-            z-index: 1020;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+            z-index: 1040;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
             transition: all 0.2s ease;
+            overflow: visible !important;
         }
 
         .horizontal-nav-list {
-            gap: 0.25rem;
-            flex-wrap: nowrap;
-            overflow-x: auto;
-            scrollbar-width: none;
+            gap: 0.35rem;
+            flex-wrap: wrap;
+            overflow: visible !important;
+            margin: 0;
+            padding: 0;
+            list-style: none;
         }
-        .horizontal-nav-list::-webkit-scrollbar {
-            display: none;
+
+        .horizontal-nav-list .nav-item {
+            position: relative;
         }
 
         .horizontal-nav-list .nav-link {
             color: var(--text-main);
-            font-size: 0.83rem;
+            font-size: 0.84rem;
             font-weight: 500;
             padding: 0.45rem 0.85rem;
             border-radius: 0.5rem;
             white-space: nowrap;
             display: inline-flex;
             align-items: center;
-            transition: background 0.15s ease, color 0.15s ease;
+            transition: all 0.15s ease;
+            cursor: pointer;
         }
+
         .horizontal-nav-list .nav-link:hover {
-            background-color: rgba(105, 108, 255, 0.08);
-            color: var(--primary-accent);
+            background-color: rgba(105, 108, 255, 0.1);
+            color: var(--primary-accent) !important;
         }
+
         .horizontal-nav-list .nav-link.active {
             background-color: var(--primary-accent) !important;
             color: #ffffff !important;
             box-shadow: 0 2px 4px rgba(105, 108, 255, 0.3);
         }
 
-        .horizontal-nav-list .dropdown:hover > .dropdown-menu {
-            display: block;
-            margin-top: 0;
+        /* Dropdown Popover on Hover and Click */
+        .horizontal-nav-list .dropdown:hover > .dropdown-menu,
+        .horizontal-nav-list .dropdown.show > .dropdown-menu {
+            display: block !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            margin-top: 0.25rem !important;
         }
 
-        /* Mode: Horizontal Layout */
+        .horizontal-nav-list .dropdown-menu {
+            position: absolute !important;
+            top: 100% !important;
+            left: 0 !important;
+            z-index: 1070 !important;
+            min-width: 230px !important;
+            border-radius: 0.65rem !important;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+            background-color: var(--bg-card) !important;
+            border: 1px solid var(--border-color) !important;
+            padding: 0.45rem 0 !important;
+        }
+
+        .horizontal-nav-list .dropdown-item {
+            padding: 0.55rem 1rem !important;
+            font-size: 0.83rem !important;
+            color: var(--text-main) !important;
+            display: flex;
+            align-items: center;
+            transition: background 0.15s ease;
+        }
+
+        .horizontal-nav-list .dropdown-item:hover {
+            background-color: rgba(105, 108, 255, 0.1) !important;
+            color: var(--primary-accent) !important;
+        }
+
+        /* Mode: Horizontal Layout Display Rules */
         html[data-layout="horizontal"] #layout-menu {
             display: none !important;
         }
@@ -249,7 +323,7 @@
             display: block !important;
         }
 
-        /* Mode: Vertical Layout */
+        /* Mode: Vertical Layout Display Rules */
         html[data-layout="vertical"] .horizontal-nav-wrapper {
             display: none !important;
         }
@@ -519,6 +593,30 @@
                     });
                 });
             }
+
+            // 7. Horizontal Menu Click Dropdown Handler
+            document.querySelectorAll('.horizontal-nav-list .dropdown-toggle').forEach(toggle => {
+                toggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const parent = this.closest('.dropdown');
+                    const isOpen = parent.classList.contains('show');
+                    
+                    // Close all other dropdowns
+                    document.querySelectorAll('.horizontal-nav-list .dropdown').forEach(d => d.classList.remove('show'));
+                    
+                    if (!isOpen) {
+                        parent.classList.add('show');
+                    }
+                });
+            });
+
+            // Close horizontal dropdowns when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.horizontal-nav-list')) {
+                    document.querySelectorAll('.horizontal-nav-list .dropdown').forEach(d => d.classList.remove('show'));
+                }
+            });
 
             function setTheme(theme) {
                 localStorage.setItem('mangga_theme', theme);
