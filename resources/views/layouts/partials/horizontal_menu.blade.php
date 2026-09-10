@@ -36,7 +36,8 @@ $isSystem       = $isSuperAdmin || $u?->canSeeMenu('users') || $u?->canSeeMenu('
 
             {{-- Pengajuan Umum --}}
             <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle {{ request()->routeIs('erp.request-form.*') || request()->routeIs('erp.purchase-orders.*') ? 'active' : '' }}" href="#" data-bs-toggle="dropdown">
+                <a class="nav-link dropdown-toggle {{ request()->routeIs('erp.request-form.*') || request()->routeIs('erp.purchase-orders.*') ? 'active' : '' }}" 
+                   href="javascript:void(0)" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
                     <i class="bx bx-file me-1"></i> Pengajuan
                 </a>
                 <ul class="dropdown-menu shadow-sm">
@@ -56,7 +57,8 @@ $isSystem       = $isSuperAdmin || $u?->canSeeMenu('users') || $u?->canSeeMenu('
             {{-- Admin Project --}}
             @if($isAdminProject)
             <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle {{ request()->routeIs('erp.work-items.*') || request()->routeIs('erp.sub-projects.*') || request()->routeIs('erp.budget-parents.*') ? 'active' : '' }}" href="#" data-bs-toggle="dropdown">
+                <a class="nav-link dropdown-toggle {{ request()->routeIs('erp.work-items.*') || request()->routeIs('erp.sub-projects.*') || request()->routeIs('erp.budget-parents.*') ? 'active' : '' }}" 
+                   href="javascript:void(0)" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
                     <i class="bx bx-briefcase me-1 text-warning"></i> Project
                 </a>
                 <ul class="dropdown-menu shadow-sm">
@@ -82,13 +84,19 @@ $isSystem       = $isSuperAdmin || $u?->canSeeMenu('users') || $u?->canSeeMenu('
             {{-- Procurement --}}
             @if($isProcurement)
             <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle {{ request()->routeIs('erp.procurement.dashboard') || request()->routeIs('erp.suppliers.*') || request()->routeIs('erp.payment-terms.*') ? 'active' : '' }}" href="#" data-bs-toggle="dropdown">
+                <a class="nav-link dropdown-toggle {{ request()->routeIs('erp.procurement.dashboard') || request()->routeIs('erp.suppliers.*') || request()->routeIs('erp.payment-terms.*') ? 'active' : '' }}" 
+                   href="javascript:void(0)" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
                     <i class="bx bx-cart me-1 text-primary"></i> Procurement
                 </a>
                 <ul class="dropdown-menu shadow-sm">
                     <li>
                         <a class="dropdown-item {{ request()->routeIs('erp.procurement.dashboard') ? 'active' : '' }}" href="{{ $rl('erp.procurement.dashboard') }}">
                             <i class="bx bx-bell me-2"></i> PO Request
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item {{ request()->routeIs('erp.purchase-orders.*') ? 'active' : '' }}" href="{{ route('erp.purchase-orders.index') }}">
+                            <i class="bx bx-list-check me-2"></i> Purchase Orders (PO)
                         </a>
                     </li>
                     <li>
@@ -108,7 +116,8 @@ $isSystem       = $isSuperAdmin || $u?->canSeeMenu('users') || $u?->canSeeMenu('
             {{-- GA --}}
             @if($isGA)
             <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle {{ request()->routeIs('erp.goods-receipts.*') ? 'active' : '' }}" href="#" data-bs-toggle="dropdown">
+                <a class="nav-link dropdown-toggle {{ request()->routeIs('erp.goods-receipts.*') ? 'active' : '' }}" 
+                   href="javascript:void(0)" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
                     <i class="bx bx-shield-quarter me-1 text-secondary"></i> GA
                 </a>
                 <ul class="dropdown-menu shadow-sm">
@@ -124,7 +133,8 @@ $isSystem       = $isSuperAdmin || $u?->canSeeMenu('users') || $u?->canSeeMenu('
             {{-- Finance --}}
             @if($isFinance)
             <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle {{ request()->routeIs('erp.payment-advices.*') || request()->routeIs('erp.payment-advice-details.*') ? 'active' : '' }}" href="#" data-bs-toggle="dropdown">
+                <a class="nav-link dropdown-toggle {{ request()->routeIs('erp.payment-advices.*') || request()->routeIs('erp.payment-advice-details.*') ? 'active' : '' }}" 
+                   href="javascript:void(0)" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
                     <i class="bx bx-credit-card me-1 text-success"></i> Finance
                 </a>
                 <ul class="dropdown-menu shadow-sm">
@@ -145,7 +155,8 @@ $isSystem       = $isSuperAdmin || $u?->canSeeMenu('users') || $u?->canSeeMenu('
             {{-- Logistik & Gudang --}}
             @if($isLogistik)
             <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle {{ request()->routeIs('erp.stocks.*') || request()->routeIs('erp.warehouses.*') ? 'active' : '' }}" href="#" data-bs-toggle="dropdown">
+                <a class="nav-link dropdown-toggle {{ request()->routeIs('erp.stocks.*') || request()->routeIs('erp.warehouses.*') ? 'active' : '' }}" 
+                   href="javascript:void(0)" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
                     <i class="bx bx-box me-1 text-info"></i> Logistik
                 </a>
                 <ul class="dropdown-menu shadow-sm">
@@ -166,7 +177,8 @@ $isSystem       = $isSuperAdmin || $u?->canSeeMenu('users') || $u?->canSeeMenu('
             {{-- Human Resource (HRIS) --}}
             @if($isHRIS)
             <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle {{ request()->routeIs('erp.hr.*') || request()->routeIs('erp.departments.*') ? 'active' : '' }}" href="#" data-bs-toggle="dropdown">
+                <a class="nav-link dropdown-toggle {{ request()->routeIs('erp.hr.*') || request()->routeIs('erp.departments.*') ? 'active' : '' }}" 
+                   href="javascript:void(0)" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
                     <i class="bx bx-user-pin me-1 text-primary"></i> HRIS
                 </a>
                 <ul class="dropdown-menu shadow-sm">
@@ -197,7 +209,8 @@ $isSystem       = $isSuperAdmin || $u?->canSeeMenu('users') || $u?->canSeeMenu('
             {{-- Master Data --}}
             @if($isMaster)
             <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle {{ request()->routeIs('erp.products.*') || request()->routeIs('erp.uoms.*') || request()->routeIs('erp.product-families.*') || request()->routeIs('erp.brands.*') ? 'active' : '' }}" href="#" data-bs-toggle="dropdown">
+                <a class="nav-link dropdown-toggle {{ request()->routeIs('erp.products.*') || request()->routeIs('erp.uoms.*') || request()->routeIs('erp.product-families.*') || request()->routeIs('erp.brands.*') ? 'active' : '' }}" 
+                   href="javascript:void(0)" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
                     <i class="bx bx-data me-1"></i> Master
                 </a>
                 <ul class="dropdown-menu shadow-sm">
@@ -239,7 +252,8 @@ $isSystem       = $isSuperAdmin || $u?->canSeeMenu('users') || $u?->canSeeMenu('
             {{-- System & Security --}}
             @if($isSuperAdmin)
             <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle {{ request()->routeIs('erp.users.*') || request()->routeIs('erp.roles.*') || request()->routeIs('erp.projects.*') || request()->routeIs('erp.approval-configs.*') ? 'active' : '' }}" href="#" data-bs-toggle="dropdown">
+                <a class="nav-link dropdown-toggle {{ request()->routeIs('erp.users.*') || request()->routeIs('erp.roles.*') || request()->routeIs('erp.projects.*') || request()->routeIs('erp.approval-configs.*') ? 'active' : '' }}" 
+                   href="javascript:void(0)" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
                     <i class="bx bx-slider-alt me-1"></i> System
                 </a>
                 <ul class="dropdown-menu shadow-sm">

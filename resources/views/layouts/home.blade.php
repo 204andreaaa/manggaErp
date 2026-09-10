@@ -271,21 +271,22 @@
             box-shadow: 0 2px 4px rgba(105, 108, 255, 0.3);
         }
 
-        /* STRICT DROPDOWN POPOVER: Hidden by default, only active one shows */
+        /* STRICT DROPDOWN POPOVER: Hidden by default, snugly below parent button */
         .horizontal-nav-list .dropdown-menu {
             display: none !important;
             position: absolute !important;
             top: 100% !important;
             left: 0 !important;
             right: auto !important;
+            transform: none !important;
+            margin: 4px 0 0 0 !important;
             z-index: 1080 !important;
             min-width: 220px !important;
             border-radius: 0.65rem !important;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.08) !important;
             background-color: var(--bg-card) !important;
             border: 1px solid var(--border-color) !important;
             padding: 0.45rem 0 !important;
-            margin-top: 0.25rem !important;
         }
 
         /* Show ONLY the single hovered or clicked dropdown */
