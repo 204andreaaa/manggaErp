@@ -252,8 +252,16 @@
         html[data-theme="dark"] .dropdown-divider {
             border-color: var(--border-color) !important;
         }
-        html[data-theme="dark"] .bg-light {
+        html[data-theme="dark"] .bg-light,
+        html[data-theme="dark"] .bg-white {
             background-color: #1e293b !important;
+            color: var(--text-main) !important;
+        }
+        html[data-theme="dark"] .card-header,
+        html[data-theme="dark"] .card-footer {
+            background-color: #1e293b !important;
+            border-color: var(--border-color) !important;
+            color: var(--text-main) !important;
         }
         html[data-theme="dark"] .border-bottom,
         html[data-theme="dark"] .border-top,
@@ -264,6 +272,38 @@
             background-color: var(--bg-card) !important;
             border-color: var(--border-color) !important;
             color: var(--text-main) !important;
+        }
+
+        /* DataTables Controls & Search Box in Dark Mode */
+        html[data-theme="dark"] .dataTables_wrapper select,
+        html[data-theme="dark"] .dataTables_wrapper input[type="search"],
+        html[data-theme="dark"] .dataTables_wrapper input[type="text"] {
+            background-color: #0f172a !important;
+            color: #ffffff !important;
+            border: 1px solid var(--border-color) !important;
+            border-radius: 0.375rem;
+            padding: 0.35rem 0.65rem;
+        }
+        html[data-theme="dark"] .dataTables_wrapper .dataTables_paginate .paginate_button {
+            color: #cbd5e1 !important;
+        }
+        html[data-theme="dark"] .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+            background: var(--primary-accent) !important;
+            color: #ffffff !important;
+            border-color: var(--primary-accent) !important;
+        }
+
+        /* Button Groups & Filter Tabs in Dark Mode */
+        html[data-theme="dark"] .btn-group .btn-outline-primary {
+            border-color: rgba(105, 108, 255, 0.4) !important;
+            color: #c7d2fe !important;
+            background-color: transparent !important;
+        }
+        html[data-theme="dark"] .btn-group .btn-outline-primary:hover,
+        html[data-theme="dark"] .btn-group .btn-outline-primary.active {
+            background-color: var(--primary-accent) !important;
+            border-color: var(--primary-accent) !important;
+            color: #ffffff !important;
         }
 
         /* ================== HORIZONTAL NAV LAYOUT CSS (ISOLATED CLEAN DROPDOWNS) ================== */
