@@ -71,8 +71,8 @@
         html[data-theme="dark"] {
             --bg-body: #0f172a;
             --bg-card: #1e293b;
-            --text-main: #f1f5f9;
-            --text-muted: #94a3b8;
+            --text-main: #ffffff;
+            --text-muted: #cbd5e1;
             --border-color: #334155;
             --menu-bg: #1e293b;
             --navbar-bg: #1e293b;
@@ -88,7 +88,7 @@
             transition: background-color 0.2s ease, color 0.2s ease;
         }
 
-        /* Typography Auto Adapt */
+        /* Typography Auto Adapt (Light Mode) */
         html[data-theme="light"] h1:not(.text-white),
         html[data-theme="light"] h2:not(.text-white),
         html[data-theme="light"] h3:not(.text-white),
@@ -99,19 +99,64 @@
             color: #1e293b !important;
         }
 
-        html[data-theme="dark"] h1:not(.text-white):not(.text-primary):not(.text-warning):not(.text-success):not(.text-danger):not(.text-info),
-        html[data-theme="dark"] h2:not(.text-white):not(.text-primary):not(.text-warning):not(.text-success):not(.text-danger):not(.text-info),
-        html[data-theme="dark"] h3:not(.text-white):not(.text-primary):not(.text-warning):not(.text-success):not(.text-danger):not(.text-info),
-        html[data-theme="dark"] h4:not(.text-white):not(.text-primary):not(.text-warning):not(.text-success):not(.text-danger):not(.text-info),
-        html[data-theme="dark"] h5:not(.text-white):not(.text-primary):not(.text-warning):not(.text-success):not(.text-danger):not(.text-info),
-        html[data-theme="dark"] h6:not(.text-white):not(.text-primary):not(.text-warning):not(.text-success):not(.text-danger):not(.text-info),
-        html[data-theme="dark"] .text-dark {
-            color: #f1f5f9 !important;
+        /* ================== AUTO WHITE TEXT FOR DARK MODE ================== */
+        html[data-theme="dark"],
+        html[data-theme="dark"] body,
+        html[data-theme="dark"] p,
+        html[data-theme="dark"] span:not(.badge):not([class*="text-"]),
+        html[data-theme="dark"] div:not([class*="text-"]):not(.badge):not(.btn):not(.alert),
+        html[data-theme="dark"] label,
+        html[data-theme="dark"] .form-label,
+        html[data-theme="dark"] small:not([class*="text-"]),
+        html[data-theme="dark"] strong:not([class*="text-"]),
+        html[data-theme="dark"] b,
+        html[data-theme="dark"] dt,
+        html[data-theme="dark"] dd,
+        html[data-theme="dark"] li:not([class*="text-"]),
+        html[data-theme="dark"] td:not([class*="text-"]),
+        html[data-theme="dark"] th:not([class*="text-"]),
+        html[data-theme="dark"] .card-title,
+        html[data-theme="dark"] .modal-title,
+        html[data-theme="dark"] .text-dark,
+        html[data-theme="dark"] .text-body,
+        html[data-theme="dark"] .text-black,
+        html[data-theme="dark"] .text-secondary {
+            color: #ffffff !important;
         }
 
-        html[data-theme="dark"] .text-muted {
-            color: var(--text-muted) !important;
+        /* Headings in Dark Mode */
+        html[data-theme="dark"] h1:not([class*="text-"]),
+        html[data-theme="dark"] h2:not([class*="text-"]),
+        html[data-theme="dark"] h3:not([class*="text-"]),
+        html[data-theme="dark"] h4:not([class*="text-"]),
+        html[data-theme="dark"] h5:not([class*="text-"]),
+        html[data-theme="dark"] h6:not([class*="text-"]) {
+            color: #ffffff !important;
         }
+
+        /* Links in Dark Mode (Stand out with vibrant color, never blend in) */
+        html[data-theme="dark"] a:not(.btn):not(.dropdown-item):not(.nav-link):not(.menu-link):not(.badge) {
+            color: #818cf8 !important;
+            transition: color 0.15s ease;
+        }
+        html[data-theme="dark"] a:not(.btn):not(.dropdown-item):not(.nav-link):not(.menu-link):not(.badge):hover {
+            color: #a5b4fc !important;
+            text-decoration: underline;
+        }
+
+        /* Soft readable muted / secondary text in Dark Mode */
+        html[data-theme="dark"] .text-muted,
+        html[data-theme="dark"] .form-text {
+            color: #cbd5e1 !important;
+        }
+
+        /* Preserve Colored Badges & Text Accents */
+        html[data-theme="dark"] .text-primary { color: #818cf8 !important; }
+        html[data-theme="dark"] .text-success { color: #34d399 !important; }
+        html[data-theme="dark"] .text-danger  { color: #f87171 !important; }
+        html[data-theme="dark"] .text-warning { color: #fbbf24 !important; }
+        html[data-theme="dark"] .text-info    { color: #38bdf8 !important; }
+        html[data-theme="dark"] .text-white   { color: #ffffff !important; }
 
         /* Card & Containers Styling (Never override colored cards like bg-primary) */
         .card:not([class*="bg-"]),
