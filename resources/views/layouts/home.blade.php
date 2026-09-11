@@ -274,6 +274,18 @@
             color: var(--text-main) !important;
         }
 
+        /* Fix Sneat Sidebar White Shadow in Dark Mode */
+        html[data-theme="dark"] .menu-inner-shadow {
+            display: none !important;
+        }
+
+        /* Input Group Addons & Text in Dark Mode */
+        html[data-theme="dark"] .input-group-text {
+            background-color: #1e293b !important;
+            border-color: var(--border-color) !important;
+            color: #cbd5e1 !important;
+        }
+
         /* DataTables Controls & Search Box in Dark Mode */
         html[data-theme="dark"] .dataTables_wrapper select,
         html[data-theme="dark"] .dataTables_wrapper input[type="search"],
@@ -291,6 +303,53 @@
             background: var(--primary-accent) !important;
             color: #ffffff !important;
             border-color: var(--primary-accent) !important;
+        }
+
+        /* Pagination & Page Links in Dark Mode */
+        html[data-theme="dark"] .page-link {
+            background-color: #1e293b !important;
+            border-color: var(--border-color) !important;
+            color: #cbd5e1 !important;
+        }
+        html[data-theme="dark"] .page-item.active .page-link {
+            background-color: var(--primary-accent) !important;
+            border-color: var(--primary-accent) !important;
+            color: #ffffff !important;
+        }
+        html[data-theme="dark"] .page-item.disabled .page-link {
+            background-color: #0f172a !important;
+            border-color: var(--border-color) !important;
+            color: #64748b !important;
+        }
+
+        /* Button Close in Dark Mode */
+        html[data-theme="dark"] .btn-close {
+            filter: invert(1) grayscale(100%) brightness(200%);
+        }
+
+        /* Select2 Dropdowns in Dark Mode */
+        html[data-theme="dark"] .select2-container--default .select2-selection--single,
+        html[data-theme="dark"] .select2-container--default .select2-selection--multiple,
+        html[data-theme="dark"] .select2-dropdown {
+            background-color: #1e293b !important;
+            border-color: var(--border-color) !important;
+            color: #ffffff !important;
+        }
+        html[data-theme="dark"] .select2-container--default .select2-selection--single .select2-selection__rendered {
+            color: #ffffff !important;
+        }
+        html[data-theme="dark"] .select2-container--default .select2-results__option {
+            color: #ffffff !important;
+            background-color: #1e293b !important;
+        }
+        html[data-theme="dark"] .select2-container--default .select2-results__option--highlighted[aria-selected] {
+            background-color: var(--primary-accent) !important;
+            color: #ffffff !important;
+        }
+        html[data-theme="dark"] .select2-search--dropdown .select2-search__field {
+            background-color: #0f172a !important;
+            border-color: var(--border-color) !important;
+            color: #ffffff !important;
         }
 
         /* Button Groups & Filter Tabs in Dark Mode */
