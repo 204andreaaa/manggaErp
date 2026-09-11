@@ -459,8 +459,16 @@
           </div>
           <div class="mb-3">
             <label class="form-label fw-bold">Upload Berkas Invoice / Faktur (PDF, JPG, PNG)</label>
-            <input type="file" name="invoice_attachment" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
-            <small class="text-muted">Maksimal ukuran file 10MB. Lampiran dapat diakses oleh Approver (CEO/Manager).</small>
+            <div class="paste-dropzone" data-target="#invoice_attachment_modal_input">
+              <input type="file" name="invoice_attachment" id="invoice_attachment_modal_input" class="d-none paste-file-input" accept=".pdf,.jpg,.jpeg,.png">
+              <div class="dropzone-idle py-2">
+                <i class="bx bx-cloud-upload dropzone-icon text-primary"></i>
+                <div class="fw-semibold text-dark fs-7">Klik untuk Browse File atau <span class="badge bg-primary bg-opacity-10 text-primary px-2 py-0.5"><i class="bx bx-paste me-1"></i>Ctrl + V</span> Paste Screenshot</div>
+                <div class="text-muted small" style="font-size: 0.75rem;">Maksimal 10MB (PDF, JPG, PNG)</div>
+              </div>
+              <div class="dropzone-preview d-none text-start"></div>
+            </div>
+            <small class="text-muted d-block mt-1">Lampiran dapat diakses oleh Approver (CEO/Manager).</small>
           </div>
           @if($paymentAdviceDetail->invoice_attachment)
             <div class="alert alert-info py-2 px-3 small">
@@ -526,8 +534,16 @@
             </div>
             <div class="mb-3">
               <label class="form-label fw-bold">Upload Berkas Invoice Vendor (Opsional)</label>
-              <input type="file" name="invoice_attachment" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
-              <small class="text-muted">Lampirkan file PDF / scan invoice vendor agar memudahkan verifikasi Approver.</small>
+              <div class="paste-dropzone" data-target="#invoice_attachment_submit_input">
+                <input type="file" name="invoice_attachment" id="invoice_attachment_submit_input" class="d-none paste-file-input" accept=".pdf,.jpg,.jpeg,.png">
+                <div class="dropzone-idle py-2">
+                  <i class="bx bx-cloud-upload dropzone-icon text-primary"></i>
+                  <div class="fw-semibold text-dark fs-7">Klik untuk Browse File atau <span class="badge bg-primary bg-opacity-10 text-primary px-2 py-0.5"><i class="bx bx-paste me-1"></i>Ctrl + V</span> Paste Screenshot</div>
+                  <div class="text-muted small" style="font-size: 0.75rem;">Maksimal 10MB (PDF, JPG, PNG)</div>
+                </div>
+                <div class="dropzone-preview d-none text-start"></div>
+              </div>
+              <small class="text-muted d-block mt-1">Lampirkan file PDF / scan invoice vendor agar memudahkan verifikasi Approver.</small>
             </div>
           @endif
 
@@ -569,8 +585,16 @@
           <p class="mb-3 text-muted">Konfirmasi bahwa termin <strong>{{ $paymentAdviceDetail->payment_type }}</strong> sebesar <strong>IDR {{ number_format($paymentAdviceDetail->payment_amount_with_tax, 0, ',', '.') }}</strong> telah dibayarkan/ditransfer ke rekening vendor.</p>
           <div class="mb-3">
             <label class="form-label fw-bold">Upload Bukti Slip Transfer Bank (Opsional)</label>
-            <input type="file" name="payment_receipt" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
-            <small class="text-muted">Lampirkan resi transfer bank / bukti kas keluar sebagai arsip audit.</small>
+            <div class="paste-dropzone" data-target="#payment_receipt_input">
+              <input type="file" name="payment_receipt" id="payment_receipt_input" class="d-none paste-file-input" accept=".pdf,.jpg,.jpeg,.png">
+              <div class="dropzone-idle py-2">
+                <i class="bx bx-cloud-upload dropzone-icon text-success"></i>
+                <div class="fw-semibold text-dark fs-7">Klik untuk Browse File atau <span class="badge bg-success bg-opacity-10 text-success px-2 py-0.5"><i class="bx bx-paste me-1"></i>Ctrl + V</span> Paste Screenshot</div>
+                <div class="text-muted small" style="font-size: 0.75rem;">Struk ATM / m-Banking / Bukti Transfer (PDF, JPG, PNG)</div>
+              </div>
+              <div class="dropzone-preview d-none text-start"></div>
+            </div>
+            <small class="text-muted d-block mt-1">Lampirkan resi transfer bank / bukti kas keluar sebagai arsip audit.</small>
           </div>
         </div>
         <div class="modal-footer border-top bg-light">

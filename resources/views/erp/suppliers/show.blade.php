@@ -392,12 +392,20 @@
         </div>
         <div class="mb-3">
           <label class="form-label fw-semibold">Choose File</label>
-          <input type="file" name="file" class="form-control" accept=".jpg,.jpeg,.png,.pdf" required>
+          <div class="paste-dropzone" data-target="#supplier_file_input">
+            <input type="file" name="file" id="supplier_file_input" class="d-none paste-file-input" accept=".jpg,.jpeg,.png,.pdf" required>
+            <div class="dropzone-idle py-2">
+              <i class="bx bx-cloud-upload dropzone-icon text-primary"></i>
+              <div class="fw-semibold text-dark fs-7">Klik untuk Browse File atau <span class="badge bg-primary bg-opacity-10 text-primary px-2 py-0.5"><i class="bx bx-paste me-1"></i>Ctrl + V</span> Paste Screenshot</div>
+              <div class="text-muted small" style="font-size: 0.75rem;">Mendukung Dokumen Legalitas (JPG, PNG, PDF)</div>
+            </div>
+            <div class="dropzone-preview d-none text-start"></div>
+          </div>
         </div>
       </div>
       <div class="modal-footer border-top">
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="submit" class="btn btn-primary">Upload Attachment</button>
+        <button type="submit" class="btn btn-primary px-4">Upload Attachment</button>
       </div>
     </form>
   </div>

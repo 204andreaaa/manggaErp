@@ -368,6 +368,64 @@
                 padding-left: 0 !important;
             }
         }
+
+        /* ================== PASTE DROPZONE & FILE PREVIEW STYLES ================== */
+        .paste-dropzone {
+            border: 2px dashed var(--border-color);
+            background-color: rgba(105, 108, 255, 0.03);
+            border-radius: 0.75rem;
+            padding: 1.25rem 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            position: relative;
+            outline: none;
+            user-select: none;
+        }
+        .paste-dropzone:hover,
+        .paste-dropzone:focus-within,
+        .paste-dropzone.dragover {
+            border-color: var(--primary-accent) !important;
+            background-color: rgba(105, 108, 255, 0.08) !important;
+            box-shadow: 0 0 0 3px rgba(105, 108, 255, 0.15);
+        }
+        .paste-dropzone .dropzone-icon {
+            font-size: 2.25rem;
+            color: var(--primary-accent);
+            margin-bottom: 0.25rem;
+            display: inline-block;
+            transition: transform 0.2s ease;
+        }
+        .paste-dropzone:hover .dropzone-icon {
+            transform: scale(1.12);
+        }
+        .paste-dropzone-preview-card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 0.65rem;
+            padding: 0.65rem 0.85rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            text-align: left;
+            margin-top: 0.5rem;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+            animation: fadeIn 0.2s ease-in;
+        }
+        .paste-dropzone-preview-img {
+            width: 48px;
+            height: 48px;
+            object-fit: cover;
+            border-radius: 0.4rem;
+            border: 1px solid var(--border-color);
+            flex-shrink: 0;
+            background-color: #f8fafc;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 
     {{-- Helpers & Config --}}
@@ -687,6 +745,240 @@
             tooltipTriggerList.map(function(tooltipTriggerEl) {
                 return new bootstrap.Tooltip(tooltipTriggerEl);
             });
+
+            // =========================================================================
+            // 📋 GLOBAL CLIPBOARD PASTE (Ctrl+V) & DRAG-AND-DROP DROPZONE ENGINE
+            // =========================================================================
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 B';
+                const k = 1024;
+                const sizes = ['B', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+            }
+
+            function setupDropzone(dz) {
+                if (dz.dataset.dropzoneInitialized === 'true') return;
+                dz.dataset.dropzoneInitialized = 'true';
+
+                const targetSelector = dz.dataset.target;
+                const fileInput = targetSelector ? document.querySelector(targetSelector) : dz.querySelector('input[type="file"]');
+                if (!fileInput) return;
+
+                const idleView = dz.querySelector('.dropzone-idle') || dz;
+                let previewContainer = dz.querySelector('.dropzone-preview');
+                if (!previewContainer) {
+                    previewContainer = document.createElement('div');
+                    previewContainer.className = 'dropzone-preview d-none mt-2 text-start';
+                    dz.appendChild(previewContainer);
+                }
+
+                // Click dropzone to browse
+                dz.addEventListener('click', function(e) {
+                    if (e.target.closest('.btn-remove-file') || e.target.closest('a') || e.target === fileInput) return;
+                    fileInput.click();
+                });
+
+                // Drag & Drop
+                ['dragenter', 'dragover'].forEach(eventName => {
+                    dz.addEventListener(eventName, function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        dz.classList.add('dragover');
+                    });
+                });
+
+                ['dragleave', 'dragend'].forEach(eventName => {
+                    dz.addEventListener(eventName, function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        dz.classList.remove('dragover');
+                    });
+                });
+
+                dz.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dz.classList.remove('dragover');
+                    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                        assignFilesToInput(fileInput, e.dataTransfer.files);
+                    }
+                });
+
+                // Input change handler
+                fileInput.addEventListener('change', function() {
+                    renderFileInputPreview(fileInput, dz, previewContainer, idleView);
+                });
+
+                // Check initial files
+                if (fileInput.files && fileInput.files.length > 0) {
+                    renderFileInputPreview(fileInput, dz, previewContainer, idleView);
+                }
+            }
+
+            function assignFilesToInput(input, files) {
+                const dt = new DataTransfer();
+                if (input.multiple && input.files && input.files.length > 0) {
+                    for (let i = 0; i < input.files.length; i++) {
+                        dt.items.add(input.files[i]);
+                    }
+                }
+                for (let i = 0; i < files.length; i++) {
+                    dt.items.add(files[i]);
+                    if (!input.multiple) break; // only first file if not multiple
+                }
+                input.files = dt.files;
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+
+            function renderFileInputPreview(input, dz, previewContainer, idleView) {
+                previewContainer.innerHTML = '';
+                if (!input.files || input.files.length === 0) {
+                    previewContainer.classList.add('d-none');
+                    if (idleView && idleView !== dz) idleView.classList.remove('d-none');
+                    return;
+                }
+
+                if (idleView && idleView !== dz) idleView.classList.add('d-none');
+                previewContainer.classList.remove('d-none');
+
+                Array.from(input.files).forEach((file, index) => {
+                    const card = document.createElement('div');
+                    card.className = 'paste-dropzone-preview-card';
+
+                    const isImg = file.type.startsWith('image/');
+                    const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf');
+
+                    let iconOrThumb = '';
+                    if (isImg) {
+                        iconOrThumb = `<img src="${URL.createObjectURL(file)}" class="paste-dropzone-preview-img" alt="Preview">`;
+                    } else if (isPdf) {
+                        iconOrThumb = `<div class="paste-dropzone-preview-img d-flex align-items-center justify-content-center bg-danger bg-opacity-10 text-danger"><i class="bx bxs-file-pdf fs-2"></i></div>`;
+                    } else {
+                        iconOrThumb = `<div class="paste-dropzone-preview-img d-flex align-items-center justify-content-center bg-primary bg-opacity-10 text-primary"><i class="bx bx-file fs-2"></i></div>`;
+                    }
+
+                    card.innerHTML = `
+                        <div class="d-flex align-items-center gap-2 overflow-hidden">
+                            ${iconOrThumb}
+                            <div class="overflow-hidden">
+                                <div class="fw-bold text-dark text-truncate small mb-0">${file.name}</div>
+                                <div class="text-muted" style="font-size: 0.72rem;"><i class="bx bx-check-circle text-success me-1"></i>${formatFileSize(file.size)} &bull; ${file.type || 'Dokumen'}</div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-outline-danger btn-xs rounded-pill px-2 btn-remove-file" data-index="${index}" title="Hapus / Ganti File">
+                            <i class="bx bx-trash me-1"></i>Hapus
+                        </button>
+                    `;
+
+                    card.querySelector('.btn-remove-file').addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        removeFileFromInput(input, index);
+                    });
+
+                    previewContainer.appendChild(card);
+                });
+            }
+
+            function removeFileFromInput(input, removeIndex) {
+                const dt = new DataTransfer();
+                Array.from(input.files).forEach((f, i) => {
+                    if (i !== removeIndex) dt.items.add(f);
+                });
+                input.files = dt.files;
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+
+            // Init all dropzones on page
+            function initAllPasteDropzones() {
+                document.querySelectorAll('.paste-dropzone').forEach(setupDropzone);
+            }
+
+            // Global Paste (Ctrl+V) listener
+            document.addEventListener('paste', function(e) {
+                const activeEl = document.activeElement;
+                const items = (e.clipboardData || e.originalEvent?.clipboardData)?.items;
+                if (!items) return;
+
+                let imageFile = null;
+                for (let i = 0; i < items.length; i++) {
+                    if (items[i].type.indexOf('image') !== -1) {
+                        imageFile = items[i].getAsFile();
+                        break;
+                    }
+                }
+
+                // If no image in clipboard, let default paste happen
+                if (!imageFile) return;
+
+                // Locate the most relevant target file input:
+                let targetDropzone = null;
+                let targetInput = null;
+
+                // 1. Check if hovering/focused inside a .paste-dropzone
+                const hoveredDz = document.querySelector('.paste-dropzone:hover') || activeEl?.closest('.paste-dropzone');
+                if (hoveredDz) {
+                    targetDropzone = hoveredDz;
+                    targetInput = hoveredDz.querySelector('input[type="file"]') || (hoveredDz.dataset.target ? document.querySelector(hoveredDz.dataset.target) : null);
+                }
+
+                // 2. Check if a modal is currently open (.modal.show)
+                if (!targetInput) {
+                    const openModal = document.querySelector('.modal.show');
+                    if (openModal) {
+                        targetDropzone = openModal.querySelector('.paste-dropzone');
+                        targetInput = openModal.querySelector('input[type="file"].paste-file-input') || openModal.querySelector('input[type="file"]');
+                    }
+                }
+
+                // 3. Check if activeElement is or is inside a container with a file input
+                if (!targetInput && activeEl) {
+                    const container = activeEl.closest('form') || activeEl.closest('.card') || activeEl.closest('.modal-content');
+                    if (container) {
+                        targetDropzone = container.querySelector('.paste-dropzone');
+                        targetInput = container.querySelector('input[type="file"].paste-file-input') || container.querySelector('input[type="file"]');
+                    }
+                }
+
+                // 4. Fallback to any visible .paste-dropzone or .paste-file-input on the page
+                if (!targetInput) {
+                    targetDropzone = document.querySelector('.paste-dropzone:not(.d-none)');
+                    targetInput = targetDropzone ? (targetDropzone.querySelector('input[type="file"]') || document.querySelector(targetDropzone.dataset.target)) : document.querySelector('input[type="file"].paste-file-input');
+                }
+
+                if (targetInput) {
+                    e.preventDefault();
+
+                    // Generate clean named file
+                    const now = new Date();
+                    const timeStr = String(now.getHours()).padStart(2,'0') + String(now.getMinutes()).padStart(2,'0') + String(now.getSeconds()).padStart(2,'0');
+                    const ext = imageFile.type.split('/')[1] ? imageFile.type.split('/')[1].replace('jpeg', 'jpg') : 'png';
+                    const newFileName = `screenshot_${now.toISOString().slice(0,10)}_${timeStr}.${ext}`;
+                    
+                    const namedFile = new File([imageFile], newFileName, { type: imageFile.type });
+                    assignFilesToInput(targetInput, [namedFile]);
+
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            icon: 'success',
+                            title: '📸 Screenshot berhasil ditempel!',
+                            text: newFileName,
+                            showConfirmButton: false,
+                            timer: 2500,
+                            timerProgressBar: true
+                        });
+                    }
+                }
+            });
+
+            // Auto-init on page load and on Bootstrap modal shown
+            initAllPasteDropzones();
+            document.addEventListener('shown.bs.modal', function() {
+                initAllPasteDropzones();
+            });
+            window.initAllPasteDropzones = initAllPasteDropzones;
         });
     </script>
 </body>

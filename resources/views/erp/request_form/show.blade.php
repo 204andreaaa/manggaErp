@@ -736,7 +736,15 @@
         <div class="modal-body p-4 bg-white">
           <div class="mb-3">
             <label class="form-label fw-semibold">Select File (PDF, Images)</label>
-            <input type="file" name="attachment" class="form-control" accept=".pdf,.jpg,.jpeg,.png" required>
+            <div class="paste-dropzone" data-target="#rf_attachment_input">
+              <input type="file" name="attachment" id="rf_attachment_input" class="d-none paste-file-input" accept=".pdf,.jpg,.jpeg,.png" required>
+              <div class="dropzone-idle py-2">
+                <i class="bx bx-cloud-upload dropzone-icon text-primary"></i>
+                <div class="fw-semibold text-dark fs-7">Klik untuk Browse File atau <span class="badge bg-primary bg-opacity-10 text-primary px-2 py-0.5"><i class="bx bx-paste me-1"></i>Ctrl + V</span> Paste Screenshot</div>
+                <div class="text-muted small" style="font-size: 0.75rem;">Mendukung PDF, JPG, JPEG, PNG (Maks 10MB)</div>
+              </div>
+              <div class="dropzone-preview d-none text-start"></div>
+            </div>
           </div>
         </div>
         <div class="modal-footer bg-light border-top py-3 px-4">

@@ -818,18 +818,30 @@ document.addEventListener('DOMContentLoaded', function () {
   document.getElementById('btnAddAttachment').addEventListener('click', function() {
     if (naEmptyMsg) naEmptyMsg.style.display = 'none';
     const wrapper = document.createElement('div');
-    wrapper.className = 'd-flex align-items-center gap-2 mb-2 na-item';
+    wrapper.className = 'card border p-3 mb-3 na-item bg-white shadow-sm rounded-3';
     wrapper.innerHTML = `
-      <input type="file" name="attachments[]" class="form-control form-control-sm" accept=".jpg,.jpeg,.png,.pdf">
-      <button type="button" class="btn btn-sm btn-outline-danger btn-remove-na"><i class="bx bx-trash"></i></button>
+      <div class="d-flex align-items-center justify-content-between mb-2">
+        <span class="fw-bold small text-primary"><i class="bx bx-paperclip me-1"></i>Lampiran Berkas (Attachment)</span>
+        <button type="button" class="btn btn-xs btn-outline-danger btn-remove-na"><i class="bx bx-trash me-1"></i>Hapus</button>
+      </div>
+      <div class="paste-dropzone p-2">
+        <input type="file" name="attachments[]" class="d-none paste-file-input" accept=".jpg,.jpeg,.png,.pdf">
+        <div class="dropzone-idle py-1">
+          <i class="bx bx-cloud-upload dropzone-icon text-primary fs-3 mb-0"></i>
+          <div class="fw-semibold text-dark fs-7">Klik untuk Browse File atau <span class="badge bg-primary bg-opacity-10 text-primary px-2 py-0.5"><i class="bx bx-paste me-1"></i>Ctrl + V</span> Paste Screenshot</div>
+          <div class="text-muted small" style="font-size: 0.72rem;">JPG, JPEG, PNG, PDF (Maks 10MB)</div>
+        </div>
+        <div class="dropzone-preview d-none text-start"></div>
+      </div>
     `;
     naContainer.appendChild(wrapper);
+    if (window.initAllPasteDropzones) window.initAllPasteDropzones();
   });
 
   naContainer.addEventListener('click', function(e) {
     const btn = e.target.closest('.btn-remove-na');
     if (btn) {
-      btn.parentElement.remove();
+      btn.closest('.na-item').remove();
       if (naContainer.querySelectorAll('.na-item').length === 0 && naEmptyMsg) {
         naEmptyMsg.style.display = 'block';
       }

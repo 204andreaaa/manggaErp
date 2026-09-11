@@ -333,8 +333,16 @@
         <div class="row g-3">
           <div class="col-md-6">
             <label class="form-label fw-semibold">Upload Attachments</label>
-            <input type="file" name="attachments[]" class="form-control rounded-3" accept=".jpg,.jpeg,.png,.pdf" multiple>
-            <div class="form-text mt-1"><i class="bx bx-info-circle me-1"></i>Allowed formats: JPG, PNG, PDF. You can select multiple files.</div>
+            <div class="paste-dropzone" data-target="#po_attachments_create_input">
+              <input type="file" name="attachments[]" id="po_attachments_create_input" class="d-none paste-file-input" accept=".jpg,.jpeg,.png,.pdf" multiple>
+              <div class="dropzone-idle py-2">
+                <i class="bx bx-cloud-upload dropzone-icon text-primary"></i>
+                <div class="fw-semibold text-dark fs-7">Klik untuk Browse File atau <span class="badge bg-primary bg-opacity-10 text-primary px-2 py-0.5"><i class="bx bx-paste me-1"></i>Ctrl + V</span> Paste Screenshot</div>
+                <div class="text-muted small" style="font-size: 0.75rem;">Mendukung multiple file (JPG, PNG, PDF)</div>
+              </div>
+              <div class="dropzone-preview d-none text-start"></div>
+            </div>
+            <div class="form-text mt-1"><i class="bx bx-info-circle me-1"></i>Bisa pilih beberapa file sekaligus atau paste screenshot berkali-kali.</div>
           </div>
           <div class="col-md-6">
             <label class="form-label fw-semibold">Other Instructions for Vendor</label>

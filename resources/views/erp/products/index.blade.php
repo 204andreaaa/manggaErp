@@ -233,9 +233,14 @@
 
             <div class="mb-3">
               <label class="form-label fw-semibold small text-uppercase text-muted">Product Image (Gambar Produk)</label>
-              <input type="file" name="image" class="form-control" accept="image/*" onchange="previewImage(this, '#create_image_preview')">
-              <div class="mt-2 text-center d-none" id="create_image_preview_box">
-                <img id="create_image_preview" src="" class="rounded border shadow-sm" style="max-height: 100px; object-fit: contain;">
+              <div class="paste-dropzone" data-target="#create_product_image_input">
+                <input type="file" name="image" id="create_product_image_input" class="d-none paste-file-input" accept="image/*">
+                <div class="dropzone-idle py-2">
+                  <i class="bx bx-image-add dropzone-icon text-primary"></i>
+                  <div class="fw-semibold text-dark fs-7">Klik untuk Browse File atau <span class="badge bg-primary bg-opacity-10 text-primary px-2 py-0.5"><i class="bx bx-paste me-1"></i>Ctrl + V</span> Paste Screenshot</div>
+                  <div class="text-muted small" style="font-size: 0.72rem;">JPG, JPEG, PNG, WEBP (Maks 5MB)</div>
+                </div>
+                <div class="dropzone-preview d-none text-start"></div>
               </div>
             </div>
 
@@ -394,14 +399,22 @@
 
             <div class="mb-3">
               <label class="form-label fw-semibold small text-uppercase text-muted">Product Image (Gambar Produk)</label>
-              <div class="d-flex align-items-center gap-3">
-                <div id="edit_image_preview_container" class="rounded border p-1 bg-light d-flex align-items-center justify-content-center" style="width:54px; height:54px; flex-shrink:0;">
+              <div class="d-flex align-items-center gap-3 mb-2">
+                <div id="edit_image_preview_container" class="rounded border p-1 bg-light d-flex align-items-center justify-content-center" style="width:50px; height:50px; flex-shrink:0;">
                   <img id="edit_image_preview" src="" class="rounded" style="max-width:100%; max-height:100%; object-fit:cover; display:none;">
                   <i id="edit_image_icon" class="bx bx-package fs-3 text-muted"></i>
                 </div>
-                <input type="file" name="image" class="form-control" accept="image/*" onchange="previewImage(this, '#edit_image_preview')">
+                <div class="text-muted small">Gambar saat ini. Untuk mengganti, gunakan dropzone atau paste screenshot di bawah.</div>
               </div>
-              <div class="form-text">Biarkan kosong jika tidak ingin mengubah gambar.</div>
+              <div class="paste-dropzone" data-target="#edit_product_image_input">
+                <input type="file" name="image" id="edit_product_image_input" class="d-none paste-file-input" accept="image/*">
+                <div class="dropzone-idle py-2">
+                  <i class="bx bx-image-add dropzone-icon text-primary"></i>
+                  <div class="fw-semibold text-dark fs-7">Klik untuk Browse File atau <span class="badge bg-primary bg-opacity-10 text-primary px-2 py-0.5"><i class="bx bx-paste me-1"></i>Ctrl + V</span> Paste Screenshot</div>
+                  <div class="text-muted small" style="font-size: 0.72rem;">JPG, PNG, WEBP (Biarkan kosong jika tidak ingin ganti)</div>
+                </div>
+                <div class="dropzone-preview d-none text-start"></div>
+              </div>
             </div>
 
             <div class="mb-3">

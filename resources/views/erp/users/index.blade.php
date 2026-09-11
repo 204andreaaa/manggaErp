@@ -283,9 +283,16 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">Signature (optional)</label>
-                        <input type="file" name="signature" class="form-control bg-transparent border-secondary">
-                        <small class=-50">Format: jpg, jpeg, png, webp — max 2MB.</small>
+                        <label class="form-label fw-semibold">Signature (Tanda Tangan Digital - Opsional)</label>
+                        <div class="paste-dropzone" data-target="#create_user_signature_input">
+                            <input type="file" name="signature" id="create_user_signature_input" class="d-none paste-file-input" accept=".jpg,.jpeg,.png,.webp">
+                            <div class="dropzone-idle py-2">
+                                <i class="bx bx-pen dropzone-icon text-primary"></i>
+                                <div class="fw-semibold text-dark fs-7">Klik untuk Browse File atau <span class="badge bg-primary bg-opacity-10 text-primary px-2 py-0.5"><i class="bx bx-paste me-1"></i>Ctrl + V</span> Paste Screenshot</div>
+                                <div class="text-muted small" style="font-size: 0.72rem;">JPG, JPEG, PNG, WEBP (Maks 2MB)</div>
+                            </div>
+                            <div class="dropzone-preview d-none text-start"></div>
+                        </div>
                     </div>
 
                     <div class="row g-2">
@@ -410,9 +417,16 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">Signature (optional)</label>
-                        <input type="file" name="signature" class="form-control bg-transparent border-secondary">
-                        <small class="text-muted">Leave empty to keep current signature.</small>
+                        <label class="form-label fw-semibold">Signature (Tanda Tangan Digital - Opsional)</label>
+                        <div class="paste-dropzone" data-target="#edit_user_signature_input">
+                            <input type="file" name="signature" id="edit_user_signature_input" class="d-none paste-file-input" accept=".jpg,.jpeg,.png,.webp">
+                            <div class="dropzone-idle py-2">
+                                <i class="bx bx-pen dropzone-icon text-primary"></i>
+                                <div class="fw-semibold text-dark fs-7">Klik untuk Browse File atau <span class="badge bg-primary bg-opacity-10 text-primary px-2 py-0.5"><i class="bx bx-paste me-1"></i>Ctrl + V</span> Paste Screenshot</div>
+                                <div class="text-muted small" style="font-size: 0.72rem;">JPG, JPEG, PNG, WEBP (Biarkan kosong jika tidak ingin ganti)</div>
+                            </div>
+                            <div class="dropzone-preview d-none text-start"></div>
+                        </div>
                     </div>
 
                     <div class="row g-2">
