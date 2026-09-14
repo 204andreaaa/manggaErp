@@ -64,6 +64,7 @@ class ErpSetupSeeder extends Seeder
         $usersData = [
             ['email' => 'admin@local', 'username' => 'admin', 'name' => 'Super Admin', 'phone' => '081200000001', 'role' => 'superadmin', 'position' => 'Super Admin'],
             ['email' => 'andrea@test.com', 'username' => 'andrea', 'name' => 'andrea', 'phone' => null, 'role' => 'admin', 'position' => 'Admin'],
+            ['email' => 'eva@local.com', 'username' => 'eva', 'name' => 'Eva', 'phone' => '081200000018', 'role' => 'admin_project', 'position' => 'Senior Admin Project'],
             ['email' => 'melvien@example.com', 'username' => 'melvien', 'name' => 'Melvien Welang', 'phone' => null, 'role' => 'finance', 'position' => 'Finance'],
             ['email' => 'nikmal@example.com', 'username' => 'nikmal', 'name' => 'Nikmal Hadi', 'phone' => null, 'role' => 'logistik', 'position' => 'Logistik'],
             ['email' => 'budi@example.com', 'username' => 'budi', 'name' => 'Budi Atasan', 'phone' => null, 'role' => null, 'position' => 'Manager'],

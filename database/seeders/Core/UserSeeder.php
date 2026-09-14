@@ -6,12 +6,14 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
 use App\Models\Role;
+use App\Models\Project;
 
 class UserSeeder extends Seeder
 {
     public function run(): void
     {
         $roles = Role::pluck('id','slug');
+        $defaultProject = Project::first();
 
         /*
         |--------------------------------------------------------------------------
@@ -36,6 +38,10 @@ class UserSeeder extends Seeder
             $admin->roles()->sync([$roles['admin']]);
         }
 
+        if ($defaultProject) {
+            $admin->projects()->syncWithoutDetaching([$defaultProject->id]);
+        }
+
         /*
         |--------------------------------------------------------------------------
         | OTHER ERP ROLE USERS
@@ -45,6 +51,7 @@ class UserSeeder extends Seeder
 
         $users = [
             ['email'=>'project@local','username'=>'admin_project','name'=>'Admin Project Mandau','position'=>'Admin Project','signature'=>'ImageAsset/1.jpg','role'=>'admin-project','phone'=>'081200000002'],
+            ['email'=>'eva@local.com','username'=>'eva','name'=>'Eva','position'=>'Senior Admin Project','signature'=>'ImageAsset/1.jpg','role'=>'admin-project','phone'=>'081200000018'],
             ['email'=>'nikmal@example.com','username'=>'nikmal','name'=>'Nikmal Hadi','position'=>'Logistik & Gudang','signature'=>'ImageAsset/3.jpg','role'=>'logistik','phone'=>'081200000003'],
             ['email'=>'ga@local','username'=>'ga_budi','name'=>'Budi Santoso (GA)','position'=>'General Affair','signature'=>'ImageAsset/3.jpg','role'=>'general-affair','phone'=>'081200000004'],
             ['email'=>'silmi@local.com','username'=>'silmi','name'=>'Silmi','position'=>'Staff Procurement','signature'=>'ImageAsset/4.jpg','role'=>'procurement','phone'=>'081200000005'],
@@ -68,6 +75,10 @@ class UserSeeder extends Seeder
                     'status'         => 'active',
                 ]
             );
+
+            if ($defaultProject) {
+                $u->projects()->syncWithoutDetaching([$defaultProject->id]);
+            }
 
             // Match role by slug or name
             $targetRole = Role::where('slug', $data['role'])->orWhere('name', $data['role'])->orWhere('name', ucwords(str_replace('-', ' ', $data['role'])))->first();

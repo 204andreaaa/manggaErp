@@ -102,6 +102,13 @@ class UserController extends Controller
         DB::transaction(function () use ($payload, $roleIds, $customDept) {
             $user = User::create($payload);
             $user->roles()->sync($roleIds);
+
+            // Auto attach to current active project so user can login & access ERP immediately
+            $projectId = session('project_id') ?? Project::where('is_active', true)->value('id');
+            if ($projectId) {
+                $user->projects()->syncWithoutDetaching([$projectId]);
+            }
+
             $this->syncEmployeeProfile($user, $customDept);
         });
 
