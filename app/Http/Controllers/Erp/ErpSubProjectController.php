@@ -12,14 +12,14 @@ class ErpSubProjectController extends Controller
 {
     public function index()
     {
-        abort_unless(auth()->user()->hasPermission('budgets.view'), 403);
+        abort_unless(auth()->user()->hasPermission('sub_projects.view') || auth()->user()->hasPermission('budgets.view'), 403);
         $budgetParents = ErpBudgetParent::orderBy('name')->get();
         return view('erp.sub_projects.index', compact('budgetParents'));
     }
 
     public function datatable(Request $r)
     {
-        abort_unless(auth()->user()->hasPermission('budgets.view'), 403);
+        abort_unless(auth()->user()->hasPermission('sub_projects.view') || auth()->user()->hasPermission('budgets.view'), 403);
         $columns = ['id', 'budget_parent_id', 'sub_project_code', 'name', 'updated_at'];
 
         $draw        = (int) $r->input('draw', 1);
@@ -49,11 +49,11 @@ class ErpSubProjectController extends Controller
         $rows = $base->orderBy($orderCol, $orderDir)
             ->skip($start)->take($length)->get()
             ->map(function ($c, $i) use ($start) {
-                $editBtn = auth()->user()->hasPermission('budgets.update')
+                $editBtn = (auth()->user()->hasPermission('sub_projects.update') || auth()->user()->hasPermission('budgets.update'))
                     ? '<button class="btn btn-sm btn-warning text-white me-1" onclick="openEdit('.$c->id.',\''.$c->budget_parent_id.'\',\''.addslashes(e($c->sub_project_code)).'\',\''.addslashes(e($c->name)).'\')"><i class="bx bx-edit-alt"></i></button>'
                     : '';
 
-                $deleteBtn = auth()->user()->hasPermission('budgets.delete')
+                $deleteBtn = (auth()->user()->hasPermission('sub_projects.delete') || auth()->user()->hasPermission('budgets.delete'))
                     ? '<button class="btn btn-sm btn-danger" onclick="deleteItem('.$c->id.')"><i class="bx bx-trash"></i></button>'
                     : '';
 
@@ -76,7 +76,7 @@ class ErpSubProjectController extends Controller
 
     public function store(Request $r)
     {
-        abort_unless(auth()->user()->hasPermission('budgets.create'), 403);
+        abort_unless(auth()->user()->hasPermission('sub_projects.create') || auth()->user()->hasPermission('budgets.create'), 403);
 
         $data = $r->validate([
             'budget_parent_id'  => ['required', 'exists:tenant.erp_budget_parents,id'],
@@ -91,7 +91,7 @@ class ErpSubProjectController extends Controller
 
     public function update(Request $r, $id)
     {
-        abort_unless(auth()->user()->hasPermission('budgets.update'), 403);
+        abort_unless(auth()->user()->hasPermission('sub_projects.update') || auth()->user()->hasPermission('budgets.update'), 403);
         $project = ErpSubProject::findOrFail($id);
 
         $data = $r->validate([
@@ -107,7 +107,7 @@ class ErpSubProjectController extends Controller
 
     public function destroy($id)
     {
-        abort_unless(auth()->user()->hasPermission('budgets.delete'), 403);
+        abort_unless(auth()->user()->hasPermission('sub_projects.delete') || auth()->user()->hasPermission('budgets.delete'), 403);
         ErpSubProject::findOrFail($id)->delete();
 
         return response()->json(['success' => 'Sub Project deleted successfully']);

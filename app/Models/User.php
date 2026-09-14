@@ -104,9 +104,25 @@ class User extends Authenticatable
             return true;
         }
 
+        // Handle permission aliases / backwards-compatibility
+        $aliases = [
+            'budgets.view'   => ['budget_parents.view', 'sub_projects.view', 'work_items.view'],
+            'budgets.create' => ['budget_parents.create', 'sub_projects.create', 'work_items.create'],
+            'budgets.update' => ['budget_parents.update', 'sub_projects.update', 'work_items.update'],
+            'budgets.delete' => ['budget_parents.delete', 'sub_projects.delete', 'work_items.delete'],
+        ];
+
         foreach ($this->roles as $role) {
-            if (in_array($permission, $role->permissions ?? [])) {
+            $perms = $role->permissions ?? [];
+            if (in_array($permission, $perms, true)) {
                 return true;
+            }
+            if (isset($aliases[$permission])) {
+                foreach ($aliases[$permission] as $alias) {
+                    if (in_array($alias, $perms, true)) {
+                        return true;
+                    }
+                }
             }
         }
 

@@ -11,13 +11,13 @@ class ErpBudgetParentController extends Controller
 {
     public function index()
     {
-        abort_unless(auth()->user()->hasPermission('budgets.view'), 403);
+        abort_unless(auth()->user()->hasPermission('budget_parents.view') || auth()->user()->hasPermission('budgets.view'), 403);
         return view('erp.budget_parents.index');
     }
 
     public function datatable(Request $r)
     {
-        abort_unless(auth()->user()->hasPermission('budgets.view'), 403);
+        abort_unless(auth()->user()->hasPermission('budget_parents.view') || auth()->user()->hasPermission('budgets.view'), 403);
         $columns = ['id', 'budget_code', 'name', 'total_budget', 'remaining_budget', 'status', 'updated_at'];
 
         $draw        = (int) $r->input('draw', 1);
@@ -45,11 +45,11 @@ class ErpBudgetParentController extends Controller
         $rows = $base->orderBy($orderCol, $orderDir)
             ->skip($start)->take($length)->get()
             ->map(function ($c, $i) use ($start) {
-                $editBtn = auth()->user()->hasPermission('budgets.update')
+                $editBtn = (auth()->user()->hasPermission('budget_parents.update') || auth()->user()->hasPermission('budgets.update'))
                     ? '<button class="btn btn-sm btn-warning text-white me-1" onclick="openEdit('.$c->id.',\''.addslashes(e($c->budget_code)).'\',\''.addslashes(e($c->name)).'\',\''.$c->total_budget.'\',\''.addslashes(e($c->status)).'\')"><i class="bx bx-edit-alt"></i></button>'
                     : '';
 
-                $deleteBtn = auth()->user()->hasPermission('budgets.delete')
+                $deleteBtn = (auth()->user()->hasPermission('budget_parents.delete') || auth()->user()->hasPermission('budgets.delete'))
                     ? '<button class="btn btn-sm btn-danger" onclick="deleteItem('.$c->id.')"><i class="bx bx-trash"></i></button>'
                     : '';
 
@@ -74,7 +74,7 @@ class ErpBudgetParentController extends Controller
 
     public function store(Request $r)
     {
-        abort_unless(auth()->user()->hasPermission('budgets.create'), 403);
+        abort_unless(auth()->user()->hasPermission('budget_parents.create') || auth()->user()->hasPermission('budgets.create'), 403);
 
         $data = $r->validate([
             'budget_code'  => ['required', 'max:50', Rule::unique('tenant.erp_budget_parents', 'budget_code')],
@@ -93,7 +93,7 @@ class ErpBudgetParentController extends Controller
 
     public function update(Request $r, $id)
     {
-        abort_unless(auth()->user()->hasPermission('budgets.update'), 403);
+        abort_unless(auth()->user()->hasPermission('budget_parents.update') || auth()->user()->hasPermission('budgets.update'), 403);
         $budget = ErpBudgetParent::findOrFail($id);
 
         $data = $r->validate([
@@ -119,7 +119,7 @@ class ErpBudgetParentController extends Controller
 
     public function destroy($id)
     {
-        abort_unless(auth()->user()->hasPermission('budgets.delete'), 403);
+        abort_unless(auth()->user()->hasPermission('budget_parents.delete') || auth()->user()->hasPermission('budgets.delete'), 403);
         ErpBudgetParent::findOrFail($id)->delete();
 
         return response()->json(['success' => 'Budget Parent deleted successfully']);

@@ -22,7 +22,7 @@
           <span class="input-group-text"><i class="bx bx-search"></i></span>
           <input type="text" id="dtSearch" class="form-control form-control-sm" placeholder="Search...">
         </div>
-        @if(auth()->user()->hasPermission('budgets.create'))
+        @if(auth()->user()->hasPermission('sub_projects.create') || auth()->user()->hasPermission('budgets.create'))
           <button class="btn btn-primary btn-sm px-3" data-bs-toggle="modal" data-bs-target="#modalCreate">
             <i class="bx bx-plus me-1"></i> Add Sub Project
           </button>

@@ -13,7 +13,7 @@ class ErpWorkItemController extends Controller
 {
     public function index()
     {
-        abort_unless(auth()->user()->hasPermission('budgets.view'), 403);
+        abort_unless(auth()->user()->hasPermission('work_items.view') || auth()->user()->hasPermission('budgets.view'), 403);
         
         $subProjects = ErpSubProject::with('budgetParent')->orderBy('name')->get()->map(function($sp) {
             $budgetParent = $sp->budgetParent;
@@ -33,7 +33,7 @@ class ErpWorkItemController extends Controller
 
     public function datatable(Request $r)
     {
-        abort_unless(auth()->user()->hasPermission('budgets.view'), 403);
+        abort_unless(auth()->user()->hasPermission('work_items.view') || auth()->user()->hasPermission('budgets.view'), 403);
         $columns = ['id', 'sub_project_id', 'wid_code', 'name', 'allocated_budget', 'remaining_budget', 'updated_at'];
 
         $draw        = (int) $r->input('draw', 1);
@@ -63,11 +63,11 @@ class ErpWorkItemController extends Controller
         $rows = $base->orderBy($orderCol, $orderDir)
             ->skip($start)->take($length)->get()
             ->map(function ($c, $i) use ($start) {
-                $editBtn = auth()->user()->hasPermission('budgets.update')
+                $editBtn = (auth()->user()->hasPermission('work_items.update') || auth()->user()->hasPermission('budgets.update'))
                     ? '<button class="btn btn-sm btn-warning text-white me-1" onclick="openEdit('.$c->id.',\''.$c->sub_project_id.'\',\''.addslashes(e($c->wid_code)).'\',\''.addslashes(e($c->name)).'\',\''.$c->allocated_budget.'\')"><i class="bx bx-edit-alt"></i></button>'
                     : '';
 
-                $deleteBtn = auth()->user()->hasPermission('budgets.delete')
+                $deleteBtn = (auth()->user()->hasPermission('work_items.delete') || auth()->user()->hasPermission('budgets.delete'))
                     ? '<button class="btn btn-sm btn-danger" onclick="deleteItem('.$c->id.')"><i class="bx bx-trash"></i></button>'
                     : '';
 
@@ -125,7 +125,7 @@ class ErpWorkItemController extends Controller
 
     public function store(Request $r)
     {
-        abort_unless(auth()->user()->hasPermission('budgets.create'), 403);
+        abort_unless(auth()->user()->hasPermission('work_items.create') || auth()->user()->hasPermission('budgets.create'), 403);
 
         $subProject = ErpSubProject::with('budgetParent')->findOrFail($r->input('sub_project_id'));
         if (empty($r->input('wid_code'))) {
@@ -173,7 +173,7 @@ class ErpWorkItemController extends Controller
 
     public function update(Request $r, $id)
     {
-        abort_unless(auth()->user()->hasPermission('budgets.update'), 403);
+        abort_unless(auth()->user()->hasPermission('work_items.update') || auth()->user()->hasPermission('budgets.update'), 403);
         $workItem = ErpWorkItem::findOrFail($id);
 
         $data = $r->validate([
@@ -223,7 +223,7 @@ class ErpWorkItemController extends Controller
 
     public function destroy($id)
     {
-        abort_unless(auth()->user()->hasPermission('budgets.delete'), 403);
+        abort_unless(auth()->user()->hasPermission('work_items.delete') || auth()->user()->hasPermission('budgets.delete'), 403);
         ErpWorkItem::findOrFail($id)->delete();
 
         return response()->json(['success' => 'Work Item deleted successfully']);
