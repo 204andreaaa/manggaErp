@@ -161,24 +161,30 @@ $isSystemOpen = request()->routeIs('erp.users.*')
                 <div class="text-truncate">Admin Project</div>
             </a>
             <ul class="menu-sub">
+                @if($isSuperAdmin || $u?->canSeeMenu('work_items'))
                 <li class="menu-item {{ request()->routeIs('erp.work-items.*') ? 'active' : '' }}">
                     <a href="{{ $rl('erp.work-items.index') }}" class="menu-link">
                         <i class="bx bx-task me-2"></i>
                         <div class="text-truncate">Work Items (WID)</div>
                     </a>
                 </li>
+                @endif
+                @if($isSuperAdmin || $u?->canSeeMenu('sub_projects'))
                 <li class="menu-item {{ request()->routeIs('erp.sub-projects.*') ? 'active' : '' }}">
                     <a href="{{ $rl('erp.sub-projects.index') }}" class="menu-link">
                         <i class="bx bx-git-repo-forked me-2"></i>
                         <div class="text-truncate">Sub Projects</div>
                     </a>
                 </li>
+                @endif
+                @if($isSuperAdmin || $u?->canSeeMenu('budget_parents'))
                 <li class="menu-item {{ request()->routeIs('erp.budget-parents.*') ? 'active' : '' }}">
                     <a href="{{ $rl('erp.budget-parents.index') }}" class="menu-link">
                         <i class="bx bx-wallet-alt me-2"></i>
                         <div class="text-truncate">Budget Parents</div>
                     </a>
                 </li>
+                @endif
             </ul>
         </li>
         @endif
@@ -354,58 +360,86 @@ $isSystemOpen = request()->routeIs('erp.users.*')
         @endif
 
         {{-- ==================== MASTER DATA ==================== --}}
-        @if($isMaster)
+        @php
+            $canSeeProducts = $isSuperAdmin || $u?->canSeeMenu('products');
+            $canSeeUoms = $isSuperAdmin || $u?->canSeeMenu('uoms');
+            $canSeeFamilies = $isSuperAdmin || $u?->canSeeMenu('product_families');
+            $canSeeTypes = $isSuperAdmin || $u?->canSeeMenu('product_types');
+            $canSeeBrands = $isSuperAdmin || $u?->canSeeMenu('brands');
+            $canSeeModels = $isSuperAdmin || $u?->canSeeMenu('product_models');
+            $canSeeCurrencies = $isSuperAdmin || $u?->canSeeMenu('currencies');
+            $hasAnyAttribute = $canSeeUoms || $canSeeFamilies || $canSeeTypes || $canSeeBrands || $canSeeModels || $canSeeCurrencies;
+            $hasMasterData = $canSeeProducts || $hasAnyAttribute;
+        @endphp
+
+        @if($hasMasterData)
         <li class="menu-header small text-uppercase">
             <span class="menu-header-text">Master Data</span>
         </li>
 
         {{-- Products Catalog --}}
+        @if($canSeeProducts)
         <li id="menu-item-erp-products" class="menu-item {{ request()->routeIs('erp.products.*') ? 'active' : '' }}">
             <a href="{{ $rl('erp.products.index') }}" class="menu-link d-flex align-items-center">
                 <i class="menu-icon tf-icons bx bx-box"></i>
                 <div class="text-truncate">Products Catalog</div>
             </a>
         </li>
+        @endif
 
         {{-- Master Attributes --}}
+        @if($hasAnyAttribute)
         <li class="menu-item {{ $isMasterOpen && !request()->routeIs('erp.products.*') ? 'active open' : '' }}">
             <a href="javascript:void(0);" class="menu-link menu-toggle">
                 <i class="menu-icon tf-icons bx bx-data"></i>
                 <div class="text-truncate">Master Attributes</div>
             </a>
             <ul class="menu-sub">
+                @if($canSeeUoms)
                 <li id="menu-item-erp-uoms" class="menu-item {{ request()->routeIs('erp.uoms.*') ? 'active' : '' }}">
                     <a href="{{ $rl('erp.uoms.index') }}" class="menu-link">
                         <div class="text-truncate">Units of Measure</div>
                     </a>
                 </li>
+                @endif
+                @if($canSeeFamilies)
                 <li id="menu-item-erp-families" class="menu-item {{ request()->routeIs('erp.product-families.*') ? 'active' : '' }}">
                     <a href="{{ $rl('erp.product-families.index') }}" class="menu-link">
                         <div class="text-truncate">Product Families</div>
                     </a>
                 </li>
+                @endif
+                @if($canSeeTypes)
                 <li id="menu-item-erp-types" class="menu-item {{ request()->routeIs('erp.product-types.*') ? 'active' : '' }}">
                     <a href="{{ $rl('erp.product-types.index') }}" class="menu-link">
                         <div class="text-truncate">Product Types</div>
                     </a>
                 </li>
+                @endif
+                @if($canSeeBrands)
                 <li id="menu-item-erp-brands" class="menu-item {{ request()->routeIs('erp.brands.*') ? 'active' : '' }}">
                     <a href="{{ $rl('erp.brands.index') }}" class="menu-link">
                         <div class="text-truncate">Brands</div>
                     </a>
                 </li>
+                @endif
+                @if($canSeeModels)
                 <li id="menu-item-erp-models" class="menu-item {{ request()->routeIs('erp.product-models.*') ? 'active' : '' }}">
                     <a href="{{ $rl('erp.product-models.index') }}" class="menu-link">
                         <div class="text-truncate">Product Models</div>
                     </a>
                 </li>
+                @endif
+                @if($canSeeCurrencies)
                 <li id="menu-item-erp-currencies" class="menu-item {{ request()->routeIs('erp.currencies.*') ? 'active' : '' }}">
                     <a href="{{ $rl('erp.currencies.index') }}" class="menu-link">
                         <div class="text-truncate">Currencies</div>
                     </a>
                 </li>
+                @endif
             </ul>
         </li>
+        @endif
         @endif
 
         {{-- ==================== REPORTS & ANALYTICS ==================== --}}
