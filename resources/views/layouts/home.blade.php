@@ -1176,6 +1176,39 @@
                 }
             });
 
+            // Reset specific dropzone helper
+            window.resetDropzone = function(target) {
+                const dz = typeof target === 'string' ? document.querySelector(target) : target;
+                if (!dz) return;
+                const targetSelector = dz.dataset.target;
+                const fileInput = targetSelector ? document.querySelector(targetSelector) : dz.querySelector('input[type="file"]');
+                if (fileInput) {
+                    fileInput.value = '';
+                }
+                const previewContainer = dz.querySelector('.dropzone-preview');
+                if (previewContainer) {
+                    previewContainer.innerHTML = '';
+                    previewContainer.classList.add('d-none');
+                }
+                const idleView = dz.querySelector('.dropzone-idle');
+                if (idleView) {
+                    idleView.classList.remove('d-none');
+                }
+            };
+
+            // Auto reset dropzones when any modal is hidden or shown
+            document.addEventListener('hidden.bs.modal', function(e) {
+                const modal = e.target;
+                if (!modal) return;
+                modal.querySelectorAll('.paste-dropzone').forEach(window.resetDropzone);
+            });
+
+            document.addEventListener('show.bs.modal', function(e) {
+                const modal = e.target;
+                if (!modal) return;
+                modal.querySelectorAll('.paste-dropzone').forEach(window.resetDropzone);
+            });
+
             // Auto-init on page load and on Bootstrap modal shown
             initAllPasteDropzones();
             document.addEventListener('shown.bs.modal', function() {

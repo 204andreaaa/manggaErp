@@ -648,8 +648,11 @@ $(function () {
         $('#edit_is_active').prop('checked', parseInt(isActive, 10) === 1);
         $('#edit_is_physical').val(isPhysical !== undefined ? isPhysical : 1);
         
-        // Reset file input
+        // Reset file input & dropzone
         $('#formEdit input[type="file"]').val('');
+        if (window.resetDropzone) {
+            window.resetDropzone('#modalEdit .paste-dropzone');
+        }
         if (imageUrl) {
             $('#edit_image_preview').attr('src', imageUrl).show();
             $('#edit_image_icon').hide();
