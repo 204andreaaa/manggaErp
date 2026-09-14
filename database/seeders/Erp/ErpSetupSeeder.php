@@ -74,17 +74,19 @@ class ErpSetupSeeder extends Seeder
         ];
 
         foreach ($usersData as $ud) {
-            $u = User::updateOrCreate(
-                ['email' => $ud['email']],
-                [
-                    'name'     => $ud['name'],
-                    'username' => $ud['username'],
-                    'phone'    => $ud['phone'],
-                    'password' => Hash::make('password123'), // Default password
-                    'position' => $ud['position'],
-                    'status'   => 'active'
-                ]
-            );
+            $u = User::where('username', $ud['username'])->orWhere('email', $ud['email'])->first();
+            if (!$u) {
+                $u = new User();
+                $u->password = Hash::make('password123'); // Default password
+            }
+
+            $u->name = $ud['name'];
+            $u->username = $ud['username'];
+            $u->email = $u->email ?: $ud['email'];
+            if (!empty($ud['phone'])) $u->phone = $ud['phone'];
+            if (!empty($ud['position'])) $u->position = $ud['position'];
+            $u->status = 'active';
+            $u->save();
 
             if ($ud['role'] && isset($roles[$ud['role']])) {
                 $u->roles()->sync([$roles[$ud['role']]]);

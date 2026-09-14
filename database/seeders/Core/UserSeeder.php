@@ -20,17 +20,18 @@ class UserSeeder extends Seeder
         | SUPERADMIN
         |--------------------------------------------------------------------------
         */
-        $admin = User::updateOrCreate(
-            ['email' => 'admin@local'],
-            [
-                'name'     => 'Admin Pusat',
-                'username' => 'admin',
-                'phone'    => '081200000001',
-                'password' => Hash::make('password123'),
-                'signature_path' => 'ImageAsset/1.jpg',
-                'status'   => 'active',
-            ]
-        );
+        $admin = User::where('username', 'admin')->orWhere('email', 'admin@local')->first();
+        if (!$admin) {
+            $admin = new User();
+            $admin->password = Hash::make('password123');
+        }
+        $admin->name = 'Admin Pusat';
+        $admin->username = 'admin';
+        $admin->email = $admin->email ?: 'admin@local';
+        $admin->phone = '081200000001';
+        $admin->signature_path = 'ImageAsset/1.jpg';
+        $admin->status = 'active';
+        $admin->save();
 
         if (isset($roles['superadmin'])) {
             $admin->roles()->sync([$roles['superadmin']]);
@@ -62,19 +63,20 @@ class UserSeeder extends Seeder
         ];
 
         foreach ($users as $i => $data) {
-            $u = User::updateOrCreate(
-                ['email' => $data['email']],
-                [
-                    'name'           => $data['name'],
-                    'username'       => $data['username'],
-                    'phone'          => $data['phone'],
-                    'password'       => Hash::make('password'),
-                    'position'       => $data['position'],
-                    'signature_path' => $data['signature'],
-                    'warehouse_id'   => null,
-                    'status'         => 'active',
-                ]
-            );
+            $u = User::where('username', $data['username'])->orWhere('email', $data['email'])->first();
+            if (!$u) {
+                $u = new User();
+                $u->password = Hash::make('password');
+            }
+
+            $u->name = $data['name'];
+            $u->username = $data['username'];
+            $u->email = $u->email ?: $data['email'];
+            if (!empty($data['phone'])) $u->phone = $data['phone'];
+            if (!empty($data['position'])) $u->position = $data['position'];
+            if (!empty($data['signature'])) $u->signature_path = $data['signature'];
+            $u->status = 'active';
+            $u->save();
 
             if ($defaultProject) {
                 $u->projects()->syncWithoutDetaching([$defaultProject->id]);
