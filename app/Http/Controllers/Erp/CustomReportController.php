@@ -446,7 +446,7 @@ class CustomReportController extends Controller
                 break;
 
             case 'employees':
-                $q = Employee::on('master')->select([
+                $q = DB::connection('master')->table('employees')->select([
                     'id',
                     'nik',
                     'name',
