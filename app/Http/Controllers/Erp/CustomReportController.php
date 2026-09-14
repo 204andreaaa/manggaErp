@@ -435,7 +435,7 @@ class CustomReportController extends Controller
                         'p.product_code',
                         'p.name as product_name',
                         'p.part_number',
-                        'u.name as uom_name',
+                        'u.uom_name as uom_name',
                         'st.qty_on_hand',
                         'w.name as warehouse_name',
                     ]);
