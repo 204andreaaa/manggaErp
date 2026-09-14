@@ -117,6 +117,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('purchase-orders/{purchaseOrder}/verify', [\App\Http\Controllers\Erp\ErpPurchaseOrderController::class, 'verify'])->name('purchase-orders.verify');
 
         // Goods Receipts (Delivery Orders)
+        Route::get('goods-receipts', fn() => redirect()->route('erp.purchase-orders.index'))->name('goods-receipts.index');
         Route::get('goods-receipts/create/{purchaseOrder}', [\App\Http\Controllers\Erp\ErpGoodsReceiptController::class, 'create'])->name('goods-receipts.create');
         Route::post('goods-receipts/{purchaseOrder}', [\App\Http\Controllers\Erp\ErpGoodsReceiptController::class, 'store'])->name('goods-receipts.store');
         Route::get('goods-receipts/{goodsReceipt}', [\App\Http\Controllers\Erp\ErpGoodsReceiptController::class, 'show'])->name('goods-receipts.show');

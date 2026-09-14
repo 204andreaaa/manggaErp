@@ -228,7 +228,7 @@ $isSystemOpen = request()->routeIs('erp.users.*')
             <ul class="menu-sub">
                 @if($isSuperAdmin || $u?->canSeeMenu('goods_receipts'))
                 <li class="menu-item {{ request()->routeIs('erp.goods-receipts.*') ? 'active' : '' }}">
-                    <a href="{{ route('erp.goods-receipts.index') }}" class="menu-link">
+                    <a href="{{ $rl('erp.goods-receipts.index') }}" class="menu-link">
                         <i class="bx bx-package me-2"></i>
                         <div class="text-truncate">Penerimaan Barang (GR/DO)</div>
                     </a>
@@ -261,7 +261,7 @@ $isSystemOpen = request()->routeIs('erp.users.*')
                     </a>
                 </li>
                 <li class="menu-item {{ request()->routeIs('erp.purchase-orders.*') ? 'active' : '' }}">
-                    <a href="{{ route('erp.purchase-orders.index') }}" class="menu-link">
+                    <a href="{{ $rl('erp.purchase-orders.index') }}" class="menu-link">
                         <i class="bx bx-list-check me-2"></i>
                         <div class="text-truncate">Purchase Orders (PO)</div>
                     </a>
@@ -269,7 +269,7 @@ $isSystemOpen = request()->routeIs('erp.users.*')
                 @endif
                 @if($isSuperAdmin || $u?->canSeeMenu('suppliers'))
                 <li class="menu-item {{ request()->routeIs('erp.suppliers.*') ? 'active' : '' }}">
-                    <a href="{{ route('erp.suppliers.index') }}" class="menu-link">
+                    <a href="{{ $rl('erp.suppliers.index') }}" class="menu-link">
                         <i class="bx bx-store-alt me-2"></i>
                         <div class="text-truncate">ERP Suppliers</div>
                     </a>
@@ -277,7 +277,7 @@ $isSystemOpen = request()->routeIs('erp.users.*')
                 @endif
                 @if($isSuperAdmin || $u?->canSeeMenu('payment_terms'))
                 <li class="menu-item {{ request()->routeIs('erp.payment-terms.*') ? 'active' : '' }}">
-                    <a href="{{ route('erp.payment-terms.index') }}" class="menu-link">
+                    <a href="{{ $rl('erp.payment-terms.index') }}" class="menu-link">
                         <i class="bx bx-timer me-2"></i>
                         <div class="text-truncate">Payment Terms (TOP)</div>
                     </a>
@@ -297,7 +297,7 @@ $isSystemOpen = request()->routeIs('erp.users.*')
             <ul class="menu-sub">
                 @if($isSuperAdmin || $u?->canSeeMenu('payment_advices'))
                 <li class="menu-item {{ request()->routeIs('erp.payment-advices.*') || request()->routeIs('erp.payment-advice-details.*') ? 'active' : '' }}">
-                    <a href="{{ route('erp.payment-advices.index') }}" class="menu-link">
+                    <a href="{{ $rl('erp.payment-advices.index') }}" class="menu-link">
                         <i class="bx bx-money me-2"></i>
                         <div class="text-truncate">Payment Advice (PA)</div>
                     </a>
@@ -305,7 +305,7 @@ $isSystemOpen = request()->routeIs('erp.users.*')
                 @endif
                 @if($isSuperAdmin || $u?->canSeeMenu('purchase_orders'))
                 <li class="menu-item {{ request()->routeIs('erp.purchase-orders.*') ? 'active' : '' }}">
-                    <a href="{{ route('erp.purchase-orders.index') }}" class="menu-link">
+                    <a href="{{ $rl('erp.purchase-orders.index') }}" class="menu-link">
                         <i class="bx bx-check-shield me-2"></i>
                         <div class="text-truncate">PO Verification / List</div>
                     </a>
@@ -325,7 +325,7 @@ $isSystemOpen = request()->routeIs('erp.users.*')
             <ul class="menu-sub">
                 @if($isSuperAdmin || $u?->canSeeMenu('stocks'))
                 <li class="menu-item {{ request()->routeIs('erp.stocks.*') ? 'active' : '' }}">
-                    <a href="{{ route('erp.stocks.index') }}" class="menu-link">
+                    <a href="{{ $rl('erp.stocks.index') }}" class="menu-link">
                         <i class="bx bx-layer me-2"></i>
                         <div class="text-truncate">Inventory Stocks</div>
                     </a>
@@ -333,7 +333,7 @@ $isSystemOpen = request()->routeIs('erp.users.*')
                 @endif
                 @if($isSuperAdmin || $u?->canSeeMenu('warehouses'))
                 <li class="menu-item {{ request()->routeIs('erp.warehouses.*') ? 'active' : '' }}">
-                    <a href="{{ route('erp.warehouses.index') }}" class="menu-link">
+                    <a href="{{ $rl('erp.warehouses.index') }}" class="menu-link">
                         <i class="bx bx-building me-2"></i>
                         <div class="text-truncate">Warehouses / Dest.</div>
                     </a>
@@ -354,7 +354,7 @@ $isSystemOpen = request()->routeIs('erp.users.*')
             <ul class="menu-sub">
                 @if($isSuperAdmin || $u?->canSeeMenu('departments'))
                 <li class="menu-item {{ request()->routeIs('erp.departments.*') ? 'active' : '' }}">
-                    <a href="{{ route('erp.departments.index') }}" class="menu-link">
+                    <a href="{{ $rl('erp.departments.index') }}" class="menu-link">
                         <i class="bx bx-sitemap me-2 text-primary"></i>
                         <div class="text-truncate">Master Departemen</div>
                     </a>
@@ -362,7 +362,7 @@ $isSystemOpen = request()->routeIs('erp.users.*')
                 @endif
                 @if($isSuperAdmin || $u?->canSeeMenu('employees'))
                 <li class="menu-item {{ request()->routeIs('erp.hr.employees.*') ? 'active' : '' }}">
-                    <a href="{{ route('erp.hr.employees.index') }}" class="menu-link">
+                    <a href="{{ $rl('erp.hr.employees.index') }}" class="menu-link">
                         <i class="bx bx-id-card me-2"></i>
                         <div class="text-truncate">Data Karyawan</div>
                     </a>
@@ -370,7 +370,7 @@ $isSystemOpen = request()->routeIs('erp.users.*')
                 @endif
                 @if($isSuperAdmin || $u?->canSeeMenu('hr_attendances'))
                 <li class="menu-item {{ request()->routeIs('erp.hr.attendances.*') ? 'active' : '' }}">
-                    <a href="{{ route('erp.hr.attendances.index') }}" class="menu-link">
+                    <a href="{{ $rl('erp.hr.attendances.index') }}" class="menu-link">
                         <i class="bx bx-calendar-check me-2"></i>
                         <div class="text-truncate">Absensi & Cuti</div>
                     </a>
@@ -378,7 +378,7 @@ $isSystemOpen = request()->routeIs('erp.users.*')
                 @endif
                 @if($isSuperAdmin || $u?->canSeeMenu('hr_payroll'))
                 <li class="menu-item {{ request()->routeIs('erp.hr.payroll.*') ? 'active' : '' }}">
-                    <a href="{{ route('erp.hr.payroll.index') }}" class="menu-link">
+                    <a href="{{ $rl('erp.hr.payroll.index') }}" class="menu-link">
                         <i class="bx bx-wallet-alt me-2"></i>
                         <div class="text-truncate">Payroll / Gaji</div>
                     </a>
@@ -397,13 +397,13 @@ $isSystemOpen = request()->routeIs('erp.users.*')
             </a>
             <ul class="menu-sub">
                 <li class="menu-item {{ request()->routeIs('erp.purchase-orders.index') ? 'active' : '' }}">
-                    <a href="{{ route('erp.purchase-orders.index') }}" class="menu-link">
+                    <a href="{{ $rl('erp.purchase-orders.index') }}" class="menu-link">
                         <i class="bx bx-check-shield me-2"></i>
                         <div class="text-truncate">PO Approvals</div>
                     </a>
                 </li>
                 <li class="menu-item {{ request()->routeIs('erp.payment-advices.index') ? 'active' : '' }}">
-                    <a href="{{ route('erp.payment-advices.index') }}" class="menu-link">
+                    <a href="{{ $rl('erp.payment-advices.index') }}" class="menu-link">
                         <i class="bx bx-wallet me-2"></i>
                         <div class="text-truncate">Payment Approvals</div>
                     </a>
