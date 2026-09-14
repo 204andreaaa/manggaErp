@@ -12,6 +12,17 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CustomReportController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware(function ($request, $next) {
+            $u = auth()->user();
+            if (!$u || (!$u->hasRole(['superadmin', 'admin']) && !$u->canSeeMenu('custom_reports') && !$u->hasPermission('custom_reports.view'))) {
+                abort(403, 'Anda tidak memiliki akses ke Custom Report Builder.');
+            }
+            return $next($request);
+        });
+    }
+
     public function index()
     {
         $reportTypes  = ReportSchemaService::getReportTypes();

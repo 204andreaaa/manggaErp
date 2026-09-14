@@ -13,19 +13,43 @@ $rl = function (string $name, array $params = []) {
 $dashboardRoute = 'dashboard';
 
 // Role checks
-$isSuperAdmin = $u?->hasRole('superadmin') || $u?->hasRole('admin');
-$isAdminProject = $isSuperAdmin || $u?->hasRole(['admin_project', 'project_admin']) || $u?->canSeeMenu('work_items') || $u?->canSeeMenu('budget_parents') || $u?->canSeeMenu('sub_projects');
-$isGA = $isSuperAdmin || $u?->hasRole(['ga', 'general_affair']) || $u?->canSeeMenu('goods_receipts');
-$isProcurement = $isSuperAdmin || $u?->hasRole('procurement') || $u?->canSeeMenu('purchase_orders') || $u?->canSeeMenu('suppliers');
-$isFinance = $isSuperAdmin || $u?->hasRole('finance') || $u?->canSeeMenu('payment_advices') || $u?->canSeeMenu('payment_advice_details');
-$isLogistik = $isSuperAdmin || $u?->hasRole(['logistik', 'warehouse']) || $u?->canSeeMenu('stocks') || $u?->canSeeMenu('warehouses');
-$isHRIS = $isSuperAdmin || $u?->hasRole(['hrd', 'hr_manager']) || $u?->canSeeMenu('employees') || $u?->canSeeMenu('hr_attendances') || $u?->canSeeMenu('hr_payroll');
-$isCEO = $isSuperAdmin || $u?->hasRole('ceo');
-$isMaster = $isSuperAdmin || $u?->hasRole('procurement') || $u?->canSeeMenu('products') || $u?->canSeeMenu('uoms');
-$isSystem = $isSuperAdmin || $u?->canSeeMenu('users') || $u?->canSeeMenu('roles') || $u?->canSeeMenu('projects') || $u?->canSeeMenu('approval_configs');
+$isSuperAdmin   = $u?->hasRole(['superadmin', 'admin']);
+$isAdminProject = $isSuperAdmin || $u?->canSeeMenu('work_items') || $u?->canSeeMenu('budget_parents') || $u?->canSeeMenu('sub_projects');
+$isGA           = $isSuperAdmin || $u?->canSeeMenu('goods_receipts');
+$isProcurement  = $isSuperAdmin || $u?->canSeeMenu('purchase_orders') || $u?->canSeeMenu('suppliers') || $u?->canSeeMenu('payment_terms');
+$isFinance      = $isSuperAdmin || $u?->canSeeMenu('payment_advices') || $u?->canSeeMenu('payment_advice_details');
+$isLogistik     = $isSuperAdmin || $u?->canSeeMenu('stocks') || $u?->canSeeMenu('warehouses');
+$isHRIS         = $isSuperAdmin || $u?->canSeeMenu('departments') || $u?->canSeeMenu('employees') || $u?->canSeeMenu('hr_attendances') || $u?->canSeeMenu('hr_payroll');
+$isCEO          = $isSuperAdmin || $u?->hasRole('ceo');
+
+// Master Data Checks
+$canSeeProducts  = $isSuperAdmin || $u?->canSeeMenu('products');
+$canSeeUoms      = $isSuperAdmin || $u?->canSeeMenu('uoms');
+$canSeeFamilies  = $isSuperAdmin || $u?->canSeeMenu('product_families');
+$canSeeTypes     = $isSuperAdmin || $u?->canSeeMenu('product_types');
+$canSeeBrands    = $isSuperAdmin || $u?->canSeeMenu('brands');
+$canSeeModels    = $isSuperAdmin || $u?->canSeeMenu('product_models');
+$canSeeCurrencies= $isSuperAdmin || $u?->canSeeMenu('currencies');
+$hasAnyAttribute = $canSeeUoms || $canSeeFamilies || $canSeeTypes || $canSeeBrands || $canSeeModels || $canSeeCurrencies;
+$hasMasterData   = $canSeeProducts || $hasAnyAttribute;
+
+// Reports & System Checks
+$canSeeCustomReports   = $isSuperAdmin || $u?->canSeeMenu('custom_reports');
+$canSeeProjects        = $isSuperAdmin || $u?->canSeeMenu('projects');
+$canSeeApprovalConfigs = $isSuperAdmin || $u?->canSeeMenu('approval_configs');
+$canSeeUsers           = $isSuperAdmin || $u?->canSeeMenu('users');
+$canSeeRoles           = $isSuperAdmin || $u?->canSeeMenu('roles');
+$isSystem              = $canSeeProjects || $canSeeApprovalConfigs || $canSeeUsers || $canSeeRoles;
+
+// General Requests
+$canSeeRF = $isSuperAdmin || $u?->canSeeMenu('request_forms');
+$canSeePO = $isSuperAdmin || $u?->canSeeMenu('purchase_orders');
+$hasGeneralRequests = $canSeeRF || $canSeePO;
+
+$hasAnyDepartment = $isAdminProject || $isGA || $isProcurement || $isFinance || $isLogistik || $isHRIS || $isCEO;
 
 // Route Active States
-$isHrOpen = request()->routeIs('erp.hr.*');
+$isHrOpen = request()->routeIs('erp.hr.*') || request()->routeIs('erp.departments.*');
 $isProjectOpen = request()->routeIs('erp.budget-parents.*')
     || request()->routeIs('erp.sub-projects.*')
     || request()->routeIs('erp.work-items.*');
@@ -42,8 +66,6 @@ $isFinanceOpen = request()->routeIs('erp.payment-advices.*')
 
 $isLogistikOpen = request()->routeIs('erp.stocks.*')
     || request()->routeIs('erp.warehouses.*');
-
-$isCeoOpen = false;
 
 $isMasterOpen = request()->routeIs('erp.products.*')
     || request()->routeIs('erp.uoms.*')
@@ -128,27 +150,34 @@ $isSystemOpen = request()->routeIs('erp.users.*')
         </li>
 
         {{-- ==================== GENERAL REQUESTS ==================== --}}
+        @if($hasGeneralRequests)
         <li class="menu-header small text-uppercase">
             <span class="menu-header-text">Pengajuan Umum</span>
         </li>
 
-        {{-- Request Form (RF) - Accessible to all divisions --}}
+        {{-- Request Form (RF) --}}
+        @if($canSeeRF)
         <li id="menu-item-erp-request-form" class="menu-item {{ request()->routeIs('erp.request-form.*') ? 'active' : '' }}">
             <a href="{{ $rl('erp.request-form.index') }}" class="menu-link d-flex align-items-center">
                 <i class="menu-icon tf-icons bx bx-file text-primary"></i>
                 <div class="text-truncate">Request Form (RF)</div>
             </a>
         </li>
+        @endif
 
-        {{-- Purchase Orders (PO) - Monitoring progress for all divisions --}}
+        {{-- Purchase Orders (PO) --}}
+        @if($canSeePO)
         <li id="menu-item-erp-purchase-orders" class="menu-item {{ request()->routeIs('erp.purchase-orders.*') ? 'active' : '' }}">
             <a href="{{ $rl('erp.purchase-orders.index') }}" class="menu-link d-flex align-items-center">
                 <i class="menu-icon tf-icons bx bx-cart text-info"></i>
                 <div class="text-truncate">Purchase Orders (PO)</div>
             </a>
         </li>
+        @endif
+        @endif
 
         {{-- ==================== DEPARTMENTS & DIVISIONS ==================== --}}
+        @if($hasAnyDepartment)
         <li class="menu-header small text-uppercase">
             <span class="menu-header-text">Divisi & Departemen</span>
         </li>
@@ -197,12 +226,14 @@ $isSystemOpen = request()->routeIs('erp.users.*')
                 <div class="text-truncate">General Affair (GA)</div>
             </a>
             <ul class="menu-sub">
+                @if($isSuperAdmin || $u?->canSeeMenu('goods_receipts'))
                 <li class="menu-item {{ request()->routeIs('erp.goods-receipts.*') ? 'active' : '' }}">
-                    <a href="{{ route('erp.purchase-orders.index') }}" class="menu-link">
+                    <a href="{{ route('erp.goods-receipts.index') }}" class="menu-link">
                         <i class="bx bx-package me-2"></i>
                         <div class="text-truncate">Penerimaan Barang (GR/DO)</div>
                     </a>
                 </li>
+                @endif
                 <li class="menu-item">
                     <a href="javascript:void(0);" class="menu-link" onclick="Swal.fire({icon:'info', title:'Rental Kendaraan', text:'Modul Penyewaan Mobil Rental GA sedang dalam pengembangan.', confirmButtonColor: '#4f46e5'})">
                         <i class="bx bx-car me-2"></i>
@@ -222,6 +253,7 @@ $isSystemOpen = request()->routeIs('erp.users.*')
                 <div class="text-truncate">Procurement</div>
             </a>
             <ul class="menu-sub">
+                @if($isSuperAdmin || $u?->canSeeMenu('purchase_orders'))
                 <li class="menu-item {{ request()->routeIs('erp.procurement.dashboard') ? 'active' : '' }}">
                     <a href="{{ $rl('erp.procurement.dashboard') }}" class="menu-link">
                         <i class="bx bx-bell me-2"></i>
@@ -234,18 +266,23 @@ $isSystemOpen = request()->routeIs('erp.users.*')
                         <div class="text-truncate">Purchase Orders (PO)</div>
                     </a>
                 </li>
+                @endif
+                @if($isSuperAdmin || $u?->canSeeMenu('suppliers'))
                 <li class="menu-item {{ request()->routeIs('erp.suppliers.*') ? 'active' : '' }}">
                     <a href="{{ route('erp.suppliers.index') }}" class="menu-link">
                         <i class="bx bx-store-alt me-2"></i>
                         <div class="text-truncate">ERP Suppliers</div>
                     </a>
                 </li>
+                @endif
+                @if($isSuperAdmin || $u?->canSeeMenu('payment_terms'))
                 <li class="menu-item {{ request()->routeIs('erp.payment-terms.*') ? 'active' : '' }}">
                     <a href="{{ route('erp.payment-terms.index') }}" class="menu-link">
                         <i class="bx bx-timer me-2"></i>
                         <div class="text-truncate">Payment Terms (TOP)</div>
                     </a>
                 </li>
+                @endif
             </ul>
         </li>
         @endif
@@ -258,18 +295,22 @@ $isSystemOpen = request()->routeIs('erp.users.*')
                 <div class="text-truncate">Finance</div>
             </a>
             <ul class="menu-sub">
+                @if($isSuperAdmin || $u?->canSeeMenu('payment_advices'))
                 <li class="menu-item {{ request()->routeIs('erp.payment-advices.*') || request()->routeIs('erp.payment-advice-details.*') ? 'active' : '' }}">
                     <a href="{{ route('erp.payment-advices.index') }}" class="menu-link">
                         <i class="bx bx-money me-2"></i>
                         <div class="text-truncate">Payment Advice (PA)</div>
                     </a>
                 </li>
+                @endif
+                @if($isSuperAdmin || $u?->canSeeMenu('purchase_orders'))
                 <li class="menu-item {{ request()->routeIs('erp.purchase-orders.*') ? 'active' : '' }}">
                     <a href="{{ route('erp.purchase-orders.index') }}" class="menu-link">
                         <i class="bx bx-check-shield me-2"></i>
                         <div class="text-truncate">PO Verification / List</div>
                     </a>
                 </li>
+                @endif
             </ul>
         </li>
         @endif
@@ -282,18 +323,22 @@ $isSystemOpen = request()->routeIs('erp.users.*')
                 <div class="text-truncate">Logistik & Gudang</div>
             </a>
             <ul class="menu-sub">
+                @if($isSuperAdmin || $u?->canSeeMenu('stocks'))
                 <li class="menu-item {{ request()->routeIs('erp.stocks.*') ? 'active' : '' }}">
                     <a href="{{ route('erp.stocks.index') }}" class="menu-link">
                         <i class="bx bx-layer me-2"></i>
                         <div class="text-truncate">Inventory Stocks</div>
                     </a>
                 </li>
+                @endif
+                @if($isSuperAdmin || $u?->canSeeMenu('warehouses'))
                 <li class="menu-item {{ request()->routeIs('erp.warehouses.*') ? 'active' : '' }}">
                     <a href="{{ route('erp.warehouses.index') }}" class="menu-link">
                         <i class="bx bx-building me-2"></i>
                         <div class="text-truncate">Warehouses / Dest.</div>
                     </a>
                 </li>
+                @endif
             </ul>
         </li>
         @endif
@@ -307,30 +352,38 @@ $isSystemOpen = request()->routeIs('erp.users.*')
                 <span class="badge bg-label-warning rounded-pill ms-auto me-3">Beta</span>
             </a>
             <ul class="menu-sub">
+                @if($isSuperAdmin || $u?->canSeeMenu('departments'))
                 <li class="menu-item {{ request()->routeIs('erp.departments.*') ? 'active' : '' }}">
                     <a href="{{ route('erp.departments.index') }}" class="menu-link">
                         <i class="bx bx-sitemap me-2 text-primary"></i>
                         <div class="text-truncate">Master Departemen</div>
                     </a>
                 </li>
+                @endif
+                @if($isSuperAdmin || $u?->canSeeMenu('employees'))
                 <li class="menu-item {{ request()->routeIs('erp.hr.employees.*') ? 'active' : '' }}">
                     <a href="{{ route('erp.hr.employees.index') }}" class="menu-link">
                         <i class="bx bx-id-card me-2"></i>
                         <div class="text-truncate">Data Karyawan</div>
                     </a>
                 </li>
+                @endif
+                @if($isSuperAdmin || $u?->canSeeMenu('hr_attendances'))
                 <li class="menu-item {{ request()->routeIs('erp.hr.attendances.*') ? 'active' : '' }}">
                     <a href="{{ route('erp.hr.attendances.index') }}" class="menu-link">
                         <i class="bx bx-calendar-check me-2"></i>
                         <div class="text-truncate">Absensi & Cuti</div>
                     </a>
                 </li>
+                @endif
+                @if($isSuperAdmin || $u?->canSeeMenu('hr_payroll'))
                 <li class="menu-item {{ request()->routeIs('erp.hr.payroll.*') ? 'active' : '' }}">
                     <a href="{{ route('erp.hr.payroll.index') }}" class="menu-link">
                         <i class="bx bx-wallet-alt me-2"></i>
                         <div class="text-truncate">Payroll / Gaji</div>
                     </a>
                 </li>
+                @endif
             </ul>
         </li>
         @endif
@@ -358,20 +411,9 @@ $isSystemOpen = request()->routeIs('erp.users.*')
             </ul>
         </li>
         @endif
+        @endif
 
         {{-- ==================== MASTER DATA ==================== --}}
-        @php
-            $canSeeProducts = $isSuperAdmin || $u?->canSeeMenu('products');
-            $canSeeUoms = $isSuperAdmin || $u?->canSeeMenu('uoms');
-            $canSeeFamilies = $isSuperAdmin || $u?->canSeeMenu('product_families');
-            $canSeeTypes = $isSuperAdmin || $u?->canSeeMenu('product_types');
-            $canSeeBrands = $isSuperAdmin || $u?->canSeeMenu('brands');
-            $canSeeModels = $isSuperAdmin || $u?->canSeeMenu('product_models');
-            $canSeeCurrencies = $isSuperAdmin || $u?->canSeeMenu('currencies');
-            $hasAnyAttribute = $canSeeUoms || $canSeeFamilies || $canSeeTypes || $canSeeBrands || $canSeeModels || $canSeeCurrencies;
-            $hasMasterData = $canSeeProducts || $hasAnyAttribute;
-        @endphp
-
         @if($hasMasterData)
         <li class="menu-header small text-uppercase">
             <span class="menu-header-text">Master Data</span>
@@ -443,6 +485,7 @@ $isSystemOpen = request()->routeIs('erp.users.*')
         @endif
 
         {{-- ==================== REPORTS & ANALYTICS ==================== --}}
+        @if($canSeeCustomReports)
         <li class="menu-header small text-uppercase">
             <span class="menu-header-text">Laporan & Analitik</span>
         </li>
@@ -453,48 +496,59 @@ $isSystemOpen = request()->routeIs('erp.users.*')
                 <span class="badge bg-label-success rounded-pill ms-auto">Pro</span>
             </a>
         </li>
+        @endif
 
         {{-- ==================== SYSTEM & SETTINGS ==================== --}}
-        @if($isSuperAdmin)
+        @if($isSystem)
         <li class="menu-header small text-uppercase">
             <span class="menu-header-text">System & Security</span>
         </li>
 
         {{-- Projects (Tenants) --}}
+        @if($canSeeProjects)
         <li id="menu-item-erp-projects" class="menu-item {{ request()->routeIs('erp.projects.*') ? 'active' : '' }}">
             <a href="{{ $rl('erp.projects.index') }}" class="menu-link d-flex align-items-center">
                 <i class="menu-icon tf-icons bx bx-buildings"></i>
                 <div class="text-truncate">Projects (Tenants)</div>
             </a>
         </li>
+        @endif
 
-        {{-- Approval Configs (Superadmin Only) --}}
+        {{-- Approval Configs --}}
+        @if($canSeeApprovalConfigs)
         <li id="menu-item-erp-approval-configs" class="menu-item {{ request()->routeIs('erp.approval-configs.*') ? 'active' : '' }}">
             <a href="{{ $rl('erp.approval-configs.index') }}" class="menu-link d-flex align-items-center">
                 <i class="menu-icon tf-icons bx bx-slider-alt"></i>
                 <div class="text-truncate">Approval & Verif Configs</div>
             </a>
         </li>
+        @endif
 
         {{-- User Management --}}
+        @if($canSeeUsers || $canSeeRoles)
         <li class="menu-item {{ request()->routeIs('erp.users.*') || request()->routeIs('erp.roles.*') ? 'active open' : '' }}">
             <a href="javascript:void(0);" class="menu-link menu-toggle">
                 <i class="menu-icon tf-icons bx bx-user-check"></i>
                 <div class="text-truncate">User Management</div>
             </a>
             <ul class="menu-sub">
+                @if($canSeeUsers)
                 <li id="menu-item-erp-users" class="menu-item {{ request()->routeIs('erp.users.*') ? 'active' : '' }}">
                     <a href="{{ $rl('erp.users.index') }}" class="menu-link">
                         <div class="text-truncate">Users</div>
                     </a>
                 </li>
+                @endif
+                @if($canSeeRoles)
                 <li id="menu-item-erp-roles" class="menu-item {{ request()->routeIs('erp.roles.*') ? 'active' : '' }}">
                     <a href="{{ $rl('erp.roles.index') }}" class="menu-link">
                         <div class="text-truncate">Roles & Permissions</div>
                     </a>
                 </li>
+                @endif
             </ul>
         </li>
+        @endif
         @endif
     </ul>
 </aside>
