@@ -352,6 +352,65 @@
             color: #ffffff !important;
         }
 
+        /* ================== DARK MODE BADGES (BG-LABEL-*) ================== */
+        html[data-theme="dark"] .bg-label-success {
+            background-color: rgba(52, 211, 153, 0.18) !important;
+            color: #34d399 !important;
+            border: 1px solid rgba(52, 211, 153, 0.35) !important;
+        }
+        html[data-theme="dark"] .bg-label-primary {
+            background-color: rgba(105, 108, 255, 0.18) !important;
+            color: #818cf8 !important;
+            border: 1px solid rgba(105, 108, 255, 0.35) !important;
+        }
+        html[data-theme="dark"] .bg-label-danger {
+            background-color: rgba(239, 68, 68, 0.18) !important;
+            color: #f87171 !important;
+            border: 1px solid rgba(239, 68, 68, 0.35) !important;
+        }
+        html[data-theme="dark"] .bg-label-warning {
+            background-color: rgba(245, 158, 11, 0.18) !important;
+            color: #fbbf24 !important;
+            border: 1px solid rgba(245, 158, 11, 0.35) !important;
+        }
+        html[data-theme="dark"] .bg-label-info {
+            background-color: rgba(14, 165, 233, 0.18) !important;
+            color: #38bdf8 !important;
+            border: 1px solid rgba(14, 165, 233, 0.35) !important;
+        }
+        html[data-theme="dark"] .bg-label-secondary {
+            background-color: rgba(148, 163, 184, 0.18) !important;
+            color: #cbd5e1 !important;
+            border: 1px solid rgba(148, 163, 184, 0.35) !important;
+        }
+        html[data-theme="dark"] .bg-label-dark {
+            background-color: rgba(255, 255, 255, 0.12) !important;
+            color: #ffffff !important;
+            border: 1px solid rgba(255, 255, 255, 0.25) !important;
+        }
+
+        /* Solid badges in Dark Mode */
+        html[data-theme="dark"] .badge.bg-success {
+            background-color: #059669 !important;
+            color: #ffffff !important;
+        }
+        html[data-theme="dark"] .badge.bg-primary {
+            background-color: #4f46e5 !important;
+            color: #ffffff !important;
+        }
+        html[data-theme="dark"] .badge.bg-danger {
+            background-color: #dc2626 !important;
+            color: #ffffff !important;
+        }
+        html[data-theme="dark"] .badge.bg-warning {
+            background-color: #d97706 !important;
+            color: #ffffff !important;
+        }
+        html[data-theme="dark"] .badge.bg-info {
+            background-color: #0284c7 !important;
+            color: #ffffff !important;
+        }
+
         /* Button Groups & Filter Tabs in Dark Mode */
         html[data-theme="dark"] .btn-group .btn-outline-primary {
             border-color: rgba(105, 108, 255, 0.4) !important;
