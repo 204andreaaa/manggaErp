@@ -145,10 +145,13 @@ class ErpGoodsReceiptController extends Controller
     public function print(ErpGoodsReceipt $goodsReceipt)
     {
         $goodsReceipt->load([
-            'purchaseOrder',
+            'purchaseOrder.warehouse',
             'supplier',
+            'warehouse',
             'verifiedBy',
-            'items.requestFormItem.erpProduct'
+            'owner',
+            'items.requestFormItem.erpProduct.productModel',
+            'items.purchaseOrderItem'
         ]);
 
         return view('erp.goods_receipts.print', compact('goodsReceipt'));

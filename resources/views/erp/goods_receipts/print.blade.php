@@ -44,12 +44,12 @@
         <div class="title">TANDA TERIMA (GR) / RECEIPT FORM</div>
 
         <div class="info-row"><div class="info-label">NO. Tanda Terima/Received No</div><div class="info-colon">:</div><div class="info-value">{{ $goodsReceipt->do_no }}</div></div>
-        <div class="info-row"><div class="info-label">PO No</div><div class="info-colon">:</div><div class="info-value">{{ $goodsReceipt->purchaseOrder?->po_no }}</div></div>
-        <div class="info-row"><div class="info-label">Tanggal/Date</div><div class="info-colon">:</div><div class="info-value">{{ $goodsReceipt->date?->format('Y/m/d') }}</div></div>
-        <div class="info-row"><div class="info-label">No. Surat Jalan/DO No.</div><div class="info-colon">:</div><div class="info-value">-</div></div>
-        <div class="info-row"><div class="info-label">Supplier</div><div class="info-colon">:</div><div class="info-value">{{ $goodsReceipt->supplier?->name ?: '-' }}</div></div>
+        <div class="info-row"><div class="info-label">PO No</div><div class="info-colon">:</div><div class="info-value">{{ $goodsReceipt->purchaseOrder?->po_no ?: '-' }}</div></div>
+        <div class="info-row"><div class="info-label">Tanggal/Date</div><div class="info-colon">:</div><div class="info-value">{{ $goodsReceipt->date?->format('Y/m/d') ?: '-' }}</div></div>
+        <div class="info-row"><div class="info-label">No. Surat Jalan/DO No.</div><div class="info-colon">:</div><div class="info-value fw-bold">{{ $goodsReceipt->supplier_do_no ?: '-' }}</div></div>
+        <div class="info-row"><div class="info-label">Supplier</div><div class="info-colon">:</div><div class="info-value">{{ $goodsReceipt->supplier?->name ?: ($goodsReceipt->purchaseOrder?->supplier?->name ?: '-') }}</div></div>
         <div class="info-row"><div class="info-label">Telah diterima dari/Received from</div><div class="info-colon">:</div><div class="info-value">{{ $goodsReceipt->sending_contact ?: '-' }}</div></div>
-        <div class="info-row"><div class="info-label">Untuk/For:</div><div class="info-colon">:</div><div class="info-value">Fatmawati Blok C16-17</div></div>
+        <div class="info-row"><div class="info-label">Untuk/For:</div><div class="info-colon">:</div><div class="info-value">{{ $goodsReceipt->warehouse?->name ?: ($goodsReceipt->purchaseOrder?->warehouse?->name ?: ($goodsReceipt->purchaseOrder?->shipping_address ?: '-')) }}</div></div>
 
         <table>
             <thead>
@@ -66,10 +66,15 @@
                 <tr>
                     <td class="text-center">{{ $index + 1 }}</td>
                     <td>
-                        {{ $item->requestFormItem?->product_name }}<br>
-                        {{ $item->requestFormItem?->erpProduct?->productModel?->model_name ?: '3' }}<br>
-                        {{ $goodsReceipt->supplier?->name }}<br>
-                        {{ $item->remark ?: 'Biaya Penghemat Telepon Periode Juni 2026' }}
+                        <strong>{{ $item->requestFormItem?->product_name ?: 'Item' }}</strong>
+                        @if($item->requestFormItem?->erpProduct?->productModel?->model_name)
+                            <br><span style="color: #555;">Model: {{ $item->requestFormItem->erpProduct->productModel->model_name }}</span>
+                        @endif
+                        @if($item->remark)
+                            <br><span style="color: #666;">Note: {{ $item->remark }}</span>
+                        @elseif($item->requestFormItem?->product_description)
+                            <br><span style="color: #666;">{{ $item->requestFormItem->product_description }}</span>
+                        @endif
                     </td>
                     <td class="text-right">
                         @if($item->purchaseOrderItem)
@@ -78,17 +83,17 @@
                             -
                         @endif
                     </td>
-                    <td class="text-right">{{ number_format((float)$item->delivered_qty, 1) }}</td>
-                    <td class="text-right">{{ number_format((float)$item->received_qty, 1) }}</td>
+                    <td class="text-right">{{ number_format((float)$item->delivered_qty, 1, ',', '.') }}</td>
+                    <td class="text-right">{{ number_format((float)$item->received_qty, 1, ',', '.') }}</td>
                 </tr>
                 @endforeach
             </tbody>
         </table>
 
         <div class="signature-section">
-            <div style="font-weight: bold;">{{ $goodsReceipt->verifiedBy?->name ?: 'Administrator' }}</div>
+            <div style="font-weight: bold;">{{ $goodsReceipt->verifiedBy?->name ?: ($goodsReceipt->owner?->name ?: 'Administrator') }}</div>
             <div>Diterima oleh / received by</div>
-            <div>{{ $goodsReceipt->status_receive_date?->format('Y/m/d') ?: date('Y/m/d') }}</div>
+            <div>{{ $goodsReceipt->status_receive_date?->format('Y/m/d') ?: ($goodsReceipt->date?->format('Y/m/d') ?: date('Y/m/d')) }}</div>
             <div class="signature-row">
                 Tanggal / date <span class="signature-line" style="width: 100px;"></span> 
                 Tanda tangan / signature <span class="signature-line"></span>
