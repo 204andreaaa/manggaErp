@@ -55,6 +55,7 @@ class UserSeeder extends Seeder
             ['email'=>'eva@local.com','username'=>'eva','name'=>'Eva','position'=>'Senior Admin Project','signature'=>'ImageAsset/1.jpg','role'=>'admin_project','phone'=>'081200000018'],
             ['email'=>'nikmal@example.com','username'=>'nikmal','name'=>'Nikmal Hadi','position'=>'Logistik & Gudang','signature'=>'ImageAsset/3.jpg','role'=>'logistik','phone'=>'081200000003'],
             ['email'=>'ga@local','username'=>'ga_budi','name'=>'Budi Santoso (GA)','position'=>'General Affair','signature'=>'ImageAsset/3.jpg','role'=>'general_affair','phone'=>'081200000004'],
+            ['email'=>'sesa@local.com','username'=>'sesa','name'=>'Sesa','position'=>'General Affair (GA)','signature'=>'ImageAsset/3.jpg','role'=>'general_affair','phone'=>'081200000019'],
             ['email'=>'silmi@local.com','username'=>'silmi','name'=>'Silmi','position'=>'Staff Procurement','signature'=>'ImageAsset/4.jpg','role'=>'procurement','phone'=>'081200000005'],
             ['email'=>'febri@local.com','username'=>'febri','name'=>'Febri Saputra','position'=>'Head of Procurement','signature'=>'ImageAsset/4.jpg','role'=>'procurement','phone'=>'081200000006'],
             ['email'=>'lilu@local.com','username'=>'lilu','name'=>'Lilu','position'=>'Staff Finance','signature'=>'ImageAsset/2.jpg','role'=>'finance','phone'=>'081200000007'],
