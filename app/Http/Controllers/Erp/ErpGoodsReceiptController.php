@@ -97,6 +97,12 @@ class ErpGoodsReceiptController extends Controller
                     $recQty = $poItem->qty;
                 }
 
+                $maxRemaining = $poItem->remaining_qty;
+                if ($delQty > $maxRemaining || $recQty > $maxRemaining) {
+                    $prodName = $poItem->requestFormItem?->product_name ?: 'Barang';
+                    return redirect()->back()->withInput()->with('error', "Kuantitas penerimaan untuk {$prodName} ({$recQty}) melebihi sisa PO ({$maxRemaining}). Tidak dapat disimpan.");
+                }
+
                 $gr->items()->create([
                     'do_detail_no' => $this->generateDoDetailNo(),
                     'erp_purchase_order_item_id' => $poItem->id,

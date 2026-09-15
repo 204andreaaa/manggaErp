@@ -146,10 +146,10 @@
                   @endif
                 </td>
                 <td class="text-end">
-                  <input type="number" step="0.01" name="items[{{ $index }}][delivered_qty]" class="form-control form-control-sm rounded-2 text-end fw-bold" value="{{ old('items.'.$index.'.delivered_qty', $remaining) }}" required min="0" max="{{ $remaining }}">
+                  <input type="number" step="0.01" name="items[{{ $index }}][delivered_qty]" class="form-control form-control-sm rounded-2 text-end fw-bold qty-delivered" data-max="{{ $remaining }}" value="{{ old('items.'.$index.'.delivered_qty', $remaining) }}" required min="0" max="{{ $remaining }}">
                 </td>
                 <td class="text-end">
-                  <input type="number" step="0.01" name="items[{{ $index }}][received_qty]" class="form-control form-control-sm rounded-2 text-end fw-bold text-success border-success" value="{{ old('items.'.$index.'.received_qty', $remaining) }}" required min="0" max="{{ $remaining }}">
+                  <input type="number" step="0.01" name="items[{{ $index }}][received_qty]" class="form-control form-control-sm rounded-2 text-end fw-bold text-success border-success qty-received" data-max="{{ $remaining }}" value="{{ old('items.'.$index.'.received_qty', $remaining) }}" required min="0" max="{{ $remaining }}">
                 </td>
               </tr>
             @endforeach
@@ -166,4 +166,86 @@
     </div>
   </form>
 </div>
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    function enforceMax(input) {
+        const max = parseFloat(input.getAttribute('data-max')) || 0;
+        let val = parseFloat(input.value);
+        if (isNaN(val)) return;
+
+        if (val > max) {
+            input.value = max;
+            input.classList.remove('is-invalid');
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Melebihi Sisa PO',
+                    text: `Kuantitas tidak boleh melebihi sisa PO (${max})! Nilai otomatis disesuaikan ke maksimal.`,
+                    confirmButtonColor: '#4f46e5',
+                    timer: 2500
+                });
+            } else {
+                alert(`Kuantitas tidak boleh melebihi sisa PO (${max})!`);
+            }
+        } else if (val < 0) {
+            input.value = 0;
+            input.classList.remove('is-invalid');
+        } else {
+            input.classList.remove('is-invalid');
+        }
+    }
+
+    document.querySelectorAll('.qty-delivered, .qty-received').forEach(input => {
+        input.addEventListener('input', function() {
+            const max = parseFloat(this.getAttribute('data-max')) || 0;
+            const val = parseFloat(this.value);
+            if (!isNaN(val) && val > max) {
+                this.classList.add('is-invalid');
+            } else {
+                this.classList.remove('is-invalid');
+            }
+        });
+
+        input.addEventListener('change', function() {
+            enforceMax(this);
+        });
+
+        input.addEventListener('blur', function() {
+            enforceMax(this);
+        });
+    });
+
+    const form = document.querySelector('form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            let hasError = false;
+            document.querySelectorAll('.qty-delivered, .qty-received').forEach(input => {
+                const max = parseFloat(input.getAttribute('data-max')) || 0;
+                const val = parseFloat(input.value) || 0;
+                if (val > max) {
+                    hasError = true;
+                    input.classList.add('is-invalid');
+                }
+            });
+
+            if (hasError) {
+                e.preventDefault();
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Kuantitas Melebihi Sisa PO',
+                        text: 'Terdapat kuantitas penerimaan yang melebihi sisa pesanan PO!',
+                        confirmButtonColor: '#4f46e5'
+                    });
+                } else {
+                    alert('Terdapat kuantitas penerimaan yang melebihi sisa pesanan PO!');
+                }
+            }
+        });
+    }
+});
+</script>
+@endpush
 @endsection
