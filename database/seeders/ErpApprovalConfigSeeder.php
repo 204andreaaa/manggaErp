@@ -48,16 +48,15 @@ class ErpApprovalConfigSeeder extends Seeder
         ErpApprovalConfig::create([
             'record_type' => 'purchase_order',
             'level' => 1,
-            'name' => 'Finance Verification',
-            'user_id' => $financeId,
+            'name' => 'Procurement Review / Approval',
+            'user_id' => $procurementId,
         ]);
         
         ErpApprovalConfig::create([
             'record_type' => 'purchase_order',
             'level' => 2,
-            'name' => 'Procurement Approval',
-            'user_id' => $procurementId,
-            'max_amount' => 1000000 
+            'name' => 'Finance Verification',
+            'user_id' => $financeId,
         ]);
         
         ErpApprovalConfig::create([
