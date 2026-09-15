@@ -36,6 +36,12 @@ class ErpPurchaseOrderController extends Controller
 
     public function create(RequestForm $requestForm)
     {
+        abort_unless(
+            auth()->user()->hasRole(['procurement', 'superadmin']) || auth()->user()->hasPermission('purchase_orders.create'),
+            403,
+            'Hanya divisi Procurement atau Super Admin yang dapat membuat Purchase Order (PO).'
+        );
+
         // Cek dulu apakah ada item yang belum di-PO
         $outstandingItemsCount = $requestForm->items()->whereDoesntHave('purchaseOrderItems')->count();
         if ($outstandingItemsCount === 0) {
@@ -69,6 +75,12 @@ class ErpPurchaseOrderController extends Controller
 
     public function store(Request $request)
     {
+        abort_unless(
+            auth()->user()->hasRole(['procurement', 'superadmin']) || auth()->user()->hasPermission('purchase_orders.create'),
+            403,
+            'Hanya divisi Procurement atau Super Admin yang dapat membuat Purchase Order (PO).'
+        );
+
         $data = $request->validate([
             'request_form_id' => 'required|exists:request_forms,id',
             'erp_warehouse_id' => 'nullable|exists:erp_warehouses,id',

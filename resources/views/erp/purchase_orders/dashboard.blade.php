@@ -3,6 +3,9 @@
 @section('title', 'Procurement Dashboard')
 
 @section('content')
+@php
+    $canCreatePo = auth()->user()->hasRole(['procurement', 'superadmin']) || auth()->user()->hasPermission('purchase_orders.create');
+@endphp
 <div class="container-xxl flex-grow-1 container-p-y">
   <h4 class="fw-bold py-3 mb-2">Procurement Dashboard</h4>
   <p class="text-muted">List of Approved Request Forms and Completed PRs ready for PO creation.</p>
@@ -91,16 +94,22 @@
                         </div>
                       </div>
                     @endforeach
-                    <a href="{{ route('erp.purchase-orders.create', $rf) }}" class="btn btn-xs btn-primary w-100 mt-1">
-                      + Create Another PO
-                    </a>
+                    @if($canCreatePo)
+                      <a href="{{ route('erp.purchase-orders.create', $rf) }}" class="btn btn-xs btn-primary w-100 mt-1">
+                        + Create Another PO
+                      </a>
+                    @endif
                   </div>
                 @else
                   <div class="d-flex flex-column align-items-center justify-content-center gap-2 p-2 border rounded bg-light border-dashed">
                     <span class="badge bg-label-warning">Pending PO</span>
-                    <a href="{{ route('erp.purchase-orders.create', $rf) }}" class="btn btn-sm btn-primary w-100">
-                      Create PO
-                    </a>
+                    @if($canCreatePo)
+                      <a href="{{ route('erp.purchase-orders.create', $rf) }}" class="btn btn-sm btn-primary w-100">
+                        Create PO
+                      </a>
+                    @else
+                      <small class="text-muted text-center" style="font-size: 0.75rem;">Menunggu Tindakan Procurement</small>
+                    @endif
                   </div>
                 @endif
               </td>

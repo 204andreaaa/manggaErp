@@ -17,7 +17,7 @@ $dashboardRoute = 'dashboard';
 $isSuperAdmin   = $u?->hasRole(['superadmin', 'admin']);
 $isAdminProject = $isSuperAdmin || $u?->canSeeMenu('work_items') || $u?->canSeeMenu('budget_parents') || $u?->canSeeMenu('sub_projects');
 $isGA           = $isSuperAdmin || $u?->canSeeMenu('goods_receipts');
-$isProcurement  = $isSuperAdmin || $u?->canSeeMenu('purchase_orders') || $u?->canSeeMenu('suppliers') || $u?->canSeeMenu('payment_terms');
+$isProcurement  = $isSuperAdmin || $u?->hasRole('procurement') || $u?->hasPermission('purchase_orders.create') || $u?->canSeeMenu('suppliers') || $u?->canSeeMenu('payment_terms');
 $isFinance      = $isSuperAdmin || $u?->canSeeMenu('payment_advices') || $u?->canSeeMenu('payment_advice_details');
 $isLogistik     = $isSuperAdmin || $u?->canSeeMenu('stocks') || $u?->canSeeMenu('warehouses');
 $isHRIS         = $isSuperAdmin || $u?->canSeeMenu('departments') || $u?->canSeeMenu('employees') || $u?->canSeeMenu('hr_attendances') || $u?->canSeeMenu('hr_payroll');
@@ -280,7 +280,7 @@ $isSystemOpen = request()->routeIs('erp.users.*')
                 @endif
             </a>
             <ul class="menu-sub">
-                @if($isSuperAdmin || $u?->canSeeMenu('purchase_orders'))
+                @if($isSuperAdmin || $u?->hasRole('procurement') || $u?->hasPermission('purchase_orders.create'))
                 <li class="menu-item {{ request()->routeIs('erp.procurement.dashboard') ? 'active' : '' }}">
                     <a href="{{ $rl('erp.procurement.dashboard') }}" class="menu-link d-flex align-items-center justify-content-between">
                         <div class="d-flex align-items-center">
@@ -292,7 +292,9 @@ $isSystemOpen = request()->routeIs('erp.users.*')
                         @endif
                     </a>
                 </li>
-                <li class="menu-item {{ request()->routeIs('erp.purchase-orders.*') ? 'active' : '' }}">
+                @endif
+                @if($isSuperAdmin || $u?->hasRole('procurement') || $u?->canSeeMenu('purchase_orders'))
+                <li class="menu-item {{ request()->routeIs('erp.purchase-orders.*') && !request()->routeIs('erp.procurement.dashboard') ? 'active' : '' }}">
                     <a href="{{ $rl('erp.purchase-orders.index') }}" class="menu-link">
                         <i class="bx bx-list-check me-2"></i>
                         <div class="text-truncate">Purchase Orders (PO)</div>

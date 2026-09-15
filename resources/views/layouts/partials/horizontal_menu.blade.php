@@ -14,7 +14,7 @@ $dashboardRoute = 'dashboard';
 $isSuperAdmin   = $u?->hasRole('superadmin') || $u?->hasRole('admin');
 $isAdminProject = $isSuperAdmin || $u?->hasRole(['admin_project', 'project_admin']) || $u?->canSeeMenu('work_items') || $u?->canSeeMenu('budget_parents') || $u?->canSeeMenu('sub_projects');
 $isGA           = $isSuperAdmin || $u?->hasRole(['ga', 'general_affair']) || $u?->canSeeMenu('goods_receipts');
-$isProcurement  = $isSuperAdmin || $u?->hasRole('procurement') || $u?->canSeeMenu('purchase_orders') || $u?->canSeeMenu('suppliers');
+$isProcurement  = $isSuperAdmin || $u?->hasRole('procurement') || $u?->hasPermission('purchase_orders.create') || $u?->canSeeMenu('suppliers') || $u?->canSeeMenu('payment_terms');
 $isFinance      = $isSuperAdmin || $u?->hasRole('finance') || $u?->canSeeMenu('payment_advices') || $u?->canSeeMenu('payment_advice_details');
 $isLogistik     = $isSuperAdmin || $u?->hasRole(['logistik', 'warehouse']) || $u?->canSeeMenu('stocks') || $u?->canSeeMenu('warehouses');
 $isHRIS         = $isSuperAdmin || $u?->hasRole(['hrd', 'hr_manager']) || $u?->canSeeMenu('employees') || $u?->canSeeMenu('departments') || $u?->canSeeMenu('hr_attendances') || $u?->canSeeMenu('hr_payroll');
@@ -107,6 +107,7 @@ if ($isProcurement) {
                     @endif
                 </a>
                 <ul class="dropdown-menu shadow-sm">
+                    @if($isSuperAdmin || $u?->hasRole('procurement') || $u?->hasPermission('purchase_orders.create'))
                     <li>
                         <a class="dropdown-item d-flex align-items-center justify-content-between {{ request()->routeIs('erp.procurement.dashboard') ? 'active' : '' }}" href="{{ $rl('erp.procurement.dashboard') }}">
                             <span><i class="bx bx-bell me-2"></i> PO Request</span>
@@ -115,11 +116,14 @@ if ($isProcurement) {
                             @endif
                         </a>
                     </li>
+                    @endif
+                    @if($isSuperAdmin || $u?->hasRole('procurement') || $u?->canSeeMenu('purchase_orders'))
                     <li>
-                        <a class="dropdown-item {{ request()->routeIs('erp.purchase-orders.*') ? 'active' : '' }}" href="{{ $rl('erp.purchase-orders.index') }}">
+                        <a class="dropdown-item {{ request()->routeIs('erp.purchase-orders.*') && !request()->routeIs('erp.procurement.dashboard') ? 'active' : '' }}" href="{{ $rl('erp.purchase-orders.index') }}">
                             <i class="bx bx-list-check me-2"></i> Purchase Orders (PO)
                         </a>
                     </li>
+                    @endif
                     <li>
                         <a class="dropdown-item {{ request()->routeIs('erp.suppliers.*') ? 'active' : '' }}" href="{{ $rl('erp.suppliers.index') }}">
                             <i class="bx bx-store-alt me-2"></i> ERP Suppliers

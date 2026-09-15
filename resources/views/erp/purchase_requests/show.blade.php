@@ -244,7 +244,7 @@
             $pos = $purchaseRequest->requestForm->purchaseOrders ?? collect();
           @endphp
 
-          @if(auth()->user()->hasRole(['procurement', 'superadmin']) && $purchaseRequest->requestForm->status === 'Approved')
+          @if((auth()->user()->hasRole(['procurement', 'superadmin']) || auth()->user()->hasPermission('purchase_orders.create')) && $purchaseRequest->requestForm->status === 'Approved')
             <a href="{{ route('erp.purchase-orders.create', $purchaseRequest->requestForm) }}" class="btn btn-sm btn-success rounded-pill px-3">
               <i class="bx bx-plus me-1"></i>Create New PO Request
             </a>
