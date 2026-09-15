@@ -21,6 +21,21 @@ $isHRIS         = $isSuperAdmin || $u?->hasRole(['hrd', 'hr_manager']) || $u?->c
 $isCEO          = $isSuperAdmin || $u?->hasRole('ceo');
 $isMaster       = $isSuperAdmin || $u?->hasRole('procurement') || $u?->canSeeMenu('products') || $u?->canSeeMenu('uoms');
 $isSystem       = $isSuperAdmin || $u?->canSeeMenu('users') || $u?->canSeeMenu('roles') || $u?->canSeeMenu('projects') || $u?->canSeeMenu('approval_configs');
+
+// Hitung total PO Request yang belum dibuatkan PO (Pending PO)
+$pendingPoCount = 0;
+if ($isProcurement) {
+    try {
+        $pendingPoCount = \App\Models\Erp\RequestForm::where('status', 'Approved')
+            ->whereHas('purchaseRequests', function ($q) {
+                $q->whereIn('status', ['Submitted', 'Completed']);
+            })
+            ->doesntHave('purchaseOrders')
+            ->count();
+    } catch (\Throwable $e) {
+        $pendingPoCount = 0;
+    }
+}
 @endphp
 
 <div id="layout-horizontal-menu" class="horizontal-nav-wrapper">
@@ -84,28 +99,34 @@ $isSystem       = $isSuperAdmin || $u?->canSeeMenu('users') || $u?->canSeeMenu('
             {{-- Procurement --}}
             @if($isProcurement)
             <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle {{ request()->routeIs('erp.procurement.dashboard') || request()->routeIs('erp.suppliers.*') || request()->routeIs('erp.payment-terms.*') ? 'active' : '' }}" 
+                <a class="nav-link dropdown-toggle d-flex align-items-center {{ request()->routeIs('erp.procurement.dashboard') || request()->routeIs('erp.suppliers.*') || request()->routeIs('erp.payment-terms.*') ? 'active' : '' }}" 
                    href="javascript:void(0)" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
                     <i class="bx bx-cart me-1 text-primary"></i> Procurement
+                    @if($pendingPoCount > 0)
+                        <span class="badge bg-danger rounded-pill ms-1 px-1.5 py-0.5" style="font-size: 0.7rem;">{{ $pendingPoCount }}</span>
+                    @endif
                 </a>
                 <ul class="dropdown-menu shadow-sm">
                     <li>
-                        <a class="dropdown-item {{ request()->routeIs('erp.procurement.dashboard') ? 'active' : '' }}" href="{{ $rl('erp.procurement.dashboard') }}">
-                            <i class="bx bx-bell me-2"></i> PO Request
+                        <a class="dropdown-item d-flex align-items-center justify-content-between {{ request()->routeIs('erp.procurement.dashboard') ? 'active' : '' }}" href="{{ $rl('erp.procurement.dashboard') }}">
+                            <span><i class="bx bx-bell me-2"></i> PO Request</span>
+                            @if($pendingPoCount > 0)
+                                <span class="badge bg-danger rounded-pill">{{ $pendingPoCount }}</span>
+                            @endif
                         </a>
                     </li>
                     <li>
-                        <a class="dropdown-item {{ request()->routeIs('erp.purchase-orders.*') ? 'active' : '' }}" href="{{ route('erp.purchase-orders.index') }}">
+                        <a class="dropdown-item {{ request()->routeIs('erp.purchase-orders.*') ? 'active' : '' }}" href="{{ $rl('erp.purchase-orders.index') }}">
                             <i class="bx bx-list-check me-2"></i> Purchase Orders (PO)
                         </a>
                     </li>
                     <li>
-                        <a class="dropdown-item {{ request()->routeIs('erp.suppliers.*') ? 'active' : '' }}" href="{{ route('erp.suppliers.index') }}">
+                        <a class="dropdown-item {{ request()->routeIs('erp.suppliers.*') ? 'active' : '' }}" href="{{ $rl('erp.suppliers.index') }}">
                             <i class="bx bx-store-alt me-2"></i> ERP Suppliers
                         </a>
                     </li>
                     <li>
-                        <a class="dropdown-item {{ request()->routeIs('erp.payment-terms.*') ? 'active' : '' }}" href="{{ route('erp.payment-terms.index') }}">
+                        <a class="dropdown-item {{ request()->routeIs('erp.payment-terms.*') ? 'active' : '' }}" href="{{ $rl('erp.payment-terms.index') }}">
                             <i class="bx bx-timer me-2"></i> Payment Terms (TOP)
                         </a>
                     </li>
@@ -122,7 +143,7 @@ $isSystem       = $isSuperAdmin || $u?->canSeeMenu('users') || $u?->canSeeMenu('
                 </a>
                 <ul class="dropdown-menu shadow-sm">
                     <li>
-                        <a class="dropdown-item {{ request()->routeIs('erp.goods-receipts.*') ? 'active' : '' }}" href="{{ route('erp.purchase-orders.index') }}">
+                        <a class="dropdown-item {{ request()->routeIs('erp.goods-receipts.*') ? 'active' : '' }}" href="{{ $rl('erp.goods-receipts.index') }}">
                             <i class="bx bx-package me-2"></i> Penerimaan Barang (GR/DO)
                         </a>
                     </li>
@@ -139,12 +160,12 @@ $isSystem       = $isSuperAdmin || $u?->canSeeMenu('users') || $u?->canSeeMenu('
                 </a>
                 <ul class="dropdown-menu shadow-sm">
                     <li>
-                        <a class="dropdown-item {{ request()->routeIs('erp.payment-advices.*') ? 'active' : '' }}" href="{{ route('erp.payment-advices.index') }}">
+                        <a class="dropdown-item {{ request()->routeIs('erp.payment-advices.*') ? 'active' : '' }}" href="{{ $rl('erp.payment-advices.index') }}">
                             <i class="bx bx-money me-2"></i> Payment Advice (PA)
                         </a>
                     </li>
                     <li>
-                        <a class="dropdown-item" href="{{ route('erp.purchase-orders.index') }}">
+                        <a class="dropdown-item" href="{{ $rl('erp.purchase-orders.index') }}">
                             <i class="bx bx-check-shield me-2"></i> PO Verification
                         </a>
                     </li>
@@ -161,12 +182,12 @@ $isSystem       = $isSuperAdmin || $u?->canSeeMenu('users') || $u?->canSeeMenu('
                 </a>
                 <ul class="dropdown-menu shadow-sm">
                     <li>
-                        <a class="dropdown-item {{ request()->routeIs('erp.stocks.*') ? 'active' : '' }}" href="{{ route('erp.stocks.index') }}">
+                        <a class="dropdown-item {{ request()->routeIs('erp.stocks.*') ? 'active' : '' }}" href="{{ $rl('erp.stocks.index') }}">
                             <i class="bx bx-layer me-2"></i> Inventory Stocks
                         </a>
                     </li>
                     <li>
-                        <a class="dropdown-item {{ request()->routeIs('erp.warehouses.*') ? 'active' : '' }}" href="{{ route('erp.warehouses.index') }}">
+                        <a class="dropdown-item {{ request()->routeIs('erp.warehouses.*') ? 'active' : '' }}" href="{{ $rl('erp.warehouses.index') }}">
                             <i class="bx bx-building me-2"></i> Warehouses / Dest.
                         </a>
                     </li>
@@ -183,22 +204,22 @@ $isSystem       = $isSuperAdmin || $u?->canSeeMenu('users') || $u?->canSeeMenu('
                 </a>
                 <ul class="dropdown-menu shadow-sm">
                     <li>
-                        <a class="dropdown-item {{ request()->routeIs('erp.departments.*') ? 'active' : '' }}" href="{{ route('erp.departments.index') }}">
+                        <a class="dropdown-item {{ request()->routeIs('erp.departments.*') ? 'active' : '' }}" href="{{ $rl('erp.departments.index') }}">
                             <i class="bx bx-sitemap me-2 text-primary"></i> Master Departemen
                         </a>
                     </li>
                     <li>
-                        <a class="dropdown-item {{ request()->routeIs('erp.hr.employees.*') ? 'active' : '' }}" href="{{ route('erp.hr.employees.index') }}">
+                        <a class="dropdown-item {{ request()->routeIs('erp.hr.employees.*') ? 'active' : '' }}" href="{{ $rl('erp.hr.employees.index') }}">
                             <i class="bx bx-id-card me-2"></i> Data Karyawan
                         </a>
                     </li>
                     <li>
-                        <a class="dropdown-item {{ request()->routeIs('erp.hr.attendances.*') ? 'active' : '' }}" href="{{ route('erp.hr.attendances.index') }}">
+                        <a class="dropdown-item {{ request()->routeIs('erp.hr.attendances.*') ? 'active' : '' }}" href="{{ $rl('erp.hr.attendances.index') }}">
                             <i class="bx bx-calendar-check me-2"></i> Absensi & Cuti
                         </a>
                     </li>
                     <li>
-                        <a class="dropdown-item {{ request()->routeIs('erp.hr.payroll.*') ? 'active' : '' }}" href="{{ route('erp.hr.payroll.index') }}">
+                        <a class="dropdown-item {{ request()->routeIs('erp.hr.payroll.*') ? 'active' : '' }}" href="{{ $rl('erp.hr.payroll.index') }}">
                             <i class="bx bx-wallet-alt me-2"></i> Payroll / Gaji
                         </a>
                     </li>

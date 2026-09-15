@@ -1,9 +1,10 @@
 @php
 use Illuminate\Support\Facades\Route as R;
 
-$u    = auth()->user();
-$role = $u?->primaryRole()?->slug ?? 'guest';
+$u           = auth()->user();
+$role        = $u?->primaryRole()?->slug ?? 'guest';
 $displayName = $u?->name ?? 'Guest';
+$userJabatan = $u?->position ?: ($u?->roles?->first()?->name ?? ($u?->role ? ucwords(str_replace('_', ' ', $u->role)) : 'Staff'));
 
 // helper route aman
 $rl = function (string $name, array $params = []) {
@@ -21,6 +22,21 @@ $isFinance      = $isSuperAdmin || $u?->canSeeMenu('payment_advices') || $u?->ca
 $isLogistik     = $isSuperAdmin || $u?->canSeeMenu('stocks') || $u?->canSeeMenu('warehouses');
 $isHRIS         = $isSuperAdmin || $u?->canSeeMenu('departments') || $u?->canSeeMenu('employees') || $u?->canSeeMenu('hr_attendances') || $u?->canSeeMenu('hr_payroll');
 $isCEO          = $isSuperAdmin || $u?->hasRole('ceo');
+
+// Hitung total PO Request yang belum dibuatkan PO (Pending PO)
+$pendingPoCount = 0;
+if ($isProcurement) {
+    try {
+        $pendingPoCount = \App\Models\Erp\RequestForm::where('status', 'Approved')
+            ->whereHas('purchaseRequests', function ($q) {
+                $q->whereIn('status', ['Submitted', 'Completed']);
+            })
+            ->doesntHave('purchaseOrders')
+            ->count();
+    } catch (\Throwable $e) {
+        $pendingPoCount = 0;
+    }
+}
 
 // Master Data Checks
 $canSeeProducts  = $isSuperAdmin || $u?->canSeeMenu('products');
@@ -113,24 +129,30 @@ $isSystemOpen = request()->routeIs('erp.users.*')
 </style>
 
 <aside id="layout-menu" class="layout-menu menu-vertical menu bg-menu-theme">
-    <div class="app-brand demo">
-        <a href="{{ $rl($dashboardRoute) }}" class="app-brand-link">
+    <div class="app-brand demo" style="height: auto; min-height: 4.2rem; padding: 0.85rem 1.25rem;">
+        <a href="{{ $rl($dashboardRoute) }}" class="app-brand-link d-flex flex-column align-items-start justify-content-center text-decoration-none">
             <span
-                class="app-brand-text demo menu-text fw-bolder ms-2"
+                class="app-brand-text demo menu-text fw-bolder"
                 title="{{ $displayName }}"
                 style="
                     display:block;
-                    max-width:190px;
+                    max-width:185px;
                     white-space:normal;
                     overflow-wrap:anywhere;
-                    line-height:1.15;
-                    letter-spacing:0;
-                    font-size:1.5rem !important;
+                    line-height:1.2;
+                    letter-spacing:-0.01em;
+                    font-size:1.35rem !important;
                     text-transform:capitalize;
+                    color: #566a7f;
                 "
             >
-                {{ strtolower($displayName) }}
+                {{ $displayName }}
             </span>
+            <div class="d-flex align-items-center gap-1 mt-1">
+                <span class="badge bg-label-primary px-2 py-0.5 fw-semibold" style="font-size: 0.72rem; letter-spacing: 0.02em;">
+                    <i class="bx bx-user-check me-1" style="font-size: 0.75rem;"></i>{{ $userJabatan }}
+                </span>
+            </div>
         </a>
 
         <a href="javascript:void(0);" class="layout-menu-toggle menu-link text-large ms-auto d-block" title="Sembunyikan Menu">
@@ -248,16 +270,26 @@ $isSystemOpen = request()->routeIs('erp.users.*')
         {{-- 3. PROCUREMENT --}}
         @if($isProcurement)
         <li class="menu-item {{ $isProcurementOpen ? 'active open' : '' }}">
-            <a href="javascript:void(0);" class="menu-link menu-toggle">
-                <i class="menu-icon tf-icons bx bx-cart text-primary"></i>
-                <div class="text-truncate">Procurement</div>
+            <a href="javascript:void(0);" class="menu-link menu-toggle d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <i class="menu-icon tf-icons bx bx-cart text-primary"></i>
+                    <div class="text-truncate">Procurement</div>
+                </div>
+                @if($pendingPoCount > 0)
+                    <span class="badge bg-danger rounded-pill ms-auto me-2">{{ $pendingPoCount }}</span>
+                @endif
             </a>
             <ul class="menu-sub">
                 @if($isSuperAdmin || $u?->canSeeMenu('purchase_orders'))
                 <li class="menu-item {{ request()->routeIs('erp.procurement.dashboard') ? 'active' : '' }}">
-                    <a href="{{ $rl('erp.procurement.dashboard') }}" class="menu-link">
-                        <i class="bx bx-bell me-2"></i>
-                        <div class="text-truncate">PO Request</div>
+                    <a href="{{ $rl('erp.procurement.dashboard') }}" class="menu-link d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center">
+                            <i class="bx bx-bell me-2"></i>
+                            <div class="text-truncate">PO Request</div>
+                        </div>
+                        @if($pendingPoCount > 0)
+                            <span class="badge bg-danger rounded-pill ms-auto">{{ $pendingPoCount }}</span>
+                        @endif
                     </a>
                 </li>
                 <li class="menu-item {{ request()->routeIs('erp.purchase-orders.*') ? 'active' : '' }}">

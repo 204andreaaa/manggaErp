@@ -1,8 +1,8 @@
 {{-- resources/views/layouts/partials/navbar.blade.php --}}
 @php
-    $user      = auth()->user();
-    $userName  = $user?->name ?? 'Guest';
-    $userRole  = $user?->roles?->first()?->name ?? '-';
+    $user        = auth()->user();
+    $userName    = $user?->name ?? 'Guest';
+    $userJabatan = $user?->position ?: ($user?->roles?->first()?->name ?? ($user?->role ? ucwords(str_replace('_', ' ', $user->role)) : 'Staff'));
 @endphp
 
 <nav class="layout-navbar container-xxl navbar navbar-expand-xl navbar-detached align-items-center bg-navbar-theme" id="layout-navbar">
@@ -171,7 +171,7 @@
               </div>
               <div class="d-flex flex-column">
                 <span class="fw-semibold">{{ $userName }}</span>
-                <small class="text-muted">{{ $userRole }}</small>
+                <small class="text-muted">{{ $userJabatan }}</small>
               </div>
             </div>
           </li>
