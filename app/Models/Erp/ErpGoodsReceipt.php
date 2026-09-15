@@ -50,4 +50,12 @@ class ErpGoodsReceipt extends Model
     {
         return $this->belongsTo(User::class, 'owner_id');
     }
+
+    public function getStatusAttribute($value)
+    {
+        if (empty($value) || strtolower($value) === 'draft') {
+            return 'Recorded';
+        }
+        return $value;
+    }
 }

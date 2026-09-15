@@ -680,7 +680,7 @@
                   <td>{{ $gr->date ? \Carbon\Carbon::parse($gr->date)->format('Y/m/d') : '-' }}</td>
                   <td class="text-end fw-semibold">{{ number_format($gr->total_delivered_qty ?? $gr->items->sum('delivered_qty'), 2, ',', '.') }}</td>
                   <td class="text-end fw-bold text-success">{{ number_format($gr->total_received_qty ?? $gr->items->sum('received_qty'), 2, ',', '.') }}</td>
-                  <td><span class="badge {{ $gr->status === 'Received' ? 'bg-label-success' : 'bg-label-warning' }}">{{ $gr->status }}</span></td>
+                  <td><span class="badge {{ strtolower($gr->status) === 'received' ? 'bg-label-success' : 'bg-label-warning' }}">{{ strtoupper($gr->status === 'Draft' ? 'RECORDED' : $gr->status) }}</span></td>
                   <td>{{ $gr->remarks ?: '-' }}</td>
                 </tr>
               @empty

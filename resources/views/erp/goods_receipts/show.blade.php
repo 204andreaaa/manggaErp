@@ -132,10 +132,10 @@
       </div>
     </div>
     <div class="col-md-3 col-6">
-      <div class="card shadow-sm border-0 rounded-3 p-3 bg-white h-100 border-start border-4 border-warning">
+      <div class="card shadow-sm border-0 rounded-3 p-3 bg-white h-100 border-start border-4 {{ strtolower($goodsReceipt->status) === 'received' ? 'border-success' : 'border-warning' }}">
         <div class="text-muted small fw-semibold">STATUS</div>
         <div>
-          <span class="badge {{ $goodsReceipt->status === 'Received' ? 'bg-success' : 'bg-warning' }} px-3 py-1 fs-7 fw-bold">{{ $goodsReceipt->status }}</span>
+          <span class="badge {{ strtolower($goodsReceipt->status) === 'received' ? 'bg-success' : 'bg-warning' }} px-3 py-1 fs-7 fw-bold">{{ strtoupper($goodsReceipt->status === 'Draft' ? 'RECORDED' : $goodsReceipt->status) }}</span>
         </div>
       </div>
     </div>
@@ -214,7 +214,7 @@
                 </tr>
                 <tr>
                   <td class="text-muted fw-semibold">Status</td>
-                  <td>: <span class="badge {{ $goodsReceipt->status === 'Received' ? 'bg-success' : 'bg-warning' }}">{{ $goodsReceipt->status }}</span></td>
+                  <td>: <span class="badge {{ strtolower($goodsReceipt->status) === 'received' ? 'bg-success' : 'bg-warning' }}">{{ strtoupper($goodsReceipt->status === 'Draft' ? 'RECORDED' : $goodsReceipt->status) }}</span></td>
                 </tr>
                 <tr>
                   <td class="text-muted fw-semibold">Total Delivered Qty</td>
