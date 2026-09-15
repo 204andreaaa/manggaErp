@@ -115,6 +115,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('purchase-orders/{purchaseOrder}/unlock', [\App\Http\Controllers\Erp\ErpPurchaseOrderController::class, 'unlock'])->name('purchase-orders.unlock');
         Route::get('purchase-orders/{purchaseOrder}/print', [\App\Http\Controllers\Erp\ErpPurchaseOrderController::class, 'print'])->name('purchase-orders.print');
         Route::post('purchase-orders/{purchaseOrder}/verify', [\App\Http\Controllers\Erp\ErpPurchaseOrderController::class, 'verify'])->name('purchase-orders.verify');
+        Route::delete('purchase-orders/attachments/{attachment}', [\App\Http\Controllers\Erp\ErpPurchaseOrderController::class, 'destroyAttachment'])->name('purchase-orders.attachments.destroy');
 
         // Goods Receipts (Delivery Orders)
         Route::get('goods-receipts', fn() => redirect()->route('erp.purchase-orders.index'))->name('goods-receipts.index');

@@ -326,7 +326,58 @@
       {{-- Tab 4: Attachments & Instructions --}}
       <div class="tab-pane fade" id="tab-attachments" role="tabpanel">
         <h6 class="fw-bold mb-3 text-primary"><i class="bx bx-paperclip me-1"></i>Attachments & Special Instructions</h6>
-        <div class="row g-3">
+        
+        <div class="row g-4">
+          {{-- Existing Uploaded Attachments --}}
+          <div class="col-12">
+            <label class="form-label fw-semibold text-dark mb-2"><i class="bx bx-folder-open me-1 text-primary"></i>File yang Sudah Di-attach</label>
+            @php
+              $existingAttachments = $purchaseOrder->notesAttachments->where('type', 'attachment');
+            @endphp
+            @if($existingAttachments->count() > 0)
+              <div class="row g-2">
+                @foreach($existingAttachments as $att)
+                  @php
+                    $url = asset('storage/' . $att->file_path);
+                    $ext = strtolower(pathinfo($att->file_name ?? $att->file_path, PATHINFO_EXTENSION));
+                    $isImage = in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp']);
+                  @endphp
+                  <div class="col-md-6 col-12" id="attachment-item-{{ $att->id }}">
+                    <div class="border rounded-3 p-3 bg-white d-flex align-items-center justify-content-between shadow-sm">
+                      <div class="d-flex align-items-center text-truncate me-2">
+                        <div class="me-3 fs-3 text-{{ $isImage ? 'success' : ($ext === 'pdf' ? 'danger' : 'primary') }}">
+                          <i class="bx {{ $isImage ? 'bx-image' : ($ext === 'pdf' ? 'bxs-file-pdf' : 'bx-file') }}"></i>
+                        </div>
+                        <div class="text-truncate">
+                          <div class="fw-semibold text-dark text-truncate small" title="{{ $att->file_name }}">{{ $att->file_name }}</div>
+                          <div class="text-muted" style="font-size: 0.72rem;">
+                            Uploaded by {{ $att->user?->name ?: 'User' }} • {{ $att->created_at->format('d M Y H:i') }}
+                          </div>
+                        </div>
+                      </div>
+                      <div class="d-flex align-items-center gap-1">
+                        <button type="button" class="btn btn-sm btn-icon btn-label-primary rounded-circle" onclick="showAttachmentModal('{{ $url }}', '{{ addslashes($att->file_name) }}')" title="Preview File">
+                          <i class="bx bx-show"></i>
+                        </button>
+                        <a href="{{ $url }}" download="{{ $att->file_name }}" class="btn btn-sm btn-icon btn-label-secondary rounded-circle" title="Download File">
+                          <i class="bx bx-download"></i>
+                        </a>
+                        <button type="button" class="btn btn-sm btn-icon btn-label-danger rounded-circle" onclick="deleteAttachment({{ $att->id }})" title="Hapus File">
+                          <i class="bx bx-trash"></i>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                @endforeach
+              </div>
+            @else
+              <div class="p-3 bg-light rounded-3 text-muted small border text-center">
+                <i class="bx bx-info-circle me-1"></i>Belum ada file attachment yang tersimpan pada PO ini.
+              </div>
+            @endif
+          </div>
+
+          {{-- Upload New Attachments --}}
           <div class="col-md-6">
             <label class="form-label fw-semibold">Upload Additional Attachments</label>
             <div class="paste-dropzone" data-target="#po_attachments_edit_input">
@@ -476,5 +527,111 @@
       });
     }
   });
+
+  function showAttachmentModal(url, filename) {
+    const modalEl = document.getElementById('attachmentModal');
+    if (!modalEl) return;
+    const modal = new bootstrap.Modal(modalEl);
+    
+    document.getElementById('attachmentModalTitle').innerText = filename;
+    document.getElementById('attachmentIframe').style.display = 'none';
+    document.getElementById('attachmentImage').style.display = 'none';
+    document.getElementById('attachmentDownload').style.display = 'none';
+    document.getElementById('attachmentLoading').style.display = 'block';
+    
+    modal.show();
+    
+    const ext = filename.split('.').pop().toLowerCase();
+    const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext);
+    const isPdf = ['pdf'].includes(ext);
+    
+    setTimeout(() => {
+      document.getElementById('attachmentLoading').style.display = 'none';
+      if (isImage) {
+        const img = document.getElementById('attachmentImage');
+        img.src = url;
+        img.style.display = 'block';
+      } else if (isPdf) {
+        const iframe = document.getElementById('attachmentIframe');
+        iframe.src = url;
+        iframe.style.display = 'block';
+      } else {
+        document.getElementById('attachmentUnsupportedName').innerText = filename;
+        const btn = document.getElementById('attachmentDownloadBtn');
+        btn.href = url;
+        document.getElementById('attachmentDownload').style.display = 'block';
+      }
+    }, 300);
+  }
+
+  function deleteAttachment(id) {
+    Swal.fire({
+      title: 'Hapus Attachment?',
+      text: 'File yang dihapus tidak dapat dikembalikan.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ff3e1d',
+      cancelButtonColor: '#8592a3',
+      confirmButtonText: 'Ya, Hapus!',
+      cancelButtonText: 'Batal'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
+        fetch(`{{ url('erp/purchase-orders/attachments') }}/${id}`, {
+          method: 'DELETE',
+          headers: {
+            'X-CSRF-TOKEN': csrfToken,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        })
+        .then(response => {
+          if (response.ok || response.redirected) {
+            const item = document.getElementById(`attachment-item-${id}`);
+            if (item) {
+              item.remove();
+            }
+            Swal.fire({
+              icon: 'success',
+              title: 'Terhapus!',
+              text: 'File attachment berhasil dihapus.',
+              timer: 1500,
+              showConfirmButton: false
+            });
+          } else {
+            throw new Error('Gagal menghapus file.');
+          }
+        })
+        .catch(err => {
+          Swal.fire('Error', err.message || 'Terjadi kesalahan saat menghapus.', 'error');
+        });
+      }
+    });
+  }
 </script>
+
+{{-- Modal Attachment Preview --}}
+<div class="modal fade" id="attachmentModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content rounded-4 overflow-hidden shadow-lg border-0">
+      <div class="modal-header border-bottom bg-light py-3">
+        <h5 class="modal-title fw-bold text-dark" id="attachmentModalTitle">Preview Attachment</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0 text-center bg-light" style="min-height: 400px; max-height: 80vh; overflow: auto; display: flex; align-items: center; justify-content: center;">
+        <div id="attachmentLoading" class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+        <iframe id="attachmentIframe" src="" style="width: 100%; height: 75vh; border: none; display: none;"></iframe>
+        <img id="attachmentImage" src="" style="max-width: 100%; max-height: 75vh; display: none;" />
+        <div id="attachmentDownload" class="p-4" style="display: none;">
+          <i class="bx bx-file" style="font-size: 4rem; color: #4f46e5;"></i>
+          <h6 class="mt-3 mb-1" id="attachmentUnsupportedName">Filename.ext</h6>
+          <p class="text-muted small mb-3">Preview not available for this file type.</p>
+          <a href="#" id="attachmentDownloadBtn" class="btn btn-primary btn-sm rounded-pill px-3" target="_blank" download>Download File</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 @endsection

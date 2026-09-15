@@ -734,35 +734,88 @@
       <div class="tab-pane fade" id="tab-payments" role="tabpanel">
         
         {{-- Attachments Section --}}
-        <h6 class="fw-bold mb-3 text-primary"><i class="bx bx-paperclip me-1"></i>Uploaded Attachments</h6>
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <h6 class="fw-bold mb-0 text-primary"><i class="bx bx-paperclip me-1"></i>Uploaded Attachments</h6>
+        </div>
         <div class="row g-3 mb-4">
           @php
-            $attachments = is_array($purchaseOrder->attachments) ? $purchaseOrder->attachments : json_decode($purchaseOrder->attachments ?? '[]', true);
+            $legacyAttachments = is_array($purchaseOrder->attachments) ? $purchaseOrder->attachments : json_decode($purchaseOrder->attachments ?? '[]', true);
+            $noteAttachments = $purchaseOrder->notesAttachments->where('type', 'attachment');
+            $hasAnyAttachments = ($noteAttachments->count() > 0) || (is_array($legacyAttachments) && count($legacyAttachments) > 0);
           @endphp
-          @forelse($attachments as $att)
-            @php
-              $path = is_string($att) ? $att : ($att['path'] ?? '');
-              $filename = is_string($att) ? basename($att) : ($att['name'] ?? basename($path));
-              $url = asset('storage/' . $path);
-            @endphp
-            <div class="col-md-4 col-6">
-              <div class="border rounded-3 p-3 bg-light d-flex align-items-center justify-content-between">
-                <div class="d-flex align-items-center text-truncate me-2">
-                  <i class="bx bx-file text-primary fs-3 me-2"></i>
-                  <span class="small fw-semibold text-dark text-truncate">{{ $filename }}</span>
+
+          @if($hasAnyAttachments)
+            {{-- Render morph notes attachments --}}
+            @foreach($noteAttachments as $att)
+              @php
+                $url = asset('storage/' . $att->file_path);
+                $ext = strtolower(pathinfo($att->file_name ?? $att->file_path, PATHINFO_EXTENSION));
+                $isImage = in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp']);
+              @endphp
+              <div class="col-md-4 col-sm-6 col-12">
+                <div class="border rounded-3 p-3 bg-white d-flex align-items-center justify-content-between shadow-sm h-100">
+                  <div class="d-flex align-items-center text-truncate me-2">
+                    <div class="me-2 fs-3 text-{{ $isImage ? 'success' : ($ext === 'pdf' ? 'danger' : 'primary') }}">
+                      <i class="bx {{ $isImage ? 'bx-image' : ($ext === 'pdf' ? 'bxs-file-pdf' : 'bx-file') }}"></i>
+                    </div>
+                    <div class="text-truncate">
+                      <div class="small fw-semibold text-dark text-truncate" title="{{ $att->file_name }}">{{ $att->file_name }}</div>
+                      <div class="text-muted" style="font-size: 0.72rem;">
+                        {{ $att->user?->name ?: 'User' }} • {{ $att->created_at->format('d M Y H:i') }}
+                      </div>
+                    </div>
+                  </div>
+                  <div class="d-flex align-items-center gap-1">
+                    <button type="button" class="btn btn-sm btn-icon btn-label-primary rounded-circle" onclick="showAttachmentModal('{{ $url }}', '{{ addslashes($att->file_name) }}')" title="Preview">
+                      <i class="bx bx-show"></i>
+                    </button>
+                    <a href="{{ $url }}" download="{{ $att->file_name }}" class="btn btn-sm btn-icon btn-label-secondary rounded-circle" title="Download">
+                      <i class="bx bx-download"></i>
+                    </a>
+                  </div>
                 </div>
-                <button type="button" class="btn btn-sm btn-icon btn-label-primary rounded-circle" onclick="showAttachmentModal('{{ $url }}', '{{ $filename }}')">
-                  <i class="bx bx-show"></i>
-                </button>
               </div>
-            </div>
-          @empty
+            @endforeach
+
+            {{-- Render legacy attachments if any --}}
+            @if(is_array($legacyAttachments))
+              @foreach($legacyAttachments as $att)
+                @php
+                  $path = is_string($att) ? $att : ($att['path'] ?? '');
+                  $filename = is_string($att) ? basename($att) : ($att['name'] ?? basename($path));
+                  $url = asset('storage/' . $path);
+                  $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+                  $isImage = in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp']);
+                @endphp
+                <div class="col-md-4 col-sm-6 col-12">
+                  <div class="border rounded-3 p-3 bg-white d-flex align-items-center justify-content-between shadow-sm h-100">
+                    <div class="d-flex align-items-center text-truncate me-2">
+                      <div class="me-2 fs-3 text-{{ $isImage ? 'success' : ($ext === 'pdf' ? 'danger' : 'primary') }}">
+                        <i class="bx {{ $isImage ? 'bx-image' : ($ext === 'pdf' ? 'bxs-file-pdf' : 'bx-file') }}"></i>
+                      </div>
+                      <div class="text-truncate">
+                        <div class="small fw-semibold text-dark text-truncate" title="{{ $filename }}">{{ $filename }}</div>
+                      </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-1">
+                      <button type="button" class="btn btn-sm btn-icon btn-label-primary rounded-circle" onclick="showAttachmentModal('{{ $url }}', '{{ addslashes($filename) }}')" title="Preview">
+                        <i class="bx bx-show"></i>
+                      </button>
+                      <a href="{{ $url }}" download="{{ $filename }}" class="btn btn-sm btn-icon btn-label-secondary rounded-circle" title="Download">
+                        <i class="bx bx-download"></i>
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              @endforeach
+            @endif
+          @else
             <div class="col-12">
               <div class="text-muted small p-3 bg-light rounded-3 text-center border">
-                No attachments uploaded for this Purchase Order.
+                <i class="bx bx-info-circle me-1"></i>No attachments uploaded for this Purchase Order.
               </div>
             </div>
-          @endforelse
+          @endif
         </div>
 
         {{-- Payment Advice Section --}}

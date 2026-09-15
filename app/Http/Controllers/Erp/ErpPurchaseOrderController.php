@@ -219,7 +219,7 @@ class ErpPurchaseOrderController extends Controller
             return redirect()->route('erp.purchase-orders.show', $purchaseOrder)->with('error', 'Only Draft or Rejected PO Requests can be edited.');
         }
 
-        $purchaseOrder->load(['requestForm.items.erpProduct.uom', 'items.requestFormItem.erpProduct.uom']);
+        $purchaseOrder->load(['requestForm.items.erpProduct.uom', 'items.requestFormItem.erpProduct.uom', 'notesAttachments.user']);
         $requestForm = $purchaseOrder->requestForm;
         
         $suppliers = ErpSupplier::with(['paymentTerm', 'contacts'])->get();
@@ -381,10 +381,28 @@ class ErpPurchaseOrderController extends Controller
             'approvals.assignedUser',
             'approvals.actualApprover',
             'approvals.assignedRole',
-            'goodsReceipts.owner'
+            'goodsReceipts.owner',
+            'notesAttachments.user'
         ]);
 
         return view('erp.purchase_orders.show', compact('purchaseOrder'));
+    }
+
+    public function destroyAttachment(\App\Models\Erp\ErpNoteAttachment $attachment)
+    {
+        abort_unless(
+            auth()->user()->hasRole(['procurement', 'superadmin']) || auth()->user()->hasPermission('purchase_orders.update'),
+            403,
+            'Unauthorized'
+        );
+
+        if ($attachment->file_path) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($attachment->file_path);
+        }
+
+        $attachment->delete();
+
+        return redirect()->back()->with('success', 'Attachment deleted successfully.');
     }
 
     public function print(ErpPurchaseOrder $purchaseOrder)
