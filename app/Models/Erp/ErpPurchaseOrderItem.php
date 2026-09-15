@@ -44,7 +44,7 @@ class ErpPurchaseOrderItem extends Model
     {
         return (float) ErpGoodsReceiptItem::where('erp_purchase_order_item_id', $this->id)
             ->whereHas('goodsReceipt', function($q) {
-                $q->where('status', 'Received');
+                $q->whereIn('status', ['Received', 'Recorded', 'Draft', 'received', 'recorded', 'draft']);
             })
             ->sum('received_qty');
     }
