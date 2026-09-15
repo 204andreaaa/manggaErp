@@ -20,6 +20,7 @@ class ErpPaymentAdviceDetail extends Model
         'date_paid',
         'invoice_no',
         'invoice_attachment',
+        'submitted_by_id',
         'payment_receipt',
         'payment_amount',
         'payment_amount_with_tax',
@@ -43,6 +44,11 @@ class ErpPaymentAdviceDetail extends Model
     public function paymentAdvice()
     {
         return $this->belongsTo(ErpPaymentAdvice::class, 'erp_payment_advice_id');
+    }
+
+    public function submittedBy()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'submitted_by_id');
     }
 
     public function purchaseOrder()

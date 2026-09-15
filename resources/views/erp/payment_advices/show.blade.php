@@ -434,15 +434,15 @@
                               <i class="bx bx-check-circle me-1"></i> Submitted
                             </td>
                           </tr>
-                          <tr class="bg-white">
-                            <td>-</td>
-                            <td>{{ $detail->created_date_sid ? \Carbon\Carbon::parse($detail->created_date_sid)->format('Y-m-d H:i') : $detail->created_at->format('Y-m-d H:i') }}</td>
-                            <td><span class="badge bg-label-info">Submitted</span></td>
-                            <td>{{ $paymentAdvice->owner?->name ?: 'Finance' }}</td>
-                            <td>{{ $paymentAdvice->owner?->name ?: 'Finance' }}</td>
-                            <td>Termin Submitted for approval</td>
-                            <td class="text-center"></td>
-                          </tr>
+                            <tr class="bg-white">
+                              <td>-</td>
+                              <td>{{ $detail->created_date_sid ? \Carbon\Carbon::parse($detail->created_date_sid)->format('Y-m-d H:i') : $detail->created_at->format('Y-m-d H:i') }}</td>
+                              <td><span class="badge bg-label-info">Submitted</span></td>
+                              <td>{{ $detail->submittedBy?->name ?: (auth()->user()?->hasRole('finance') ? auth()->user()->name : 'Finance Staff') }}</td>
+                              <td>{{ $detail->submittedBy?->name ?: (auth()->user()?->hasRole('finance') ? auth()->user()->name : 'Finance Staff') }}</td>
+                              <td>Termin Submitted for approval</td>
+                              <td class="text-center"></td>
+                            </tr>
 
                           {{-- Approval Steps --}}
                           @foreach($detail->approvals->sortBy('level') as $approval)

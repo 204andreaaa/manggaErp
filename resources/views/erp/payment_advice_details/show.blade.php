@@ -289,7 +289,7 @@
                       @endif
                     </td>
                   </tr>
-                  <tr class="border-top"><td class="text-muted ps-4 py-2">Created By</td><td class="py-2 text-dark">{{ $paymentAdviceDetail->paymentAdvice->owner?->name ?? 'Admin' }}</td></tr>
+                  <tr class="border-top"><td class="text-muted ps-4 py-2">Submitted By (Finance)</td><td class="py-2 text-dark fw-semibold">{{ $paymentAdviceDetail->submittedBy?->name ?: (auth()->user()?->hasRole('finance') ? auth()->user()->name : 'Finance Staff') }}</td></tr>
                   <tr class="border-top"><td class="text-muted ps-4 py-2">Tgl Dibuat</td><td class="py-2 text-muted">{{ $paymentAdviceDetail->created_at->format('d M Y, H:i') }}</td></tr>
                 </tbody>
               </table>
@@ -355,8 +355,8 @@
               <td>-</td>
               <td>{{ $paymentAdviceDetail->created_date_sid ? \Carbon\Carbon::parse($paymentAdviceDetail->created_date_sid)->format('Y-m-d H:i') : $paymentAdviceDetail->created_at->format('Y-m-d H:i') }}</td>
               <td><span class="badge bg-label-info">Submitted</span></td>
-              <td>{{ $paymentAdviceDetail->paymentAdvice->owner?->name ?: 'Finance' }}</td>
-              <td>{{ $paymentAdviceDetail->paymentAdvice->owner?->name ?: 'Finance' }}</td>
+              <td>{{ $paymentAdviceDetail->submittedBy?->name ?: (auth()->user()?->hasRole('finance') ? auth()->user()->name : 'Finance Staff') }}</td>
+              <td>{{ $paymentAdviceDetail->submittedBy?->name ?: (auth()->user()?->hasRole('finance') ? auth()->user()->name : 'Finance Staff') }}</td>
               <td>Termin Submitted for approval</td>
               <td class="text-center"></td>
             </tr>

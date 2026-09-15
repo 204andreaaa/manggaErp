@@ -357,6 +357,7 @@ class ErpPaymentAdviceController extends Controller
             $updateData = [
                 'invoice_no' => $invoiceNo,
                 'erp_goods_receipt_id' => $grId,
+                'submitted_by_id' => auth()->id(),
                 'approval_status' => 'Submitted'
             ];
 

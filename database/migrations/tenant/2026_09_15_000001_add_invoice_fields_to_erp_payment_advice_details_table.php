@@ -19,6 +19,9 @@ return new class extends Migration
                 if (!Schema::hasColumn('erp_payment_advice_details', 'invoice_attachment')) {
                     $table->string('invoice_attachment', 255)->nullable()->after('invoice_no');
                 }
+                if (!Schema::hasColumn('erp_payment_advice_details', 'submitted_by_id')) {
+                    $table->unsignedBigInteger('submitted_by_id')->nullable()->after('invoice_attachment');
+                }
             });
         }
     }
