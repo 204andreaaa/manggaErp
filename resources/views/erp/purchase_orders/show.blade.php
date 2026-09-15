@@ -148,46 +148,6 @@
             <i class="bx bx-lock-alt me-1"></i>Submit for Approval
           </button>
         @endif
-      @elseif($purchaseOrder->status === 'Submitted')
-        @php
-          $user = auth()->user();
-          $canApprove = false;
-          $activeApproval = $purchaseOrder->approvals()->where('status', 'Pending')->first();
-          if ($activeApproval) {
-              if ($user->hasRole('superadmin')) {
-                  $canApprove = true;
-              } elseif ($activeApproval->assigned_to_user_id && $user->id == $activeApproval->assigned_to_user_id) {
-                  $canApprove = true;
-              } elseif ($activeApproval->assigned_to_role_id) {
-                  $hasRole = \Illuminate\Support\Facades\DB::connection('tenant')
-                      ->table('role_user')
-                      ->where('user_id', $user->id)
-                      ->where('role_id', $activeApproval->assigned_to_role_id)
-                      ->exists();
-                  if ($hasRole) {
-                      $canApprove = true;
-                  }
-              }
-          } else {
-              if ($purchaseOrder->total_po_amount_with_tax <= 1000000) {
-                  if ($user->hasRole('procurement') || $user->hasRole('superadmin')) {
-                      $canApprove = true;
-                  }
-              } else {
-                  if ($user->hasRole('ceo') || $user->hasRole('superadmin')) {
-                      $canApprove = true;
-                  }
-              }
-          }
-        @endphp
-        @if($canApprove)
-          <button type="button" class="btn btn-success btn-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#approvePoModal">
-            <i class="bx bx-check me-1"></i>Approve PO
-          </button>
-          <button type="button" class="btn btn-danger btn-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#rejectPoModal">
-            <i class="bx bx-x me-1"></i>Reject PO
-          </button>
-        @endif
       @endif
 
       {{-- Goods Receipt Button (Only for Logistik / GA / Warehouse / Superadmin) --}}
@@ -890,56 +850,6 @@
 
     </div>
 
-  </div>
-
-  {{-- Modal Approve PO --}}
-  <div class="modal fade" id="approvePoModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <form action="{{ route('erp.purchase-orders.approve', $purchaseOrder) }}" method="POST" class="modal-content shadow-lg border-0 rounded-4">
-        @csrf
-        <div class="modal-header border-bottom bg-success bg-opacity-10 py-3">
-          <h5 class="modal-title fw-bold text-success"><i class="bx bx-check-circle me-1"></i>Approve PO: {{ $purchaseOrder->po_no }}</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body p-4">
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Comments / Approval Notes</label>
-            <textarea name="comments" class="form-control rounded-3" rows="3" placeholder="Enter optional approval note..."></textarea>
-          </div>
-        </div>
-        <div class="modal-footer border-top bg-light py-3">
-          <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-success text-white px-4 shadow-sm">
-            <i class="bx bx-check me-1"></i>Approve PO
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  {{-- Modal Reject PO --}}
-  <div class="modal fade" id="rejectPoModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <form action="{{ route('erp.purchase-orders.reject', $purchaseOrder) }}" method="POST" class="modal-content shadow-lg border-0 rounded-4">
-        @csrf
-        <div class="modal-header border-bottom bg-danger bg-opacity-10 py-3">
-          <h5 class="modal-title fw-bold text-danger"><i class="bx bx-x-circle me-1"></i>Reject PO: {{ $purchaseOrder->po_no }}</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body p-4">
-          <div class="mb-3">
-            <label class="form-label fw-semibold text-danger">Rejection Reason / Comments <span class="text-danger">*</span></label>
-            <textarea name="comments" class="form-control rounded-3" rows="3" required placeholder="Describe why this PO is being rejected..."></textarea>
-          </div>
-        </div>
-        <div class="modal-footer border-top bg-light py-3">
-          <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-danger text-white px-4 shadow-sm">
-            <i class="bx bx-x me-1"></i>Reject PO
-          </button>
-        </div>
-      </form>
-    </div>
   </div>
 
   {{-- Modal Attachment Preview --}}
