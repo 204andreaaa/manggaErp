@@ -35,7 +35,7 @@ return [
             'route'       => 'erp.request-form.index',
             'group'       => 'procurement',
             'icon'        => 'bx bx-file-blank',
-            'permissions' => ['request_forms.view', 'request_forms.create', 'request_forms.update', 'request_forms.delete', 'request_forms.submit', 'request_forms.approve', 'request_forms.reject'],
+            'permissions' => ['request_forms.view', 'request_forms.create', 'request_forms.update', 'request_forms.delete', 'request_forms.submit', 'request_forms.approve', 'request_forms.reject', 'request_forms.create_pr', 'request_forms.delete_pr'],
         ],
         [
             'key'         => 'purchase_orders',

@@ -80,13 +80,19 @@
         </form>
       @endif
       
-      @if(auth()->user()->hasRole(['logistik', 'superadmin']) && $rf->status === 'Approved')
+      @php
+        $authUser = auth()->user();
+        $canCreatePr = $rf->status === 'Approved' && ($authUser->hasRole(['logistik', 'superadmin']) || $authUser->hasPermission('request_forms.create_pr'));
+        $canCreatePo = $rf->status === 'Approved' && ($authUser->hasRole(['procurement', 'superadmin']) || $authUser->hasPermission('purchase_orders.create')) && $rf->purchaseRequests->where('status', 'Completed')->count() > 0;
+      @endphp
+      
+      @if($canCreatePr)
         <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#createPrModal">
           <i class="bx bx-plus me-1"></i>Create PR
         </button>
       @endif
 
-      @if(auth()->user()->hasRole(['procurement', 'superadmin']) && $rf->status === 'Approved' && $rf->purchaseRequests->where('status', 'Completed')->count() > 0)
+      @if($canCreatePo)
         <a href="{{ route('erp.purchase-orders.create', $rf) }}" class="btn btn-sm btn-success">
           <i class="bx bx-cart me-1"></i>Create PO
         </a>
@@ -565,7 +571,11 @@
                 <h6 class="fw-bold mb-0 text-danger">Purchase Requests (PR) Status</h6>
               </div>
 
-              @if($rf->status === 'Approved' && auth()->user()->hasRole(['logistik', 'superadmin']))
+              @php
+                $canDeletePr = $authUser->hasRole(['logistik', 'superadmin']) || $authUser->hasPermission('request_forms.delete_pr');
+              @endphp
+
+              @if($canCreatePr)
                 <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#createPrModal">
                   <i class="bx bx-plus me-1"></i>Create PR
                 </button>
@@ -576,7 +586,9 @@
               <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                   <tr>
-                    <th>Action</th>
+                    @if($canDeletePr)
+                      <th style="width: 80px;">Action</th>
+                    @endif
                     <th>PR No</th>
                     <th>Requestor</th>
                     <th>Date</th>
@@ -586,12 +598,14 @@
                 <tbody>
                   @forelse($rf->purchaseRequests as $pr)
                     <tr>
-                      <td>
-                        <form action="{{ route('erp.purchase-requests.destroy', $pr) }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin menghapus PR ini?')">
-                          @csrf @method('DELETE')
-                          <button type="submit" class="btn btn-sm btn-outline-danger py-1 px-2"><i class="bx bx-trash me-1"></i>Del</button>
-                        </form>
-                      </td>
+                      @if($canDeletePr)
+                        <td>
+                          <form action="{{ route('erp.purchase-requests.destroy', $pr) }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin menghapus PR ini?')">
+                            @csrf @method('DELETE')
+                            <button type="submit" class="btn btn-sm btn-outline-danger py-1 px-2"><i class="bx bx-trash me-1"></i>Del</button>
+                          </form>
+                        </td>
+                      @endif
                       <td>
                         <a href="{{ route('erp.purchase-requests.show', $pr) }}" class="fw-bold text-primary text-decoration-none">{{ $pr->pr_no }}</a>
                       </td>
@@ -600,7 +614,7 @@
                       <td><span class="badge bg-label-success">{{ $pr->status }}</span></td>
                     </tr>
                   @empty
-                    <tr><td colspan="5" class="text-center text-muted py-4">Belum ada Purchase Request (PR) yang dibuat.</td></tr>
+                    <tr><td colspan="{{ $canDeletePr ? 5 : 4 }}" class="text-center text-muted py-4">Belum ada Purchase Request (PR) yang dibuat.</td></tr>
                   @endforelse
                 </tbody>
               </table>
@@ -756,6 +770,7 @@
   </div>
 </div>
 
+@if($canCreatePr)
 {{-- Modal Create PR --}}
 <div class="modal fade" id="createPrModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -863,6 +878,7 @@
     </div>
   </div>
 </div>
+@endif
 
 {{-- Modal View Attachment --}}
 <div class="modal fade" id="attachmentModal" tabindex="-1" aria-hidden="true">

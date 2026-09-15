@@ -12,7 +12,12 @@ class PurchaseRequestController extends Controller
 {
     public function store(Request $request, RequestForm $requestForm)
     {
-        abort_unless(auth()->user()->hasRole(['logistik', 'superadmin']), 403, 'Hanya Logistik atau Super Admin yang dapat membuat PR.');
+        $u = auth()->user();
+        abort_unless(
+            $u->hasRole(['logistik', 'superadmin']) || $u->hasPermission('request_forms.create_pr'),
+            403,
+            'Hanya Logistik atau Super Admin yang dapat membuat PR.'
+        );
 
         $data = $request->validate([
             'expense_material_equipment' => 'nullable|boolean',
@@ -80,6 +85,15 @@ class PurchaseRequestController extends Controller
     
     public function destroy(PurchaseRequest $purchaseRequest)
     {
+        $u = auth()->user();
+        abort_unless(
+            $u->hasRole(['logistik', 'superadmin']) || 
+            $u->hasPermission('request_forms.delete_pr') ||
+            ($u->hasRole('logistik') && strtolower($u->name) === strtolower($purchaseRequest->requestor)),
+            403,
+            'Hanya divisi Logistik atau Super Admin yang berhak menghapus Purchase Request ini.'
+        );
+
         DB::transaction(function() use ($purchaseRequest) {
             foreach ($purchaseRequest->items as $prItem) {
                 $rfItem = $prItem->requestFormItem;

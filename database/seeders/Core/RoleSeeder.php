@@ -110,7 +110,7 @@ class RoleSeeder extends Seeder
             'logistik' => [
                 'menu_keys'   => ['request_forms', 'goods_receipts', 'stocks', 'warehouses', 'products', 'uoms'],
                 'permissions' => [
-                    'request_forms.view', 'request_forms.create', 'request_forms.submit',
+                    'request_forms.view', 'request_forms.create', 'request_forms.submit', 'request_forms.create_pr', 'request_forms.delete_pr',
                     'goods_receipts.view', 'goods_receipts.create', 'goods_receipts.update', 'goods_receipts.verify', 'goods_receipts.print',
                     'stocks.view', 'stocks.adjust',
                     'warehouses.view', 'warehouses.create', 'warehouses.update', 'warehouses.delete',
