@@ -309,11 +309,13 @@ class ErpPurchaseOrderController extends Controller
                 'other_instructions' => $data['other_instructions'] ?? null,
                 'remarks_print' => $data['remarks_print'] ?? null,
                 
-                // Reset status to Draft if it was Rejected
+                // Reset status to Draft and reset verification if PO was edited/rejected
                 'status' => 'Draft',
                 'rejected_date' => null,
                 'approved_date' => null,
                 'submitted_date' => null,
+                'verified_by_id' => null,
+                'verification_timestamp' => null,
             ]);
 
             // Clear existing items and recreate
@@ -725,6 +727,8 @@ class ErpPurchaseOrderController extends Controller
             $purchaseOrder->update([
                 'status' => 'Rejected',
                 'rejected_date' => now(),
+                'verified_by_id' => null,
+                'verification_timestamp' => null,
             ]);
 
             if ($purchaseOrder->owner_id && $purchaseOrder->owner_id !== $user->id) {
@@ -772,6 +776,8 @@ class ErpPurchaseOrderController extends Controller
         $purchaseOrder->update([
             'status' => 'Rejected',
             'rejected_date' => now(),
+            'verified_by_id' => null,
+            'verification_timestamp' => null,
             'description' => $purchaseOrder->description . "\nRejection Reason: " . $request->input('comments'),
         ]);
 
