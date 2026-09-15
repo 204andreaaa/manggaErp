@@ -314,7 +314,11 @@ class ErpPaymentAdviceController extends Controller
         if ($request->hasFile('invoice_attachment')) {
             $file = $request->file('invoice_attachment');
             $filename = 'inv_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-            $file->move(public_path('uploads/invoices'), $filename);
+            $destDir = public_path('uploads/invoices');
+            if (!file_exists($destDir)) {
+                mkdir($destDir, 0755, true);
+            }
+            $file->move($destDir, $filename);
             $updateData['invoice_attachment'] = 'uploads/invoices/' . $filename;
         }
 
@@ -359,7 +363,11 @@ class ErpPaymentAdviceController extends Controller
             if ($request->hasFile('invoice_attachment')) {
                 $file = $request->file('invoice_attachment');
                 $filename = 'inv_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-                $file->move(public_path('uploads/invoices'), $filename);
+                $destDir = public_path('uploads/invoices');
+                if (!file_exists($destDir)) {
+                    mkdir($destDir, 0755, true);
+                }
+                $file->move($destDir, $filename);
                 $updateData['invoice_attachment'] = 'uploads/invoices/' . $filename;
             }
 
