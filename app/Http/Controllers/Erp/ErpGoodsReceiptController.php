@@ -13,7 +13,11 @@ class ErpGoodsReceiptController extends Controller
 {
     public function create(ErpPurchaseOrder $purchaseOrder)
     {
-        abort_unless(auth()->user()->hasRole(['logistik', 'warehouse', 'ga', 'admin_project', 'superadmin']), 403);
+        abort_unless(
+            auth()->user()->hasRole(['logistik', 'warehouse', 'ga', 'superadmin']) || auth()->user()->hasPermission('goods_receipts.create'),
+            403,
+            'Hanya divisi GA, Logistik, Warehouse atau user dengan izin goods_receipts.create yang dapat membuat Goods Receipt (GR).'
+        );
 
         $purchaseOrder->load(['items.requestFormItem.erpProduct.uom', 'supplier', 'warehouse', 'goodsReceipts.items']);
 
@@ -30,7 +34,11 @@ class ErpGoodsReceiptController extends Controller
 
     public function store(Request $request, ErpPurchaseOrder $purchaseOrder)
     {
-        abort_unless(auth()->user()->hasRole(['logistik', 'warehouse', 'ga', 'admin_project', 'superadmin']), 403);
+        abort_unless(
+            auth()->user()->hasRole(['logistik', 'warehouse', 'ga', 'superadmin']) || auth()->user()->hasPermission('goods_receipts.create'),
+            403,
+            'Hanya divisi GA, Logistik, Warehouse atau user dengan izin goods_receipts.create yang dapat membuat Goods Receipt (GR).'
+        );
 
         $purchaseOrder->load(['items.requestFormItem.erpProduct', 'goodsReceipts.items']);
 

@@ -150,8 +150,11 @@
         @endif
       @endif
 
-      {{-- Goods Receipt Button (Only for Logistik / GA / Warehouse / Superadmin) --}}
-      @if(($purchaseOrder->status === 'Approved' || $purchaseOrder->status === 'Completed') && !$purchaseOrder->is_gr_completed && auth()->user()->hasRole(['logistik', 'warehouse', 'ga', 'admin_project', 'superadmin']))
+      {{-- Goods Receipt Button (Only for Logistik / GA / Warehouse / Superadmin or goods_receipts.create permission) --}}
+      @php
+        $canCreateGr = auth()->user()->hasRole(['logistik', 'warehouse', 'ga', 'superadmin']) || auth()->user()->hasPermission('goods_receipts.create');
+      @endphp
+      @if(($purchaseOrder->status === 'Approved' || $purchaseOrder->status === 'Completed') && !$purchaseOrder->is_gr_completed && $canCreateGr)
         <a href="{{ route('erp.goods-receipts.create', $purchaseOrder) }}" class="btn btn-success btn-sm rounded-pill px-3">
           <i class="bx bx-package me-1"></i>Create Goods Receipt
         </a>
@@ -645,7 +648,7 @@
       <div class="tab-pane fade" id="tab-do" role="tabpanel">
         <div class="d-flex align-items-center justify-content-between mb-3">
           <h6 class="fw-bold mb-0 text-primary"><i class="bx bx-truck me-1"></i>Goods Receipt & Delivery Orders</h6>
-          @if(($purchaseOrder->status === 'Approved' || $purchaseOrder->status === 'Completed') && !$purchaseOrder->is_gr_completed && auth()->user()->hasRole(['logistik', 'warehouse', 'ga', 'admin_project', 'superadmin']))
+          @if(($purchaseOrder->status === 'Approved' || $purchaseOrder->status === 'Completed') && !$purchaseOrder->is_gr_completed && (auth()->user()->hasRole(['logistik', 'warehouse', 'ga', 'superadmin']) || auth()->user()->hasPermission('goods_receipts.create')))
             <a href="{{ route('erp.goods-receipts.create', $purchaseOrder) }}" class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm">
               <i class="bx bx-plus me-1"></i>New Goods Receipt
             </a>
