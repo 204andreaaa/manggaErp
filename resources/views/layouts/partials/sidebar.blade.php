@@ -38,6 +38,20 @@ if ($isProcurement) {
     }
 }
 
+// Hitung total PO Approved yang siap/menunggu dibuatkan GR (Pending GR / Open PO)
+$pendingGrCount = 0;
+if ($isGA || $isLogistik) {
+    try {
+        $pendingGrCount = \App\Models\Erp\ErpPurchaseOrder::where('status', 'Approved')
+            ->where(function ($q) {
+                $q->where('gr', false)->orWhereNull('gr');
+            })
+            ->count();
+    } catch (\Throwable $e) {
+        $pendingGrCount = 0;
+    }
+}
+
 // Master Data Checks
 $canSeeProducts  = $isSuperAdmin || $u?->canSeeMenu('products');
 $canSeeUoms      = $isSuperAdmin || $u?->canSeeMenu('uoms');
@@ -243,16 +257,26 @@ $isSystemOpen = request()->routeIs('erp.users.*')
         {{-- 2. GENERAL AFFAIR (GA) --}}
         @if($isGA)
         <li class="menu-item {{ $isGaOpen ? 'active open' : '' }}">
-            <a href="javascript:void(0);" class="menu-link menu-toggle">
-                <i class="menu-icon tf-icons bx bx-shield-quarter text-secondary"></i>
-                <div class="text-truncate">General Affair (GA)</div>
+            <a href="javascript:void(0);" class="menu-link menu-toggle d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <i class="menu-icon tf-icons bx bx-shield-quarter text-secondary"></i>
+                    <div class="text-truncate">General Affair (GA)</div>
+                </div>
+                @if($pendingGrCount > 0)
+                    <span class="badge bg-label-info rounded-pill ms-auto me-2" title="{{ $pendingGrCount }} PO Menunggu Kedatangan Barang">{{ $pendingGrCount }}</span>
+                @endif
             </a>
             <ul class="menu-sub">
                 @if($isSuperAdmin || $u?->canSeeMenu('goods_receipts'))
                 <li class="menu-item {{ request()->routeIs('erp.goods-receipts.*') ? 'active' : '' }}">
-                    <a href="{{ $rl('erp.goods-receipts.index') }}" class="menu-link">
-                        <i class="bx bx-package me-2"></i>
-                        <div class="text-truncate">Penerimaan Barang (GR/DO)</div>
+                    <a href="{{ $rl('erp.goods-receipts.index') }}" class="menu-link d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center">
+                            <i class="bx bx-package me-2"></i>
+                            <div class="text-truncate">Penerimaan Barang (GR/DO)</div>
+                        </div>
+                        @if($pendingGrCount > 0)
+                            <span class="badge bg-label-info rounded-pill ms-auto" title="{{ $pendingGrCount }} PO Menunggu Penerimaan">{{ $pendingGrCount }}</span>
+                        @endif
                     </a>
                 </li>
                 @endif

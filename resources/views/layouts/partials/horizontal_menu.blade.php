@@ -36,6 +36,20 @@ if ($isProcurement) {
         $pendingPoCount = 0;
     }
 }
+
+// Hitung total PO Approved yang siap/menunggu dibuatkan GR (Pending GR / Open PO)
+$pendingGrCount = 0;
+if ($isGA || $isLogistik) {
+    try {
+        $pendingGrCount = \App\Models\Erp\ErpPurchaseOrder::where('status', 'Approved')
+            ->where(function ($q) {
+                $q->where('gr', false)->orWhereNull('gr');
+            })
+            ->count();
+    } catch (\Throwable $e) {
+        $pendingGrCount = 0;
+    }
+}
 @endphp
 
 <div id="layout-horizontal-menu" class="horizontal-nav-wrapper">
@@ -144,11 +158,19 @@ if ($isProcurement) {
                 <a class="nav-link dropdown-toggle {{ request()->routeIs('erp.goods-receipts.*') ? 'active' : '' }}" 
                    href="javascript:void(0)" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
                     <i class="bx bx-shield-quarter me-1 text-secondary"></i> GA
+                    @if($pendingGrCount > 0)
+                        <span class="badge bg-label-info rounded-pill ms-1 px-1.5 py-0.5" style="font-size: 0.7rem;" title="{{ $pendingGrCount }} PO Menunggu Kedatangan">{{ $pendingGrCount }}</span>
+                    @endif
                 </a>
                 <ul class="dropdown-menu shadow-sm">
                     <li>
-                        <a class="dropdown-item {{ request()->routeIs('erp.goods-receipts.*') ? 'active' : '' }}" href="{{ $rl('erp.goods-receipts.index') }}">
-                            <i class="bx bx-package me-2"></i> Penerimaan Barang (GR/DO)
+                        <a class="dropdown-item d-flex align-items-center justify-content-between {{ request()->routeIs('erp.goods-receipts.*') ? 'active' : '' }}" href="{{ $rl('erp.goods-receipts.index') }}">
+                            <div>
+                                <i class="bx bx-package me-2"></i> Penerimaan Barang (GR/DO)
+                            </div>
+                            @if($pendingGrCount > 0)
+                                <span class="badge bg-label-info rounded-pill ms-2">{{ $pendingGrCount }}</span>
+                            @endif
                         </a>
                     </li>
                 </ul>
