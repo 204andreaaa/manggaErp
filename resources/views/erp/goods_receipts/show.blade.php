@@ -83,7 +83,7 @@
                   $canVerifyGr = true;
               }
           } else {
-              $canVerifyGr = auth()->user()->hasRole(['logistik', 'warehouse', 'superadmin']) || auth()->user()->email === 'nikmal@example.com';
+              $canVerifyGr = auth()->user()->hasRole(['logistik', 'warehouse', 'ga', 'general_affair', 'superadmin']) || auth()->user()->email === 'nikmal@example.com';
           }
         @endphp
         @if($canVerifyGr)

@@ -78,11 +78,7 @@ class ErpGoodsReceiptController extends Controller
             }
             $gr->remarks = $data['remarks'] ?? null;
             $gr->owner_id = auth()->id();
-            $gr->status = 'Received';
-            $gr->status_receive_date = now();
-            $gr->document_complete_date = now();
-            $gr->verified_by_id = auth()->id();
-            $gr->verification_timestamp = now();
+            $gr->status = 'Recorded';
             $gr->save();
 
             $totalDelivered = 0;
@@ -119,48 +115,8 @@ class ErpGoodsReceiptController extends Controller
                 'total_received_qty' => $totalReceived,
             ]);
 
-            // Auto-update PO status and physical stock
-            $purchaseOrder->load('items');
-            $isCompleted = $purchaseOrder->is_gr_completed;
-            $purchaseOrder->update([
-                'gr' => $isCompleted,
-                'status' => ($isCompleted && $purchaseOrder->payment_closed) ? 'Completed' : 'Approved',
-            ]);
-
-            $warehouseId = $gr->warehouse_id 
-                ?: ($purchaseOrder->erp_warehouse_id 
-                    ?: \Illuminate\Support\Facades\DB::table('erp_warehouses')->value('id'));
-            $supplierId = $purchaseOrder->supplier_id;
-
-            foreach ($gr->items as $grItem) {
-                $rfItem = $grItem->requestFormItem;
-                if ($rfItem) {
-                    $poItem = $grItem->purchaseOrderItem;
-                    if ($poItem && $poItem->remaining_qty <= 0) {
-                        $rfItem->update(['status' => 'Completed']);
-                        foreach ($rfItem->purchaseRequestItems as $prItem) {
-                            $prItem->update(['status' => 'Completed']);
-                        }
-                    }
-
-                    $product = $rfItem->erpProduct;
-                    $receivedQty = $grItem->received_qty > 0 ? $grItem->received_qty : $grItem->delivered_qty;
-                    if ($product && ($product->is_physical ?? true) && $warehouseId && $receivedQty > 0) {
-                        $stock = \App\Models\Erp\ErpStock::firstOrCreate(
-                            [
-                                'erp_product_id' => $product->id,
-                                'erp_warehouse_id' => $warehouseId,
-                                'erp_supplier_id' => $supplierId,
-                            ],
-                            ['qty_on_hand' => 0]
-                        );
-                        $stock->increment('qty_on_hand', $receivedQty);
-                    }
-                }
-            }
-
             DB::commit();
-            return redirect()->route('erp.goods-receipts.show', $gr)->with('success', 'Goods Receipt / DO berhasil dibuat dan barang resmi diterima (Received).');
+            return redirect()->route('erp.goods-receipts.show', $gr)->with('success', 'Goods Receipt (DO) berhasil dibuat dan tercatat (Recorded).');
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()->with('error', 'Failed to create Goods Receipt: ' . $e->getMessage());
@@ -216,7 +172,7 @@ class ErpGoodsReceiptController extends Controller
                 $isAuthorized = true;
             }
         } else {
-            $isAuthorized = $user->hasRole(['logistik', 'warehouse', 'superadmin']) || $user->email === 'nikmal@example.com';
+            $isAuthorized = $user->hasRole(['logistik', 'warehouse', 'ga', 'general_affair', 'superadmin']) || $user->email === 'nikmal@example.com';
         }
 
         abort_unless($isAuthorized, 403, 'Anda tidak memiliki hak akses untuk memverifikasi penerimaan fisik barang (GR) ini.');
