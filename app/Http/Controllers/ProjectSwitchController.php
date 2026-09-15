@@ -21,8 +21,8 @@ class ProjectSwitchController extends Controller
             return response("Anda belum memiliki akses ke project ERP apapun. Silakan hubungi Superadmin.", 403);
         }
 
-        // Kalau cuma ada 1 project dan belum pernah pilih project, langsung switch
-        if ($projects->count() === 1 && !$request->has('select') && !$request->session()->has('project_id')) {
+        // Kalau bukan superadmin, cuma ada 1 project dan belum pernah pilih project, langsung switch
+        if (!$user->hasRole('superadmin') && $projects->count() === 1 && !$request->has('select') && !$request->session()->has('project_id')) {
             return $this->processSwitch($request, $projects->first()->id);
         }
 
