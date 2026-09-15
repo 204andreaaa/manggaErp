@@ -278,6 +278,9 @@
               @foreach($purchaseOrder->items as $idx => $poItem)
                 @php
                   $rfItem = $poItem->requestFormItem;
+                  $productName = $rfItem ? $rfItem->product_name : ($rfItem?->erpProduct?->name ?? '-');
+                  $uomName = $poItem->uom ?: ($rfItem?->erpProduct?->uom?->uom_name ?: ($rfItem?->uom ?: '-'));
+                  $initTotal = ($poItem->qty * $poItem->unit_cost) + ($poItem->tax ?: 0);
                 @endphp
                 <tr data-row="{{ $idx }}">
                   <td>
@@ -285,10 +288,10 @@
                     <span class="fw-semibold text-dark">{{ $rfItem ? $rfItem->rf_detail_no : '-' }}</span>
                   </td>
                   <td>
-                    <div class="fw-bold text-dark">{{ $poItem->product_name }}</div>
+                    <div class="fw-bold text-dark">{{ $productName }}</div>
                   </td>
                   <td>
-                    <span class="badge bg-label-secondary">{{ $poItem->uom ?: ($rfItem?->erpProduct?->uom?->uom_name ?: '-') }}</span>
+                    <span class="badge bg-label-secondary">{{ $uomName }}</span>
                   </td>
                   <td>
                     <span class="fw-semibold">{{ number_format($rfItem ? $rfItem->qty : $poItem->qty, 2, ',', '.') }}</span>
@@ -297,13 +300,13 @@
                     <input type="number" step="0.01" name="items[{{ $idx }}][qty]" class="form-control form-control-sm rounded-2 item-qty fw-bold" value="{{ old("items.$idx.qty", $poItem->qty) }}" oninput="calculateRow({{ $idx }})">
                   </td>
                   <td>
-                    <input type="number" name="items[{{ $idx }}][unit_cost]" class="form-control form-control-sm rounded-2 item-cost" value="{{ old("items.$idx.unit_cost", $poItem->unit_cost) }}" oninput="calculateRow({{ $idx }})">
+                    <input type="number" step="0.01" name="items[{{ $idx }}][unit_cost]" class="form-control form-control-sm rounded-2 item-cost" value="{{ old("items.$idx.unit_cost", $poItem->unit_cost) }}" oninput="calculateRow({{ $idx }})">
                   </td>
                   <td>
-                    <input type="number" name="items[{{ $idx }}][tax]" class="form-control form-control-sm rounded-2 item-tax" value="{{ old("items.$idx.tax", $poItem->tax ?: 0) }}" oninput="calculateRow({{ $idx }})">
+                    <input type="number" step="0.01" name="items[{{ $idx }}][tax]" class="form-control form-control-sm rounded-2 item-tax" value="{{ old("items.$idx.tax", $poItem->tax ?: 0) }}" oninput="calculateRow({{ $idx }})">
                   </td>
                   <td class="text-end fw-bold text-primary">
-                    <span class="row-total">Rp 0</span>
+                    <span class="row-total">Rp {{ number_format($initTotal, 0, ',', '.') }}</span>
                   </td>
                   <td>
                     <input type="text" name="items[{{ $idx }}][remarks]" class="form-control form-control-sm rounded-2" value="{{ old("items.$idx.remarks", $poItem->remarks) }}" placeholder="Item note...">
@@ -394,6 +397,8 @@
       });
     });
     updateFooterButtons();
+  });
+
   function removeRow(idx) {
     const row = document.querySelector(`tr[data-row="${idx}"]`);
     if (row) {

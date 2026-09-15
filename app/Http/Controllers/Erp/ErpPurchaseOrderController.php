@@ -209,11 +209,17 @@ class ErpPurchaseOrderController extends Controller
 
     public function edit(ErpPurchaseOrder $purchaseOrder)
     {
+        abort_unless(
+            auth()->user()->hasRole(['procurement', 'superadmin']) || auth()->user()->hasPermission('purchase_orders.update'),
+            403,
+            'Hanya divisi Procurement atau Super Admin yang dapat mengedit Purchase Order.'
+        );
+
         if ($purchaseOrder->status !== 'Draft' && $purchaseOrder->status !== 'Rejected') {
             return redirect()->route('erp.purchase-orders.show', $purchaseOrder)->with('error', 'Only Draft or Rejected PO Requests can be edited.');
         }
 
-        $purchaseOrder->load(['requestForm.items.erpProduct.uom', 'items']);
+        $purchaseOrder->load(['requestForm.items.erpProduct.uom', 'items.requestFormItem.erpProduct.uom']);
         $requestForm = $purchaseOrder->requestForm;
         
         $suppliers = ErpSupplier::with(['paymentTerm', 'contacts'])->get();
@@ -237,6 +243,12 @@ class ErpPurchaseOrderController extends Controller
 
     public function update(Request $request, ErpPurchaseOrder $purchaseOrder)
     {
+        abort_unless(
+            auth()->user()->hasRole(['procurement', 'superadmin']) || auth()->user()->hasPermission('purchase_orders.update'),
+            403,
+            'Hanya divisi Procurement atau Super Admin yang dapat mengedit Purchase Order.'
+        );
+
         if ($purchaseOrder->status !== 'Draft' && $purchaseOrder->status !== 'Rejected') {
             return redirect()->route('erp.purchase-orders.show', $purchaseOrder)->with('error', 'Only Draft or Rejected PO Requests can be edited.');
         }
@@ -249,7 +261,7 @@ class ErpPurchaseOrderController extends Controller
             'bank_account' => 'nullable|string',
             'date' => 'required|date',
             'eta' => 'nullable|date',
-            'payment_method' => 'required|string',
+            'payment_method' => 'nullable|string',
             'description' => 'nullable|string',
             'attachments' => 'nullable|array',
             'attachments.*' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
