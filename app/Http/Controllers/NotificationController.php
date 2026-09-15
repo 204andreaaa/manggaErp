@@ -83,6 +83,34 @@ class NotificationController extends Controller
         }
 
         // ==========================================
+        // 1c. ACTIONABLE: PO Telah Diverifikasi -> Siap Diajukan Approval (Procurement / PO Creator)
+        // ==========================================
+        if ($user->hasRole('superadmin') || $user->hasRole('procurement')) {
+            $verifiedDraftPos = ErpPurchaseOrder::where('status', 'Draft')
+                ->whereNotNull('verified_by_id')
+                ->with(['supplier', 'verifiedBy', 'owner'])
+                ->latest()
+                ->get();
+
+            foreach ($verifiedDraftPos as $po) {
+                if ($user->hasRole('superadmin') || $po->owner_id == $user->id || $user->hasRole('procurement')) {
+                    $supplierName = $po->supplier?->name ?? 'Vendor';
+                    $verifier = $po->verifiedBy?->name ?? 'Head of Procurement';
+                    $amountFormatted = number_format($po->total_po_amount_with_tax, 0, ',', '.');
+                    $notifications[] = [
+                        'id'         => 'po_verified_ready_' . $po->id,
+                        'type'       => 'po_verified_ready_submit',
+                        'title'      => 'PO Telah Diverifikasi — Siap Diajukan',
+                        'body'       => "PO {$po->po_no} ({$supplierName}) senilai Rp {$amountFormatted} telah diverifikasi oleh {$verifier}. Silakan klik Submit for Approval.",
+                        'url'        => route('erp.purchase-orders.show', $po),
+                        'created_at' => $po->verification_timestamp ? \Carbon\Carbon::parse($po->verification_timestamp)->diffForHumans() : ($po->updated_at ? $po->updated_at->diffForHumans() : 'Baru saja'),
+                        'is_read'    => false,
+                    ];
+                }
+            }
+        }
+
+        // ==========================================
         // 2. ACTIONABLE: Persetujuan Request Form (RF)
         // ==========================================
         $rfApprovalsQuery = RequestForm::where('status', 'Submitted');

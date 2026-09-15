@@ -502,6 +502,19 @@ class ErpPurchaseOrderController extends Controller
             'status' => 'Submitted',
             'submitted_date' => now(),
         ]);
+
+        if ($purchaseOrder->owner_id && $purchaseOrder->owner_id !== auth()->id()) {
+            \App\Helpers\NotificationHelper::send(
+                $purchaseOrder->owner_id,
+                'po_submitted',
+                'PO Diajukan untuk Approval',
+                "PO {$purchaseOrder->po_no} ({$purchaseOrder->supplier?->name}) telah diajukan ke proses persetujuan oleh " . auth()->user()->name . ".",
+                route('erp.purchase-orders.show', $purchaseOrder),
+                'purchase_order',
+                $purchaseOrder->id
+            );
+        }
+
         return redirect()->back()->with('success', 'PO submitted for approval.');
     }
 
@@ -553,6 +566,18 @@ class ErpPurchaseOrderController extends Controller
                 $this->deductBudget($purchaseOrder);
                 $this->generatePaymentAdvices($purchaseOrder);
                 \App\Models\Erp\ErpProduct::syncProductsFromPo($purchaseOrder);
+
+                if ($purchaseOrder->owner_id && $purchaseOrder->owner_id !== $user->id) {
+                    \App\Helpers\NotificationHelper::send(
+                        $purchaseOrder->owner_id,
+                        'po_approved',
+                        'PO Disetujui (Approved)',
+                        "PO {$purchaseOrder->po_no} ({$purchaseOrder->supplier?->name}) telah disetujui sepenuhnya.",
+                        route('erp.purchase-orders.show', $purchaseOrder),
+                        'purchase_order',
+                        $purchaseOrder->id
+                    );
+                }
             }
 
             return redirect()->back()->with('success', 'Approval PO berhasil disetujui.');
@@ -580,6 +605,18 @@ class ErpPurchaseOrderController extends Controller
         $this->deductBudget($purchaseOrder);
         $this->generatePaymentAdvices($purchaseOrder);
         \App\Models\Erp\ErpProduct::syncProductsFromPo($purchaseOrder);
+
+        if ($purchaseOrder->owner_id && $purchaseOrder->owner_id !== $user->id) {
+            \App\Helpers\NotificationHelper::send(
+                $purchaseOrder->owner_id,
+                'po_approved',
+                'PO Disetujui (Approved)',
+                "PO {$purchaseOrder->po_no} ({$purchaseOrder->supplier?->name}) telah disetujui sepenuhnya.",
+                route('erp.purchase-orders.show', $purchaseOrder),
+                'purchase_order',
+                $purchaseOrder->id
+            );
+        }
         return redirect()->back()->with('success', 'PO approved successfully.');
     }
 
@@ -657,7 +694,7 @@ class ErpPurchaseOrderController extends Controller
                     $isAuthorized = true;
                 }
             } elseif ($activeApproval->assigned_to_role_id) {
-                $hasRole = \Illuminate\Support\Facades\DB::connection('master')
+                $hasRole = \Illuminate\Support\Facades\DB::connection('tenant')
                     ->table('role_user')
                     ->where('user_id', $user->id)
                     ->where('role_id', $activeApproval->assigned_to_role_id)
@@ -689,6 +726,18 @@ class ErpPurchaseOrderController extends Controller
                 'status' => 'Rejected',
                 'rejected_date' => now(),
             ]);
+
+            if ($purchaseOrder->owner_id && $purchaseOrder->owner_id !== $user->id) {
+                \App\Helpers\NotificationHelper::send(
+                    $purchaseOrder->owner_id,
+                    'po_rejected',
+                    'PO Ditolak (Rejected)',
+                    "PO {$purchaseOrder->po_no} ditolak oleh {$user->name}. Alasan: {$request->input('comments')}",
+                    route('erp.purchase-orders.show', $purchaseOrder),
+                    'purchase_order',
+                    $purchaseOrder->id
+                );
+            }
 
             return redirect()->back()->with('success', 'PO berhasil ditolak.');
         }
@@ -728,6 +777,18 @@ class ErpPurchaseOrderController extends Controller
 
         foreach (array_unique($affectedProductIds) as $pId) {
             \App\Models\Erp\ErpProduct::syncBuyingPriceFromLatestApprovedPo($pId);
+        }
+
+        if ($purchaseOrder->owner_id && $purchaseOrder->owner_id !== $user->id) {
+            \App\Helpers\NotificationHelper::send(
+                $purchaseOrder->owner_id,
+                'po_rejected',
+                'PO Ditolak (Rejected)',
+                "PO {$purchaseOrder->po_no} ditolak oleh {$user->name}. Alasan: {$request->input('comments')}",
+                route('erp.purchase-orders.show', $purchaseOrder),
+                'purchase_order',
+                $purchaseOrder->id
+            );
         }
 
         return redirect()->back()->with('success', 'PO rejected successfully.');
@@ -819,6 +880,18 @@ class ErpPurchaseOrderController extends Controller
             'verified_by_id' => $user->id,
             'verification_timestamp' => now(),
         ]);
+
+        if ($purchaseOrder->owner_id && $purchaseOrder->owner_id !== $user->id) {
+            \App\Helpers\NotificationHelper::send(
+                $purchaseOrder->owner_id,
+                'po_verified',
+                'PO Telah Diverifikasi',
+                "PO {$purchaseOrder->po_no} ({$purchaseOrder->supplier?->name}) telah diverifikasi oleh {$user->name}. Silakan ajukan untuk Approval.",
+                route('erp.purchase-orders.show', $purchaseOrder),
+                'purchase_order',
+                $purchaseOrder->id
+            );
+        }
 
         return redirect()->back()->with('success', 'PO berhasil diverifikasi oleh ' . $user->name . '.');
     }
