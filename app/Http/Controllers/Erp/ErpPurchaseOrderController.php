@@ -56,7 +56,18 @@ class ErpPurchaseOrderController extends Controller
         $warehouses = ErpWarehouse::where('is_active', true)->get();
         $paymentTerms = \App\Models\Erp\ErpPaymentTerm::where('is_active', true)->get();
         
-        $projectId = session('current_project');
+        $projectId = session('project_id') ?? session('current_project');
+        $activeProject = $projectId ? \App\Models\Project::find($projectId) : \App\Models\Project::where('is_active', true)->first();
+        $projectName = strtolower($activeProject?->name ?? 'mandau');
+
+        if (str_contains($projectName, 'imprima')) {
+            $defaultInvoiceTo = 'PT Imprima Prima Sejahtera';
+            $defaultAttentionTo = 'Finance PT Imprima Prima Sejahtera';
+        } else {
+            $defaultInvoiceTo = 'PT Mandiri Daya Utama Nusantara';
+            $defaultAttentionTo = 'Finance PT Mandiri Daya Utama Nusantara';
+        }
+
         $usersQuery = \App\Models\User::orderBy('name');
         if ($projectId) {
             $usersQuery->whereHas('projects', function ($q) use ($projectId) {
@@ -68,9 +79,21 @@ class ErpPurchaseOrderController extends Controller
             $users = \App\Models\User::orderBy('name')->get();
         }
 
+        // CEO users only for Authorized Signature
+        $ceoUsers = \App\Models\User::whereHas('roles', function($q) {
+            $q->where('slug', 'ceo')->orWhere('name', 'ceo')->orWhere('name', 'like', '%CEO%');
+        })->orderBy('name')->get();
+
+        if ($ceoUsers->isEmpty()) {
+            $ceoUsers = \App\Models\User::where('name', 'like', '%Barry%')->get();
+        }
+        if ($ceoUsers->isEmpty()) {
+            $ceoUsers = $users;
+        }
+
         $poNo = $this->generatePoNo();
 
-        return view('erp.purchase_orders.create', compact('requestForm', 'suppliers', 'warehouses', 'paymentTerms', 'users', 'poNo'));
+        return view('erp.purchase_orders.create', compact('requestForm', 'suppliers', 'warehouses', 'paymentTerms', 'users', 'ceoUsers', 'poNo', 'defaultInvoiceTo', 'defaultAttentionTo'));
     }
 
     public function store(Request $request)
@@ -226,7 +249,18 @@ class ErpPurchaseOrderController extends Controller
         $warehouses = ErpWarehouse::where('is_active', true)->get();
         $paymentTerms = \App\Models\Erp\ErpPaymentTerm::where('is_active', true)->get();
 
-        $projectId = session('current_project');
+        $projectId = session('project_id') ?? session('current_project');
+        $activeProject = $projectId ? \App\Models\Project::find($projectId) : \App\Models\Project::where('is_active', true)->first();
+        $projectName = strtolower($activeProject?->name ?? 'mandau');
+
+        if (str_contains($projectName, 'imprima')) {
+            $defaultInvoiceTo = 'PT Imprima Prima Sejahtera';
+            $defaultAttentionTo = 'Finance PT Imprima Prima Sejahtera';
+        } else {
+            $defaultInvoiceTo = 'PT Mandiri Daya Utama Nusantara';
+            $defaultAttentionTo = 'Finance PT Mandiri Daya Utama Nusantara';
+        }
+
         $usersQuery = \App\Models\User::orderBy('name');
         if ($projectId) {
             $usersQuery->whereHas('projects', function ($q) use ($projectId) {
@@ -238,7 +272,19 @@ class ErpPurchaseOrderController extends Controller
             $users = \App\Models\User::orderBy('name')->get();
         }
 
-        return view('erp.purchase_orders.edit', compact('purchaseOrder', 'requestForm', 'suppliers', 'warehouses', 'paymentTerms', 'users'));
+        // CEO users only for Authorized Signature
+        $ceoUsers = \App\Models\User::whereHas('roles', function($q) {
+            $q->where('slug', 'ceo')->orWhere('name', 'ceo')->orWhere('name', 'like', '%CEO%');
+        })->orderBy('name')->get();
+
+        if ($ceoUsers->isEmpty()) {
+            $ceoUsers = \App\Models\User::where('name', 'like', '%Barry%')->get();
+        }
+        if ($ceoUsers->isEmpty()) {
+            $ceoUsers = $users;
+        }
+
+        return view('erp.purchase_orders.edit', compact('purchaseOrder', 'requestForm', 'suppliers', 'warehouses', 'paymentTerms', 'users', 'ceoUsers', 'defaultInvoiceTo', 'defaultAttentionTo'));
     }
 
     public function update(Request $request, ErpPurchaseOrder $purchaseOrder)

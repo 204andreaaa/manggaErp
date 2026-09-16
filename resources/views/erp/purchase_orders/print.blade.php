@@ -521,8 +521,8 @@
                     <div class="invoice-details-box">
                         <div class="invoice-details-title">PROJECT CODE : {{ $purchaseOrder->requestForm?->workItem?->code ?: ($purchaseOrder->requestForm?->project_code ?: ($purchaseOrder->project_code ?: '-')) }}</div>
                         <div class="invoice-details-title" style="margin-top: 6px;">INVOICE DETAILS</div>
-                        <div>INVOICE TO : PT. Mandiri Daya Utama Nusantara</div>
-                        <div>ATTENTION : {{ $purchaseOrder->attention_to ?: 'Mandau' }}</div>
+                        <div>INVOICE TO : {{ $purchaseOrder->invoice_to ?: 'PT. Mandiri Daya Utama Nusantara' }}</div>
+                        <div>ATTENTION : {{ $purchaseOrder->attention_to ?: 'Finance PT Mandiri Daya Utama Nusantara' }}</div>
                         <div>Golden Fatmawati</div>
                         <div>Jl. RS Fatmawati No. 15 Blok C17</div>
                         <div>Jakarta 12420, Indonesia</div>
@@ -558,7 +558,7 @@
             </div>
 
             <div class="sig-block">
-                <div class="sig-title">MANDAU APPROVAL :</div>
+                <div class="sig-title">{{ strtoupper($purchaseOrder->invoice_to ? (str_contains($purchaseOrder->invoice_to, 'Imprima') ? 'IMPRIMA' : 'MANDAU') : 'MANDAU') }} APPROVAL :</div>
                 <div class="sig-line-wrapper">
                     @php
                         $approver = $purchaseOrder->signature ?: 'Barry Japadarmawan';

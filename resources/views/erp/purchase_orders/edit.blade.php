@@ -222,11 +222,10 @@
           </div>
 
           <div class="col-md-6">
-            <label class="form-label fw-semibold">Authorized Signature User</label>
+            <label class="form-label fw-semibold">Authorized Signature User (CEO) <span class="text-danger">*</span></label>
             <select name="signature" class="form-select rounded-3 @error('signature') is-invalid @enderror">
-              <option value="">-- Select Authorized Approver --</option>
-              @foreach($users as $user)
-                <option value="{{ $user->name }}" {{ old('signature', $purchaseOrder->signature) == $user->name ? 'selected' : '' }}>
+              @foreach($ceoUsers as $user)
+                <option value="{{ $user->name }}" {{ old('signature', $purchaseOrder->signature ?: 'Barry Japadarmawan') == $user->name ? 'selected' : '' }}>
                   {{ $user->name }}
                 </option>
               @endforeach
@@ -235,13 +234,13 @@
           </div>
 
           <div class="col-md-6">
-            <label class="form-label fw-semibold">Invoice To</label>
-            <input type="text" name="invoice_to" class="form-control rounded-3" value="{{ old('invoice_to', $purchaseOrder->invoice_to) }}" placeholder="e.g. PT Mandiri Daya Utama Nusantara">
+            <label class="form-label fw-semibold">Invoice To <span class="badge bg-label-info ms-1">Auto Entitas (Locked)</span></label>
+            <input type="text" name="invoice_to" class="form-control bg-light rounded-3" value="{{ old('invoice_to', $purchaseOrder->invoice_to ?: $defaultInvoiceTo) }}" readonly>
           </div>
 
           <div class="col-md-6">
-            <label class="form-label fw-semibold">Attention To</label>
-            <input type="text" name="attention_to" class="form-control rounded-3" value="{{ old('attention_to', $purchaseOrder->attention_to) }}" placeholder="e.g. Finance Department">
+            <label class="form-label fw-semibold">Attention To <span class="badge bg-label-info ms-1">Auto Entitas (Locked)</span></label>
+            <input type="text" name="attention_to" class="form-control bg-light rounded-3" value="{{ old('attention_to', $purchaseOrder->attention_to ?: $defaultAttentionTo) }}" readonly>
           </div>
 
           <div class="col-md-12">
