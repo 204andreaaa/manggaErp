@@ -564,7 +564,10 @@ document.addEventListener('DOMContentLoaded', function () {
   })->values()) !!};
 
   function populateFilteredWid(selectedSpCode) {
+    if ('{{ $recordType }}' !== 'project') return;
     const $wid = $('#lineWid');
+    if (!$wid.is('select')) return;
+
     $wid.empty().append('<option value="">-- Cari & Pilih WID --</option>');
 
     const matched = selectedSpCode 
@@ -590,6 +593,9 @@ document.addEventListener('DOMContentLoaded', function () {
   function resetModal() {
     $('#lineProductName').val('').trigger('change');
     if (document.getElementById('lineProductId')) document.getElementById('lineProductId').value = '';
+    if ('{{ $recordType }}' === 'project' && $('#lineWid').is('select')) {
+      $('#lineWid').val('').trigger('change');
+    }
 
     fields.currency.value = 'IDR';
     fields.status.value = 'Requested';
@@ -715,7 +721,9 @@ document.addEventListener('DOMContentLoaded', function () {
       return;
     }
     resetModal();
-    populateFilteredWid(selectedSp);
+    if ('{{ $recordType }}' === 'project') {
+      populateFilteredWid(selectedSp);
+    }
     lineModal.show();
   });
 
@@ -903,12 +911,14 @@ document.addEventListener('DOMContentLoaded', function () {
       placeholder: '-- Cari & Pilih Produk --',
       width: '100%'
     });
-    $('#lineWid').select2({
-      theme: 'bootstrap-5',
-      dropdownParent: $('#modalLineItem'),
-      placeholder: '-- Cari & Pilih WID --',
-      width: '100%'
-    });
+    if ('{{ $recordType }}' === 'project' && $('#lineWid').is('select')) {
+      $('#lineWid').select2({
+        theme: 'bootstrap-5',
+        dropdownParent: $('#modalLineItem'),
+        placeholder: '-- Cari & Pilih WID --',
+        width: '100%'
+      });
+    }
     $('#linePic').select2({
       theme: 'bootstrap-5',
       dropdownParent: $('#modalLineItem'),
