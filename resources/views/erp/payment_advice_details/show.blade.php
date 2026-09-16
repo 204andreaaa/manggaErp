@@ -225,26 +225,53 @@
                       @endif
                     </td>
                   </tr>
-                  <tr class="border-top"><td class="text-muted ps-4 py-2">Goods Receipt (GR)</td><td class="py-2">
+                  <tr class="border-top"><td class="text-muted ps-4 py-2 align-top">Goods Receipt (GR)</td><td class="py-2">
                     @php
-                      $grs = $paymentAdviceDetail->goodsReceipt 
-                          ? collect([$paymentAdviceDetail->goodsReceipt]) 
-                          : ($paymentAdviceDetail->purchaseOrder?->goodsReceipts ?? collect());
+                      $po = $paymentAdviceDetail->purchaseOrder;
+                      $grs = $po?->goodsReceipts ?? ($paymentAdviceDetail->goodsReceipt ? collect([$paymentAdviceDetail->goodsReceipt]) : collect());
                     @endphp
                     @if($grs->isNotEmpty())
-                      <div class="d-flex flex-column gap-1">
+                      <div class="d-flex flex-column gap-2">
                         @foreach($grs as $g)
-                          <div class="d-flex align-items-center flex-wrap gap-1">
-                            <a href="{{ route('erp.goods-receipts.show', $g) }}" class="fw-bold text-primary text-decoration-none">
-                              <i class="bx bx-package me-1"></i>{{ $g->do_no }}
-                            </a>
-                            @if($g->status === 'Received')
-                              <span class="badge bg-label-success" style="font-size: 0.72rem;"><i class="bx bx-check me-1"></i>Diterima Fisik</span>
-                            @else
-                              <span class="badge bg-label-warning" style="font-size: 0.72rem;"><i class="bx bx-time me-1"></i>{{ $g->status }}</span>
-                            @endif
+                          <div class="d-flex align-items-center justify-content-between p-2 rounded bg-light border">
+                            <div>
+                              <div class="d-flex align-items-center gap-1">
+                                <a href="{{ route('erp.goods-receipts.show', $g) }}" class="fw-bold text-primary text-decoration-none">
+                                  <i class="bx bx-package me-1"></i>{{ $g->do_no }}
+                                </a>
+                                @if($paymentAdviceDetail->erp_goods_receipt_id == $g->id)
+                                  <span class="badge bg-label-primary" style="font-size: 0.68rem;">Linked Termin</span>
+                                @endif
+                              </div>
+                              <div class="text-muted" style="font-size: 0.75rem;">
+                                DO Supplier: <span class="fw-semibold text-dark">{{ $g->supplier_do_no ?? '-' }}</span> | Diterima: <span class="fw-semibold text-dark">{{ number_format($g->items->sum('received_qty'), 0, ',', '.') }} unit</span>
+                              </div>
+                            </div>
+                            <div class="text-end">
+                              @if($g->status === 'Received')
+                                <span class="badge bg-label-success" style="font-size: 0.72rem;"><i class="bx bx-check me-1"></i>Diterima Fisik</span>
+                              @else
+                                <span class="badge bg-label-warning" style="font-size: 0.72rem;"><i class="bx bx-time me-1"></i>{{ $g->status }}</span>
+                              @endif
+                            </div>
                           </div>
                         @endforeach
+                        
+                        {{-- Ringkasan Keseluruhan PO Penerimaan Fisik --}}
+                        @if($po)
+                          <div class="p-2 rounded border border-dashed d-flex align-items-center justify-content-between bg-white">
+                            <span class="small text-muted fw-semibold">Status Fisik PO:</span>
+                            @if($po->is_gr_completed)
+                              <span class="badge bg-success" style="font-size: 0.75rem;"><i class="bx bx-check-double me-1"></i>100% GR Completed</span>
+                            @else
+                              @php
+                                $totalOrdered = $po->items->sum('ordered_qty');
+                                $totalRecv = $po->items->sum('received_qty');
+                              @endphp
+                              <span class="badge bg-label-warning" style="font-size: 0.75rem;"><i class="bx bx-pie-chart-alt me-1"></i>Parsial ({{ number_format($totalRecv, 0, ',', '.') }}/{{ number_format($totalOrdered, 0, ',', '.') }} Unit)</span>
+                            @endif
+                          </div>
+                        @endif
                       </div>
                     @else
                       <span class="text-muted small">Belum ada (DP / Sebelum Barang Diterima)</span>
