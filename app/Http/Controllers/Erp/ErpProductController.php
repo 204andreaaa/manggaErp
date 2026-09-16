@@ -121,7 +121,15 @@ class ErpProductController extends Controller
                     : '';
 
                 $symbol = $p->currency?->symbol ?: ($p->currency?->code ?: 'Rp');
-                $priceFormatted = '<span class="fw-bold text-dark" style="font-size:14px;">' . $symbol . ' ' . number_format($p->buying_price, 0, ',', '.') . '</span>';
+                $priceFormatted = sprintf(
+                    '<button type="button" class="btn btn-xs btn-outline-primary rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1 shadow-none fw-bold" onclick="openPriceHistory(%d)" title="Lihat riwayat perubahan harga dari PO">'
+                    . '<span>%s %s</span>'
+                    . '<i class="bx bx-history fs-6"></i>'
+                    . '</button>',
+                    $p->id,
+                    $symbol,
+                    number_format($p->buying_price, 0, ',', '.')
+                );
                 
                 $itemTypeBadge = $p->is_physical
                     ? '<span class="badge bg-label-primary px-2 py-1"><i class="bx bx-package me-1"></i>Fisik</span>'
@@ -146,8 +154,9 @@ class ErpProductController extends Controller
                 $subDetailText = !empty($subDetail) ? implode(' • ', $subDetail) : 'No description';
 
                 $productCell = sprintf(
-                    '<div class="d-flex align-items-center">%s<div><div class="prod-title">%s</div><div class="prod-desc">%s</div></div></div>',
+                    '<div class="d-flex align-items-center">%s<div><div class="prod-title cursor-pointer text-primary" onclick="openPriceHistory(%d)" title="Lihat riwayat harga & detail produk">%s</div><div class="prod-desc">%s</div></div></div>',
                     $imgHtml,
+                    $p->id,
                     e($p->name),
                     $subDetailText
                 );
@@ -333,6 +342,100 @@ class ErpProductController extends Controller
         };
 
         return response()->stream($callback, 200, $headers);
+    }
+
+    public function priceHistory(ErpProduct $product)
+    {
+        abort_unless(auth()->user()->hasPermission('products.view'), 403);
+
+        $symbol = $product->currency?->symbol ?: ($product->currency?->code ?: 'Rp');
+
+        // Fetch all approved and non-deleted PO items referencing this product
+        $poItems = \App\Models\Erp\ErpPurchaseOrderItem::whereHas('requestFormItem', function($q) use ($product) {
+                $q->where('product_id_text', $product->product_code)
+                  ->orWhere('product_name', $product->name);
+            })
+            ->whereHas('purchaseOrder', function($q) {
+                $q->where('status', 'Approved');
+            })
+            ->with([
+                'purchaseOrder.supplier',
+                'purchaseOrder.owner',
+                'purchaseOrder.verifiedBy',
+                'requestFormItem'
+            ])
+            ->join('erp_purchase_orders', 'erp_purchase_order_items.purchase_order_id', '=', 'erp_purchase_orders.id')
+            ->orderByRaw('COALESCE(erp_purchase_orders.approved_date, erp_purchase_orders.date, erp_purchase_orders.created_at) DESC')
+            ->orderBy('erp_purchase_orders.id', 'desc')
+            ->select('erp_purchase_order_items.*')
+            ->get();
+
+        $historyList = [];
+        $totalCount = $poItems->count();
+
+        // Calculate chronological differences (oldest to newest)
+        $reversed = $poItems->reverse()->values();
+        $prevCost = null;
+        $trendMap = [];
+
+        foreach ($reversed as $idx => $item) {
+            $currentCost = (float) $item->unit_cost;
+            if ($prevCost === null) {
+                $diff = 0;
+                $pct = 0;
+                $trend = 'initial';
+            } else {
+                $diff = $currentCost - $prevCost;
+                $pct = $prevCost > 0 ? round(($diff / $prevCost) * 100, 1) : 0;
+                $trend = $diff > 0 ? 'up' : ($diff < 0 ? 'down' : 'same');
+            }
+            $trendMap[$item->id] = [
+                'diff' => $diff,
+                'pct' => $pct,
+                'trend' => $trend,
+            ];
+            $prevCost = $currentCost;
+        }
+
+        foreach ($poItems as $item) {
+            $po = $item->purchaseOrder;
+            $trendInfo = $trendMap[$item->id] ?? ['diff' => 0, 'pct' => 0, 'trend' => 'initial'];
+
+            $historyList[] = [
+                'id' => $item->id,
+                'po_id' => $po->id,
+                'po_no' => $po->po_no,
+                'po_url' => route('erp.purchase-orders.show', $po),
+                'supplier_name' => $po->supplier?->name ?? '-',
+                'date' => ($po->approved_date ?: $po->date)?->format('d M Y') ?? ($po->created_at?->format('d M Y') ?? '-'),
+                'qty' => number_format((float) $item->qty, 0, ',', '.') . ' ' . ($product->uom?->uom_name ?? 'Unit'),
+                'unit_cost' => (float) $item->unit_cost,
+                'unit_cost_formatted' => $symbol . ' ' . number_format((float) $item->unit_cost, 0, ',', '.'),
+                'total_cost_formatted' => $symbol . ' ' . number_format((float) ($item->total_cost ?: ($item->qty * $item->unit_cost)), 0, ',', '.'),
+                'approver' => $po->signature ?: ($po->verifiedBy?->name ?? 'Barry Japadarmawan'),
+                'diff_amount' => $trendInfo['diff'],
+                'diff_amount_formatted' => ($trendInfo['diff'] > 0 ? '+' : '') . $symbol . ' ' . number_format($trendInfo['diff'], 0, ',', '.'),
+                'diff_percent' => $trendInfo['pct'],
+                'trend' => $trendInfo['trend'],
+            ];
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'product' => [
+                'id' => $product->id,
+                'product_code' => $product->product_code,
+                'name' => $product->name,
+                'buying_price' => (float) $product->buying_price,
+                'buying_price_formatted' => $symbol . ' ' . number_format((float) $product->buying_price, 0, ',', '.'),
+                'uom' => $product->uom?->uom_name ?? 'Unit',
+                'image_url' => $product->image_url ?: '',
+                'category' => $product->productFamily?->family_name ?: ($product->brand?->brand_name ?: 'General'),
+                'symbol' => $symbol,
+            ],
+            'total_po_count' => $totalCount,
+            'history' => $historyList,
+        ]);
     }
 
     public function nextCode()

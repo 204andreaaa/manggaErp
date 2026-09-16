@@ -459,8 +459,22 @@ class RequestFormController extends Controller
         abort_unless(auth()->user()->hasRole('superadmin'), 403, 'Hanya Superadmin yang berhak menghapus Request Form.');
 
         DB::transaction(function () use ($requestForm) {
+            $affectedProductIds = [];
+
             // 1. Process and cascade delete all Purchase Orders linked to this RF
             foreach ($requestForm->purchaseOrders as $po) {
+                // Track affected products to resync prices after deletion
+                foreach ($po->items as $poItem) {
+                    $rfItem = $poItem->requestFormItem;
+                    $p = $rfItem?->erpProduct 
+                        ?: \App\Models\Erp\ErpProduct::where('product_code', $rfItem?->product_id_text)
+                            ->orWhere('name', $rfItem?->product_name)
+                            ->first();
+                    if ($p) {
+                        $affectedProductIds[] = $p->id;
+                    }
+                }
+
                 // Refund WID budget if PO was approved / budget was deducted
                 if ($po->status === 'Approved') {
                     $this->refundBudgetFromPo($po);
@@ -487,6 +501,11 @@ class RequestFormController extends Controller
                 $po->approvals()->delete();
                 $po->notesAttachments()->delete();
                 $po->delete();
+            }
+
+            // Resync product buying prices to latest remaining approved PO
+            foreach (array_unique($affectedProductIds) as $pId) {
+                \App\Models\Erp\ErpProduct::syncBuyingPriceFromLatestApprovedPo($pId);
             }
 
             // 2. Process and delete all Purchase Requests linked to this RF

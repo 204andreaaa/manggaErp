@@ -34,6 +34,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::get('products/export', [\App\Http\Controllers\Erp\ErpProductController::class, 'exportExcel'])->name('products.export');
         Route::post('products/datatable', [\App\Http\Controllers\Erp\ErpProductController::class, 'datatable'])->name('products.datatable');
         Route::get('products/next-code', [\App\Http\Controllers\Erp\ErpProductController::class, 'nextCode'])->name('products.next_code');
+        Route::get('products/{product}/price-history', [\App\Http\Controllers\Erp\ErpProductController::class, 'priceHistory'])->name('products.price-history');
         Route::resource('products', \App\Http\Controllers\Erp\ErpProductController::class)->except(['create', 'edit', 'show']);
 
         // Product Families

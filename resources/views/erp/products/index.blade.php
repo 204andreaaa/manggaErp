@@ -542,6 +542,74 @@
   </div>
 </div>
 
+{{-- ======================== PRICE HISTORY MODAL ======================== --}}
+<div class="modal fade" id="modalPriceHistory" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+      <div class="modal-header py-3 px-4 bg-primary bg-opacity-10 border-bottom d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-3">
+          <div class="p-2 bg-primary text-white rounded-3 shadow-sm d-flex align-items-center justify-content-center" style="width: 42px; height: 42px;">
+            <i class="bx bx-history fs-4"></i>
+          </div>
+          <div>
+            <h5 class="modal-title fw-bold text-dark mb-0" id="histProdName">Riwayat Perubahan Harga Produk</h5>
+            <div class="text-muted small" id="histProdCode">SKU / Kode: -</div>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body p-4 bg-light bg-opacity-50">
+        {{-- Top Summary Card --}}
+        <div class="card shadow-none border rounded-3 p-3 bg-white mb-4">
+          <div class="row align-items-center g-3">
+            <div class="col-auto">
+              <img id="histProdImg" src="" class="prod-img-box rounded-3" style="width: 56px; height: 56px; object-fit: cover;">
+            </div>
+            <div class="col">
+              <span class="badge bg-label-info mb-1" id="histProdCat">Category</span>
+              <h6 class="fw-bold text-dark mb-1" id="histProdTitle">-</h6>
+              <div class="text-muted small">Satuan / UOM: <span class="fw-semibold text-dark" id="histProdUom">-</span></div>
+            </div>
+            <div class="col-auto text-end">
+              <div class="text-muted small fw-semibold mb-1">HARGA TERAKHIR DARI PO</div>
+              <h4 class="fw-extrabold text-primary mb-0" id="histProdActivePrice">Rp 0</h4>
+              <span class="badge bg-label-success small mt-1"><i class="bx bx-check-circle me-1"></i>Harga Otomatis Ter-update</span>
+            </div>
+          </div>
+        </div>
+
+        {{-- History Table Container --}}
+        <div class="card shadow-none border rounded-3 bg-white overflow-hidden">
+          <div class="card-header bg-white border-bottom py-2.5 d-flex align-items-center justify-content-between">
+            <h6 class="mb-0 fw-bold text-dark small"><i class="bx bx-receipt text-primary me-1.5"></i>Log PO Terverifikasi & Approved</h6>
+            <span class="badge bg-label-primary" id="histPoCountBadge">0 Transaksi PO</span>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="histTable">
+              <thead class="table-light">
+                <tr class="small text-muted text-uppercase">
+                  <th class="ps-3" style="width: 24%;">No. PO & Tanggal</th>
+                  <th style="width: 26%;">Vendor / Supplier</th>
+                  <th class="text-center" style="width: 14%;">Qty Dibeli</th>
+                  <th class="text-end" style="width: 18%;">Harga Satuan</th>
+                  <th class="text-center" style="width: 18%;">Perubahan</th>
+                </tr>
+              </thead>
+              <tbody id="histTableBody" class="small">
+                {{-- Dynamic Rows --}}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer bg-white border-top py-2.5">
+        <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-4" data-bs-dismiss="modal">Tutup</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 @push('scripts')
 <script>
 $(function () {
@@ -551,6 +619,103 @@ $(function () {
         $('#previewModalImage').attr('src', src);
         $('#previewModalTitle').text(title || 'Gambar Produk');
         new bootstrap.Modal($('#modalImagePreview')[0]).show();
+    };
+
+    window.openPriceHistory = async function(productId) {
+        const modalEl = $('#modalPriceHistory');
+        const modal = new bootstrap.Modal(modalEl[0]);
+        
+        $('#histProdTitle').text('Memuat data...');
+        $('#histProdCode').text('SKU: -');
+        $('#histProdActivePrice').text('...');
+        $('#histTableBody').html('<tr><td colspan="5" class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm text-primary me-2"></div>Memuat riwayat perubahan harga...</td></tr>');
+        modal.show();
+
+        try {
+            const res = await fetch(`{{ url('erp/products') }}/${productId}/price-history`, {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': CSRF
+                }
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Gagal mengambil riwayat harga');
+
+            const p = data.product;
+            $('#histProdName').text(p.name);
+            $('#histProdTitle').text(p.name);
+            $('#histProdCode').text('Kode: ' + p.product_code);
+            $('#histProdCat').text(p.category);
+            $('#histProdUom').text(p.uom);
+            $('#histProdActivePrice').text(p.buying_price_formatted);
+            $('#histPoCountBadge').text(data.total_po_count + ' Transaksi PO Approved');
+            
+            if (p.image_url) {
+                $('#histProdImg').attr('src', p.image_url).show();
+            } else {
+                $('#histProdImg').attr('src', '{{ asset("assets/img/illustrations/page-pricing-standard.png") }}').show();
+            }
+
+            const tbody = $('#histTableBody');
+            tbody.empty();
+
+            if (data.history.length === 0) {
+                tbody.html(`
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-muted">
+                            <i class="bx bx-info-circle fs-3 text-secondary d-block mb-1"></i>
+                            <div class="fw-semibold text-dark">Belum Ada Riwayat PO Approved</div>
+                            <small>Harga saat ini merupakan harga master awal dan belum pernah diubah oleh transaksi PO.</small>
+                        </td>
+                    </tr>
+                `);
+            } else {
+                data.history.forEach((h, idx) => {
+                    let trendBadge = '';
+                    if (h.trend === 'up') {
+                        trendBadge = `<span class="badge bg-label-danger"><i class="bx bx-trending-up me-1"></i>+${h.diff_percent}% (${h.diff_amount_formatted})</span>`;
+                    } else if (h.trend === 'down') {
+                        trendBadge = `<span class="badge bg-label-success"><i class="bx bx-trending-down me-1"></i>${h.diff_percent}% (${h.diff_amount_formatted})</span>`;
+                    } else if (h.trend === 'same') {
+                        trendBadge = `<span class="badge bg-label-secondary"><i class="bx bx-minus me-1"></i>Tetap</span>`;
+                    } else {
+                        trendBadge = `<span class="badge bg-label-primary"><i class="bx bx-star me-1"></i>Harga Awal PO</span>`;
+                    }
+
+                    const isLatest = idx === 0;
+                    const rowHighlight = isLatest ? 'class="table-primary bg-opacity-25 fw-semibold"' : '';
+
+                    tbody.append(`
+                        <tr ${rowHighlight}>
+                            <td class="ps-3">
+                                <a href="${h.po_url}" target="_blank" class="fw-bold text-primary text-decoration-none">
+                                    <i class="bx bx-file me-1"></i>${h.po_no}
+                                </a>
+                                ${isLatest ? '<span class="badge bg-primary ms-1" style="font-size:0.65rem;">Terbaru</span>' : ''}
+                                <div class="text-muted" style="font-size:0.75rem;">Approved: ${h.date}</div>
+                            </td>
+                            <td>
+                                <div class="fw-semibold text-dark">${h.supplier_name}</div>
+                                <small class="text-muted" style="font-size:0.75rem;">Approver: ${h.approver}</small>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-label-dark">${h.qty}</span>
+                            </td>
+                            <td class="text-end">
+                                <div class="fw-bold text-dark">${h.unit_cost_formatted}</div>
+                                <div class="text-muted" style="font-size:0.72rem;">Total: ${h.total_cost_formatted}</div>
+                            </td>
+                            <td class="text-center">
+                                ${trendBadge}
+                            </td>
+                        </tr>
+                    `);
+                });
+            }
+
+        } catch (err) {
+            $('#histTableBody').html(`<tr><td colspan="5" class="text-center py-3 text-danger"><i class="bx bx-error me-1"></i>${err.message}</td></tr>`);
+        }
     };
 
     const DT = $('#dtProducts').DataTable({
