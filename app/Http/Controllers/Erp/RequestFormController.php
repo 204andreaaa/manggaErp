@@ -473,15 +473,12 @@ class RequestFormController extends Controller
                         $pad->delete();
                     }
                     $pa->approvals()->delete();
-                    $pa->notesAttachments()->delete();
                     $pa->delete();
                 }
 
                 // Delete Goods Receipts belonging to this PO
                 foreach ($po->goodsReceipts as $gr) {
                     $gr->items()->delete();
-                    $gr->approvals()->delete();
-                    $gr->notesAttachments()->delete();
                     $gr->delete();
                 }
 
@@ -495,8 +492,6 @@ class RequestFormController extends Controller
             // 2. Process and delete all Purchase Requests linked to this RF
             foreach ($requestForm->purchaseRequests as $pr) {
                 $pr->items()->delete();
-                $pr->approvals()->delete();
-                $pr->notesAttachments()->delete();
                 $pr->delete();
             }
 
