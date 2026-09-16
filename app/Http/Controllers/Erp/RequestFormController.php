@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Erp;
 
 use App\Http\Controllers\Controller;
+use App\Models\Erp\ErpPurchaseOrder;
+use App\Models\Erp\ErpWorkItem;
 use App\Models\Erp\RequestForm;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -457,13 +459,82 @@ class RequestFormController extends Controller
         abort_unless(auth()->user()->hasRole('superadmin'), 403, 'Hanya Superadmin yang berhak menghapus Request Form.');
 
         DB::transaction(function () use ($requestForm) {
+            // 1. Process and cascade delete all Purchase Orders linked to this RF
+            foreach ($requestForm->purchaseOrders as $po) {
+                // Refund WID budget if PO was approved / budget was deducted
+                if ($po->status === 'Approved') {
+                    $this->refundBudgetFromPo($po);
+                }
+
+                // Delete Payment Advices belonging to this PO
+                foreach ($po->paymentAdvices as $pa) {
+                    foreach ($pa->details as $pad) {
+                        $pad->approvals()->delete();
+                        $pad->delete();
+                    }
+                    $pa->approvals()->delete();
+                    $pa->notesAttachments()->delete();
+                    $pa->delete();
+                }
+
+                // Delete Goods Receipts belonging to this PO
+                foreach ($po->goodsReceipts as $gr) {
+                    $gr->items()->delete();
+                    $gr->approvals()->delete();
+                    $gr->notesAttachments()->delete();
+                    $gr->delete();
+                }
+
+                // Delete PO Items, Approvals, Notes, and the PO record
+                $po->items()->delete();
+                $po->approvals()->delete();
+                $po->notesAttachments()->delete();
+                $po->delete();
+            }
+
+            // 2. Process and delete all Purchase Requests linked to this RF
+            foreach ($requestForm->purchaseRequests as $pr) {
+                $pr->items()->delete();
+                $pr->approvals()->delete();
+                $pr->notesAttachments()->delete();
+                $pr->delete();
+            }
+
+            // 3. Delete Request Form items, approvals, notes, and the RF record itself
             $requestForm->items()->delete();
             $requestForm->approvals()->delete();
             $requestForm->notesAttachments()->delete();
             $requestForm->delete();
         });
 
-        return redirect()->route('erp.request-form.index')->with('success', 'Request Form berhasil dihapus permanen oleh Superadmin.');
+        return redirect()->route('erp.request-form.index')->with('success', "Request Form {$requestForm->rf_no} dan seluruh data turunannya (PO, GR, Payment Advice, PR) berhasil dihapus dan nilai budget WID dikembalikan seperti semula.");
+    }
+
+    private function refundBudgetFromPo(ErpPurchaseOrder $purchaseOrder)
+    {
+        $purchaseOrder->load(['items.requestFormItem', 'requestForm']);
+        $rf = $purchaseOrder->requestForm;
+
+        foreach ($purchaseOrder->items as $poItem) {
+            $rfItem = $poItem->requestFormItem;
+            $itemCost = $poItem->total_cost ?: (($poItem->qty * $poItem->unit_cost) + ($poItem->tax ?? 0));
+
+            $workItem = null;
+            if ($rfItem && $rfItem->work_item_id) {
+                $workItem = ErpWorkItem::find($rfItem->work_item_id);
+            } elseif ($rfItem && $rfItem->wid) {
+                $workItem = ErpWorkItem::where('wid_code', $rfItem->wid)->first();
+            } elseif ($rf && $rf->work_item_id) {
+                $workItem = ErpWorkItem::find($rf->work_item_id);
+            } elseif ($rf && $rf->project_code) {
+                $workItem = ErpWorkItem::where('wid_code', $rf->project_code)->first();
+            }
+
+            if ($workItem) {
+                $workItem->remaining_budget = min($workItem->allocated_budget, $workItem->remaining_budget + $itemCost);
+                $workItem->save();
+            }
+        }
     }
 
     private function generateNextCode(): string
