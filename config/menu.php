@@ -233,9 +233,9 @@ return [
         // ================== CUSTOM REPORTS ==================
         [
             'key'         => 'custom_reports',
-            'label'       => 'Custom Report Builder',
+            'label'       => 'Custom Reports & Analytics',
             'route'       => 'erp.reports.index',
-            'group'       => 'master',
+            'group'       => 'reports',
             'icon'        => 'bx bx-bar-chart-alt-2',
             'permissions' => ['custom_reports.view', 'custom_reports.create', 'custom_reports.export', 'custom_reports.delete'],
         ],
@@ -247,6 +247,7 @@ return [
         'finance'     => ['label' => 'Finance & Accounting','icon' => 'bx bx-dollar'],
         'inventory'   => ['label' => 'Inventory & Catalog', 'icon' => 'bx bx-box'],
         'hris'        => ['label' => 'Human Resource (HRIS)','icon' => 'bx bx-user-pin'],
+        'reports'     => ['label' => 'Laporan & Analitik',  'icon' => 'bx bx-bar-chart-alt-2'],
         'master'      => ['label' => 'System & Security',   'icon' => 'bx bx-slider-alt'],
     ],
 
@@ -258,6 +259,7 @@ return [
         ['label' => 'Finance Payment Advices', 'route' => 'erp.payment-advices.index'],
         ['label' => 'Logistik Stocks', 'route' => 'erp.stocks.index'],
         ['label' => 'HRIS Data Karyawan', 'route' => 'erp.hr.employees.index'],
+        ['label' => 'Custom Reports & Analytics', 'route' => 'erp.reports.index'],
     ]
 ];
 
