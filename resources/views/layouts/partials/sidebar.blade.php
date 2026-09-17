@@ -144,11 +144,28 @@ $isSystemOpen = request()->routeIs('erp.users.*')
     .layout-menu .menu-inner {
         padding-bottom: 5.5rem !important;
     }
+    /* Pastikan header brand profil di bagian atas sidebar tidak terpotong (overflow visible & auto height) */
+    .layout-menu .app-brand,
+    .menu .app-brand.demo {
+        height: auto !important;
+        min-height: 4.8rem !important;
+        padding: 1rem 1.25rem 0.65rem 1.25rem !important;
+        margin-top: 0 !important;
+        overflow: visible !important;
+    }
+    .layout-menu .app-brand .app-brand-link {
+        height: auto !important;
+        overflow: visible !important;
+    }
+    /* Sembunyikan bayangan default Sneat yang menutupi badge */
+    .menu-inner-shadow {
+        display: none !important;
+    }
 </style>
 
 <aside id="layout-menu" class="layout-menu menu-vertical menu bg-menu-theme">
-    <div class="app-brand demo" style="height: auto; min-height: 4.2rem; padding: 0.85rem 1.25rem;">
-        <a href="{{ $rl($dashboardRoute) }}" class="app-brand-link d-flex flex-column align-items-start justify-content-center text-decoration-none">
+    <div class="app-brand demo" style="height: auto !important; min-height: 4.8rem !important; padding: 1rem 1.25rem 0.65rem 1.25rem !important; overflow: visible !important;">
+        <a href="{{ $rl($dashboardRoute) }}" class="app-brand-link d-flex flex-column align-items-start justify-content-center text-decoration-none" style="height: auto !important; overflow: visible !important;">
             <span
                 class="app-brand-text demo menu-text fw-bolder"
                 title="{{ $displayName }}"
@@ -157,17 +174,18 @@ $isSystemOpen = request()->routeIs('erp.users.*')
                     max-width:185px;
                     white-space:normal;
                     overflow-wrap:anywhere;
-                    line-height:1.2;
+                    line-height:1.25;
                     letter-spacing:-0.01em;
-                    font-size:1.35rem !important;
+                    font-size:1.2rem !important;
                     text-transform:capitalize;
                     color: #566a7f;
+                    margin-bottom: 3px;
                 "
             >
                 {{ $displayName }}
             </span>
-            <div class="d-flex align-items-center gap-1 mt-1">
-                <span class="badge bg-label-primary px-2 py-0.5 fw-semibold" style="font-size: 0.72rem; letter-spacing: 0.02em;">
+            <div class="d-flex align-items-center gap-1">
+                <span class="badge bg-label-primary px-2 py-0.5 fw-semibold" style="font-size: 0.72rem; letter-spacing: 0.02em; display: inline-flex; align-items: center; line-height: 1.3;">
                     <i class="bx bx-user-check me-1" style="font-size: 0.75rem;"></i>{{ $userJabatan }}
                 </span>
             </div>
@@ -177,8 +195,6 @@ $isSystemOpen = request()->routeIs('erp.users.*')
             <i class="bx bx-chevron-left bx-sm align-middle"></i>
         </a>
     </div>
-
-    <div class="menu-inner-shadow"></div>
 
     <ul class="menu-inner py-1">
         {{-- ==================== DASHBOARD ==================== --}}
