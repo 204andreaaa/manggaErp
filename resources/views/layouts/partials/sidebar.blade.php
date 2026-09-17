@@ -140,6 +140,10 @@ $isSystemOpen = request()->routeIs('erp.users.*')
         font-size: 0.68rem;
         padding: 0.25rem 0.45rem;
     }
+    /* Berikan ruang ekstra (bottom padding) agar menu paling bawah tidak mepet / tertutup taskbar */
+    .layout-menu .menu-inner {
+        padding-bottom: 5.5rem !important;
+    }
 </style>
 
 <aside id="layout-menu" class="layout-menu menu-vertical menu bg-menu-theme">
@@ -608,6 +612,11 @@ $isSystemOpen = request()->routeIs('erp.users.*')
         </li>
         @endif
         @endif
+
+        {{-- Ruang spacer ekstra di paling bawah menu --}}
+        <li class="menu-item disabled py-3" style="pointer-events: none; opacity: 0;" aria-hidden="true">
+            <span class="menu-link">&nbsp;</span>
+        </li>
     </ul>
 </aside>
 
