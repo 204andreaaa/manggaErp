@@ -20,6 +20,7 @@ $isLogistik     = $isSuperAdmin || $u?->hasRole(['logistik', 'warehouse']) || $u
 $isHRIS         = $isSuperAdmin || $u?->hasRole(['hrd', 'hr_manager']) || $u?->canSeeMenu('employees') || $u?->canSeeMenu('departments') || $u?->canSeeMenu('hr_attendances') || $u?->canSeeMenu('hr_payroll');
 $isCEO          = $isSuperAdmin || $u?->hasRole('ceo');
 $isMaster       = $isSuperAdmin || $u?->hasRole('procurement') || $u?->canSeeMenu('products') || $u?->canSeeMenu('uoms');
+$canSeeCustomReports = $isSuperAdmin || $u?->canSeeMenu('custom_reports');
 $isSystem       = $isSuperAdmin || $u?->canSeeMenu('users') || $u?->canSeeMenu('roles') || $u?->canSeeMenu('projects') || $u?->canSeeMenu('approval_configs');
 
 // Hitung total PO Request yang belum dibuatkan PO (Pending PO)
@@ -290,11 +291,13 @@ if ($isGA || $isLogistik) {
             @endif
 
             {{-- Reports --}}
+            @if($canSeeCustomReports)
             <li class="nav-item">
                 <a class="nav-link {{ request()->routeIs('erp.reports.*') ? 'active' : '' }}" href="{{ $rl('erp.reports.index') }}">
                     <i class="bx bx-bar-chart-alt-2 me-1 text-primary"></i> Laporan
                 </a>
             </li>
+            @endif
 
             {{-- System & Security --}}
             @if($isSuperAdmin)
