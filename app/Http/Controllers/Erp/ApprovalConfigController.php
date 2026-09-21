@@ -22,7 +22,7 @@ class ApprovalConfigController extends Controller
         $poVerifConfigs = $configs->where('record_type', 'po_verification');
         $grVerifConfigs = $configs->where('record_type', 'gr_verification');
 
-        $projectId = session('current_project');
+        $projectId = session('project_id') ?? session('current_project');
         $usersQuery = User::orderBy('name');
         if ($projectId) {
             $usersQuery->whereHas('projects', function ($q) use ($projectId) {

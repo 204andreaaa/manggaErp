@@ -98,14 +98,16 @@ class ApprovalController extends Controller
 
         $requestForm = $approval->requestForm;
 
-        // Trigger next approval step if any
-        $nextApproval = $requestForm->approvals()->where('status', 'Waiting')->orderBy('level')->first();
-        
-        if ($nextApproval) {
-            $nextApproval->update(['status' => 'Pending']);
-        } else {
-            // All approved
-            $requestForm->update(['status' => 'Approved']);
+        if ($requestForm) {
+            // Trigger next approval step if any
+            $nextApproval = $requestForm->approvals()->where('status', 'Waiting')->orderBy('level')->first();
+            
+            if ($nextApproval) {
+                $nextApproval->update(['status' => 'Pending']);
+            } else {
+                // All approved
+                $requestForm->update(['status' => 'Approved']);
+            }
         }
 
         return redirect()->back()->with('success', 'Approval berhasil disubmit.');

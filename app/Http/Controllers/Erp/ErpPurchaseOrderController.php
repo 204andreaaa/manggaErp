@@ -472,8 +472,10 @@ class ErpPurchaseOrderController extends Controller
             return redirect()->back()->with('error', 'Only Draft PO Requests can be submitted for approval.');
         }
 
-        if (!$purchaseOrder->verified_by_id) {
-            return redirect()->back()->with('error', 'PO harus diverifikasi oleh Head of Procurement atau Superadmin terlebih dahulu sebelum di-submit.');
+        $poVerifConfig = \App\Models\Erp\ErpApprovalConfig::where('record_type', 'po_verification')->first();
+        if ($poVerifConfig && !$purchaseOrder->verified_by_id) {
+            $verifierName = $poVerifConfig->user?->name ?? 'Verifikator PO';
+            return redirect()->back()->with('error', "PO harus diverifikasi oleh {$verifierName} atau Superadmin terlebih dahulu sebelum di-submit.");
         }
 
         // Ambil data level yang sudah di-approve sebelum ada perubahan status
@@ -920,11 +922,11 @@ class ErpPurchaseOrderController extends Controller
                 $isAuthorized = true;
             }
         } else {
-            $isAuthorized = ($user->email === 'febri@local.com' || $user->username === 'febri' || $user->hasRole('head_procurement') || $user->hasPermission('po.verify'));
+            $isAuthorized = ($user->hasRole(['head_procurement', 'procurement']) || $user->hasPermission('po.verify'));
         }
 
         if (!$isAuthorized) {
-            $verifierName = $poVerifConfig?->user?->name ?? 'Head of Procurement (Febri Saputra)';
+            $verifierName = $poVerifConfig?->user?->name ?? 'Head of Procurement / Procurement';
             return redirect()->back()->with('error', "Hanya {$verifierName} atau Superadmin yang berhak memverifikasi PO ini.");
         }
 
@@ -1003,8 +1005,16 @@ class ErpPurchaseOrderController extends Controller
     private function generatePoNo()
     {
         $prefix = 'PO-' . now()->format('Y') . '-';
-        $count = ErpPurchaseOrder::where('po_no', 'like', $prefix . '%')->count();
-        return $prefix . str_pad($count + 1, 5, '0', STR_PAD_LEFT);
+        $latest = ErpPurchaseOrder::where('po_no', 'like', $prefix . '%')
+            ->orderBy('po_no', 'desc')
+            ->first();
+
+        if ($latest) {
+            $number = intval(substr($latest->po_no, -5));
+            return $prefix . str_pad($number + 1, 5, '0', STR_PAD_LEFT);
+        }
+
+        return $prefix . '00001';
     }
 
     public function cancel(ErpPurchaseOrder $purchaseOrder)

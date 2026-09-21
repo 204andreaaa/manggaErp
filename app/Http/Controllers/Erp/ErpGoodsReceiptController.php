@@ -99,6 +99,7 @@ class ErpGoodsReceiptController extends Controller
 
                 $maxRemaining = $poItem->remaining_qty;
                 if ($delQty > $maxRemaining || $recQty > $maxRemaining) {
+                    DB::rollBack();
                     $prodName = $poItem->requestFormItem?->product_name ?: 'Barang';
                     return redirect()->back()->withInput()->with('error', "Kuantitas penerimaan untuk {$prodName} ({$recQty}) melebihi sisa PO ({$maxRemaining}). Tidak dapat disimpan.");
                 }
@@ -178,7 +179,7 @@ class ErpGoodsReceiptController extends Controller
                 $isAuthorized = true;
             }
         } else {
-            $isAuthorized = $user->hasRole(['logistik', 'warehouse', 'ga', 'general_affair', 'superadmin']) || $user->email === 'nikmal@example.com';
+            $isAuthorized = $user->hasRole(['logistik', 'warehouse', 'ga', 'general_affair', 'superadmin']) || $user->hasPermission('goods_receipts.verify') || $user->hasPermission('goods_receipts.create');
         }
 
         abort_unless($isAuthorized, 403, 'Anda tidak memiliki hak akses untuk memverifikasi penerimaan fisik barang (GR) ini.');

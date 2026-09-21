@@ -263,7 +263,7 @@
                   </td>
                 </tr>
               @empty
-                <tr><td colspan="5" class="text-center text-muted py-3">Default Verifier: Head of Procurement (Febri Saputra)</td></tr>
+                <tr><td colspan="5" class="text-center text-muted py-3"><span class="badge bg-label-secondary me-2">Bypass Verification (Non-Aktif)</span> PO dapat langsung diajukan (Submit for Approval) tanpa verifikasi khusus. Tambahkan step di modal jika ingin mengaktifkan verifikasi PO.</td></tr>
               @endforelse
 
               {{-- GR Verification --}}
@@ -292,7 +292,7 @@
                   </td>
                 </tr>
               @empty
-                <tr><td colspan="5" class="text-center text-muted py-3">Default Verifier: Logistik & Warehouse (Nikmal Hadi)</td></tr>
+                <tr><td colspan="5" class="text-center text-muted py-3"><span class="badge bg-label-secondary me-2">Standar Gudang / Logistik</span> Penerimaan barang fisik dapat diverifikasi oleh staf Gudang / Logistik / GA / Superadmin. Tambahkan step di modal jika ingin menunjuk verifikator khusus.</td></tr>
               @endforelse
             </tbody>
           </table>

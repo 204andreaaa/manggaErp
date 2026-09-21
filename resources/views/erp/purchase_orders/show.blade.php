@@ -105,38 +105,40 @@
         @endif
       @endif
 
-      {{-- Verification Button (PO Verifier / Superadmin) --}}
-      @if(!$purchaseOrder->verified_by_id)
-        @php
-          $poVerifConfig = \App\Models\Erp\ErpApprovalConfig::where('record_type', 'po_verification')->first();
-          $canVerifyPo = false;
-          if (auth()->user()->hasRole('superadmin')) {
-              $canVerifyPo = true;
-          } elseif ($poVerifConfig) {
-              if ($poVerifConfig->user_id && auth()->id() == $poVerifConfig->user_id) {
-                  $canVerifyPo = true;
-              } elseif ($poVerifConfig->role_id && auth()->user()->hasRole($poVerifConfig->role?->name)) {
-                  $canVerifyPo = true;
-              }
-          } else {
-              $canVerifyPo = auth()->user()->email === 'febri@local.com' || auth()->user()->username === 'febri' || auth()->user()->hasRole('head_procurement');
-          }
-        @endphp
-        @if($canVerifyPo)
-          <form action="{{ route('erp.purchase-orders.verify', $purchaseOrder) }}" method="POST" class="d-inline">
-            @csrf
-            <button type="submit" class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm">
-              <i class="bx bx-check-shield me-1"></i>Verify PO
-            </button>
-          </form>
-        @endif
-      @else
+      {{-- Verification & Submit Buttons --}}
+      @php
+        $poVerifConfig = \App\Models\Erp\ErpApprovalConfig::where('record_type', 'po_verification')->first();
+        $isVerificationActive = (bool) $poVerifConfig;
+        $canVerifyPo = false;
+        if (auth()->user()->hasRole('superadmin')) {
+            $canVerifyPo = true;
+        } elseif ($poVerifConfig) {
+            if ($poVerifConfig->user_id && auth()->id() == $poVerifConfig->user_id) {
+                $canVerifyPo = true;
+            } elseif ($poVerifConfig->role_id && auth()->user()->hasRole($poVerifConfig->role?->name)) {
+                $canVerifyPo = true;
+            }
+        }
+      @endphp
+
+      @if($purchaseOrder->verified_by_id)
         <span class="badge bg-success px-3 py-2 fs-7" title="Verified by {{ $purchaseOrder->verifiedBy?->name ?? 'User' }} on {{ $purchaseOrder->verification_timestamp }}"><i class="bx bx-check-double me-1"></i>Verified</span>
+      @elseif($isVerificationActive && $canVerifyPo)
+        <form action="{{ route('erp.purchase-orders.verify', $purchaseOrder) }}" method="POST" class="d-inline">
+          @csrf
+          <button type="submit" class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm">
+            <i class="bx bx-check-shield me-1"></i>Verify PO
+          </button>
+        </form>
       @endif
 
       {{-- Submit for Approval Button (Procurement / Admin only) --}}
       @if($purchaseOrder->status === 'Draft' && auth()->user()->hasRole(['procurement', 'admin', 'superadmin']))
-        @if($purchaseOrder->verified_by_id)
+        @php
+          $isReadyToSubmit = !$isVerificationActive || (bool) $purchaseOrder->verified_by_id;
+          $verifierName = $poVerifConfig?->user?->name ?? 'Verifikator PO';
+        @endphp
+        @if($isReadyToSubmit)
           <form action="{{ route('erp.purchase-orders.submit', $purchaseOrder) }}" method="POST" class="d-inline">
             @csrf
             <button type="submit" class="btn btn-success btn-sm rounded-pill px-3">
@@ -144,7 +146,7 @@
             </button>
           </form>
         @else
-          <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3 opacity-75" onclick="Swal.fire({icon: 'warning', title: 'Verifikasi Dibutuhkan', text: 'PO harus diverifikasi terlebih dahulu oleh Head of Procurement (Febri Saputra) sebelum dapat diajukan untuk approval.', confirmButtonColor: '#696cff'})">
+          <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3 opacity-75" onclick="Swal.fire({icon: 'warning', title: 'Verifikasi Dibutuhkan', text: 'PO harus diverifikasi terlebih dahulu oleh {{ addslashes($verifierName) }} sebelum dapat diajukan untuk approval.', confirmButtonColor: '#696cff'})">
             <i class="bx bx-lock-alt me-1"></i>Submit for Approval
           </button>
         @endif

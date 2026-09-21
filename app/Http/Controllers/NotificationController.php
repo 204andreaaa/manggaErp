@@ -56,10 +56,17 @@ class NotificationController extends Controller
         }
 
         // ==========================================
-        // 1b. ACTIONABLE: Verifikasi Purchase Order (PO) - Head of Procurement (Febri)
+        // 1b. ACTIONABLE: Verifikasi Purchase Order (PO)
         // ==========================================
-        $isHeadProcurement = ($user->email === 'febri@local.com' || $user->username === 'febri' || $user->hasRole('head_procurement') || $user->hasRole('superadmin'));
-        if ($isHeadProcurement) {
+        $poVerifConfig = \App\Models\Erp\ErpApprovalConfig::where('record_type', 'po_verification')->first();
+        $canVerifyPo = false;
+        if ($user->hasRole('superadmin')) {
+            $canVerifyPo = true;
+        } elseif ($poVerifConfig) {
+            $canVerifyPo = ($poVerifConfig->user_id && $user->id == $poVerifConfig->user_id) || ($poVerifConfig->role_id && $user->hasRole($poVerifConfig->role?->name));
+        }
+
+        if ($canVerifyPo) {
             $unverifiedPos = ErpPurchaseOrder::where('status', 'Draft')
                 ->whereNull('verified_by_id')
                 ->with(['supplier', 'owner'])
@@ -74,7 +81,7 @@ class NotificationController extends Controller
                     'id'         => 'po_verif_' . $po->id,
                     'type'       => 'po_verification_needed',
                     'title'      => 'Verifikasi Purchase Order (PO)',
-                    'body'       => "PO {$po->po_no} ({$supplierName}) senilai Rp {$amountFormatted} dibuat oleh {$creator} menunggu verifikasi Head of Procurement.",
+                    'body'       => "PO {$po->po_no} ({$supplierName}) senilai Rp {$amountFormatted} dibuat oleh {$creator} menunggu verifikasi Anda.",
                     'url'        => route('erp.purchase-orders.show', $po),
                     'created_at' => $po->created_at ? $po->created_at->diffForHumans() : 'Baru saja',
                     'is_read'    => false,
@@ -297,9 +304,19 @@ class NotificationController extends Controller
         }
 
         // ==========================================
-        // 4b. ACTIONABLE: Verifikasi Goods Receipt (GR/DO) - Logistik / Warehouse
+        // 4b. ACTIONABLE: Verifikasi Goods Receipt (GR/DO)
         // ==========================================
-        if ($user->hasRole('superadmin') || $user->hasRole('logistik') || $user->hasRole('warehouse')) {
+        $grVerifConfig = \App\Models\Erp\ErpApprovalConfig::where('record_type', 'gr_verification')->first();
+        $canVerifyGr = false;
+        if ($user->hasRole('superadmin')) {
+            $canVerifyGr = true;
+        } elseif ($grVerifConfig) {
+            $canVerifyGr = ($grVerifConfig->user_id && $user->id == $grVerifConfig->user_id) || ($grVerifConfig->role_id && $user->hasRole($grVerifConfig->role?->name));
+        } else {
+            $canVerifyGr = $user->hasRole(['logistik', 'warehouse', 'ga', 'general_affair']);
+        }
+
+        if ($canVerifyGr) {
             $unverifiedGrs = \App\Models\Erp\ErpGoodsReceipt::where('status', '!=', 'Received')
                 ->with(['purchaseOrder.supplier', 'owner'])
                 ->latest()
@@ -313,7 +330,7 @@ class NotificationController extends Controller
                     'id'         => 'gr_verif_' . $gr->id,
                     'type'       => 'gr_verification_needed',
                     'title'      => 'Verifikasi Fisik Barang (GR)',
-                    'body'       => "DO {$gr->do_no} ({$supplier}) dibuat oleh {$creator} menunggu pengecekan fisik & verifikasi Logistik.",
+                    'body'       => "DO {$gr->do_no} ({$supplier}) dibuat oleh {$creator} menunggu pengecekan fisik & verifikasi.",
                     'url'        => route('erp.goods-receipts.show', $gr),
                     'created_at' => $gr->created_at ? $gr->created_at->diffForHumans() : 'Baru saja',
                     'is_read'    => false,

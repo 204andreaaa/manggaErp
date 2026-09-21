@@ -46,12 +46,6 @@ class ErpProductController extends Controller
     {
         abort_unless(auth()->user()->hasPermission('products.view'), 403);
 
-        if (\Illuminate\Support\Facades\Schema::hasTable('erp_products') && !\Illuminate\Support\Facades\Schema::hasColumn('erp_products', 'image')) {
-            \Illuminate\Support\Facades\Schema::table('erp_products', function ($table) {
-                $table->string('image')->nullable()->after('name');
-            });
-        }
-
         $draw        = (int) $r->input('draw', 1);
         $start       = (int) $r->input('start', 0);
         $length      = (int) $r->input('length', 10);
@@ -420,6 +414,19 @@ class ErpProductController extends Controller
             ];
         }
 
+        $minPrice = $poItems->isNotEmpty() ? (float) $poItems->min('unit_cost') : (float) $product->buying_price;
+        $maxPrice = $poItems->isNotEmpty() ? (float) $poItems->max('unit_cost') : (float) $product->buying_price;
+        $latestSupplier = $poItems->isNotEmpty() ? ($poItems->first()->purchaseOrder?->supplier?->name ?? '-') : '-';
+
+        // Chronological chart points
+        $chartCategories = [];
+        $chartSeries = [];
+        foreach ($reversed as $item) {
+            $po = $item->purchaseOrder;
+            $chartCategories[] = ($po->approved_date ?: $po->date)?->format('d M y') ?? '-';
+            $chartSeries[] = (float) $item->unit_cost;
+        }
+
         return response()->json([
             'status' => 'success',
             'product' => [
@@ -432,6 +439,13 @@ class ErpProductController extends Controller
                 'image_url' => $product->image_url ?: '',
                 'category' => $product->productFamily?->family_name ?: ($product->brand?->brand_name ?: 'General'),
                 'symbol' => $symbol,
+                'min_price_formatted' => $symbol . ' ' . number_format($minPrice, 0, ',', '.'),
+                'max_price_formatted' => $symbol . ' ' . number_format($maxPrice, 0, ',', '.'),
+                'latest_supplier' => $latestSupplier,
+            ],
+            'chart' => [
+                'categories' => $chartCategories,
+                'series' => $chartSeries,
             ],
             'total_po_count' => $totalCount,
             'history' => $historyList,
