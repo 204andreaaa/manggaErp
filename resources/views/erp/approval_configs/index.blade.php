@@ -315,7 +315,7 @@
         </div>
         <div class="modal-body">
           <div class="row">
-            <div class="col-md-6 mb-3">
+            <div class="col-md-6 mb-3" id="workflowTypeCol">
               <label class="form-label fw-bold">Workflow Type <span class="text-danger">*</span></label>
               <select name="record_type" class="form-select" required>
                 <optgroup label="Multi-Level Approvals">
@@ -329,19 +329,19 @@
                 </optgroup>
               </select>
             </div>
-            <div class="col-md-6 mb-3">
+            <div class="col-md-6 mb-3" id="levelStepCol">
               <label class="form-label fw-bold">Level / Step (Number) <span class="text-danger">*</span></label>
               <input type="number" name="level" class="form-control" min="1" required placeholder="e.g. 1">
             </div>
           </div>
           
           <div class="mb-3">
-            <label class="form-label">Name <span class="text-danger">*</span></label>
+            <label class="form-label fw-bold">Name <span class="text-danger">*</span></label>
             <input type="text" name="name" class="form-control" required placeholder="e.g. Finance Approval">
           </div>
 
           <div class="mb-3">
-            <label class="form-label">Assign to User <span class="text-danger">*</span></label>
+            <label class="form-label fw-bold">Assign to User <span class="text-danger">*</span></label>
             <select name="user_id" class="form-select" required>
               <option value="">-- Select User --</option>
               @foreach($users as $u)
@@ -350,25 +350,27 @@
             </select>
           </div>
           
-          <hr>
-          <h6 class="fw-bold">Conditions (Optional)</h6>
-          
-          <div class="row">
-            <div class="col-md-4 mb-3">
-              <label class="form-label">Project Type</label>
-              <select name="is_project" class="form-select">
-                <option value="">All (Both)</option>
-                <option value="1">Project Only</option>
-                <option value="0">Non-Project Only</option>
-              </select>
-            </div>
-            <div class="col-md-4 mb-3">
-              <label class="form-label">Min Amount</label>
-              <input type="number" step="0.01" name="min_amount" class="form-control" placeholder="0">
-            </div>
-            <div class="col-md-4 mb-3">
-              <label class="form-label">Max Amount</label>
-              <input type="number" step="0.01" name="max_amount" class="form-control" placeholder="No limit">
+          <div id="conditionsSection">
+            <hr>
+            <h6 class="fw-bold">Conditions (Optional)</h6>
+            
+            <div class="row">
+              <div class="col-md-4 mb-3">
+                <label class="form-label">Project Type</label>
+                <select name="is_project" class="form-select">
+                  <option value="">All (Both)</option>
+                  <option value="1">Project Only</option>
+                  <option value="0">Non-Project Only</option>
+                </select>
+              </div>
+              <div class="col-md-4 mb-3">
+                <label class="form-label">Min Amount</label>
+                <input type="number" step="0.01" name="min_amount" class="form-control" placeholder="0">
+              </div>
+              <div class="col-md-4 mb-3">
+                <label class="form-label">Max Amount</label>
+                <input type="number" step="0.01" name="max_amount" class="form-control" placeholder="No limit">
+              </div>
             </div>
           </div>
 
@@ -388,23 +390,47 @@
 document.addEventListener('DOMContentLoaded', function() {
     const maxLevels = @json($maxLevels);
     
-    
     const recordTypeSelect = document.querySelector('select[name="record_type"]');
     const levelInput = document.querySelector('input[name="level"]');
+    const nameInput = document.querySelector('input[name="name"]');
+    const workflowTypeCol = document.getElementById('workflowTypeCol');
+    const levelStepCol = document.getElementById('levelStepCol');
+    const conditionsSection = document.getElementById('conditionsSection');
     
-    const userSelect = document.querySelector('select[name="user_id"]');
-    
-    // Auto-calculate level on change
+    // Auto-adjust form based on workflow type
     recordTypeSelect.addEventListener('change', function() {
         const selectedType = this.value;
-        const currentMax = maxLevels[selectedType] || 0;
-        levelInput.value = currentMax + 1;
+        const isVerification = (selectedType === 'po_verification' || selectedType === 'gr_verification');
+
+        if (isVerification) {
+            levelInput.value = 1;
+            levelStepCol.style.display = 'none';
+            workflowTypeCol.className = 'col-md-12 mb-3';
+            conditionsSection.style.display = 'none';
+
+            if (!nameInput.value || nameInput.value.includes('Approval') || nameInput.value.includes('Verifier')) {
+                if (selectedType === 'po_verification') {
+                    nameInput.value = 'Verifikasi Procurement PO';
+                } else if (selectedType === 'gr_verification') {
+                    nameInput.value = 'Verifikasi Fisik Gudang (QC)';
+                }
+            }
+        } else {
+            levelStepCol.style.display = 'block';
+            workflowTypeCol.className = 'col-md-6 mb-3';
+            conditionsSection.style.display = 'block';
+
+            const currentMax = maxLevels[selectedType] || 0;
+            levelInput.value = currentMax + 1;
+
+            if (nameInput.value.includes('Verifikasi')) {
+                nameInput.value = '';
+            }
+        }
     });
 
-    // Initialize level on load
+    // Initialize on load
     recordTypeSelect.dispatchEvent(new Event('change'));
-
-    });
 });
 </script>
 @endsection
