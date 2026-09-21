@@ -385,7 +385,7 @@
 </div>
 @endsection
 
-@section('scripts')
+@push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const maxLevels = @json($maxLevels);
@@ -396,19 +396,20 @@ document.addEventListener('DOMContentLoaded', function() {
     const workflowTypeCol = document.getElementById('workflowTypeCol');
     const levelStepCol = document.getElementById('levelStepCol');
     const conditionsSection = document.getElementById('conditionsSection');
+    const addConfigModal = document.getElementById('addConfigModal');
     
-    // Auto-adjust form based on workflow type
-    recordTypeSelect.addEventListener('change', function() {
-        const selectedType = this.value;
+    function updateModalFields() {
+        if (!recordTypeSelect) return;
+        const selectedType = recordTypeSelect.value;
         const isVerification = (selectedType === 'po_verification' || selectedType === 'gr_verification');
 
         if (isVerification) {
-            levelInput.value = 1;
-            levelStepCol.style.display = 'none';
-            workflowTypeCol.className = 'col-md-12 mb-3';
-            conditionsSection.style.display = 'none';
+            if (levelInput) levelInput.value = 1;
+            if (levelStepCol) levelStepCol.style.display = 'none';
+            if (workflowTypeCol) workflowTypeCol.className = 'col-md-12 mb-3';
+            if (conditionsSection) conditionsSection.style.display = 'none';
 
-            if (!nameInput.value || nameInput.value.includes('Approval') || nameInput.value.includes('Verifier')) {
+            if (nameInput && (!nameInput.value || nameInput.value.includes('Approval') || nameInput.value.includes('Verifier'))) {
                 if (selectedType === 'po_verification') {
                     nameInput.value = 'Verifikasi Procurement PO';
                 } else if (selectedType === 'gr_verification') {
@@ -416,21 +417,28 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         } else {
-            levelStepCol.style.display = 'block';
-            workflowTypeCol.className = 'col-md-6 mb-3';
-            conditionsSection.style.display = 'block';
+            if (levelStepCol) levelStepCol.style.display = 'block';
+            if (workflowTypeCol) workflowTypeCol.className = 'col-md-6 mb-3';
+            if (conditionsSection) conditionsSection.style.display = 'block';
 
             const currentMax = maxLevels[selectedType] || 0;
-            levelInput.value = currentMax + 1;
+            if (levelInput) levelInput.value = currentMax + 1;
 
-            if (nameInput.value.includes('Verifikasi')) {
+            if (nameInput && nameInput.value.includes('Verifikasi')) {
                 nameInput.value = '';
             }
         }
-    });
+    }
 
-    // Initialize on load
-    recordTypeSelect.dispatchEvent(new Event('change'));
+    if (recordTypeSelect) {
+        recordTypeSelect.addEventListener('change', updateModalFields);
+    }
+
+    if (addConfigModal) {
+        addConfigModal.addEventListener('shown.bs.modal', updateModalFields);
+    }
+
+    updateModalFields();
 });
 </script>
-@endsection
+@endpush
