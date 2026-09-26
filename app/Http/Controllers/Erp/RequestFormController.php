@@ -189,6 +189,7 @@ class RequestFormController extends Controller
             });
 
             $rf = RequestForm::create([
+                'created_by_id' => auth()->id(),
                 'rf_no' => $this->generateNextCode(),
                 'record_type' => $data['record_type'],
                 'project_code' => $data['record_type'] === 'project' ? $data['project_code'] : null,

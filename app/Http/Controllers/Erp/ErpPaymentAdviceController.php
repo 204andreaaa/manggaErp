@@ -419,32 +419,33 @@ class ErpPaymentAdviceController extends Controller
     public function approveDetail(Request $request, ErpPaymentAdviceDetail $paymentAdviceDetail)
     {
         $user = auth()->user();
+        $isSuperadmin = $user->hasRole('superadmin');
 
         DB::beginTransaction();
         try {
-            $activeApproval = $paymentAdviceDetail->approvals()->where('status', 'Pending')->first();
+            $activeApproval = $paymentAdviceDetail->approvals()->where('status', 'Pending')->lockForUpdate()->first();
 
             if ($activeApproval) {
-                $isAuthorized = false;
-                if ($user->hasRole('superadmin')) {
-                    $isAuthorized = true;
-                } elseif ($activeApproval->assigned_to_user_id) {
-                    if ($user->id == $activeApproval->assigned_to_user_id) {
-                        $isAuthorized = true;
-                    }
+                $isDesignatedApprover = false;
+                if ($activeApproval->assigned_to_user_id) {
+                    $isDesignatedApprover = ($user->id == $activeApproval->assigned_to_user_id);
                 } elseif ($activeApproval->assigned_to_role_id) {
-                    $hasRole = \Illuminate\Support\Facades\DB::connection('master')
+                    $isDesignatedApprover = DB::connection('master')
                         ->table('role_user')
                         ->where('user_id', $user->id)
                         ->where('role_id', $activeApproval->assigned_to_role_id)
                         ->exists();
-                    if ($hasRole) {
-                        $isAuthorized = true;
-                    }
                 }
 
-                if (!$isAuthorized) {
+                if (!$isSuperadmin && !$isDesignatedApprover) {
+                    DB::rollBack();
                     return redirect()->back()->with('error', 'Anda tidak memiliki akses untuk menyetujui termin ini.');
+                }
+
+                $paOwnerId = $paymentAdviceDetail->paymentAdvice?->owner_id;
+                if (!$isSuperadmin && $paOwnerId && $paOwnerId == $user->id) {
+                    DB::rollBack();
+                    return redirect()->back()->with('error', 'Anda tidak dapat menyetujui Payment Advice yang Anda ajukan sendiri.');
                 }
 
                 $activeApproval->update([
@@ -452,10 +453,11 @@ class ErpPaymentAdviceController extends Controller
                     'comments' => $request->input('comments', 'Approved by ' . $user->name),
                     'actual_approver_id' => $user->id,
                     'approved_at' => now(),
+                    'is_override' => $isSuperadmin && !$isDesignatedApprover,
                 ]);
 
                 // Promote next step if any
-                $nextApproval = $paymentAdviceDetail->approvals()->where('status', 'Waiting')->orderBy('level')->first();
+                $nextApproval = $paymentAdviceDetail->approvals()->where('status', 'Waiting')->orderBy('level')->lockForUpdate()->first();
                 if ($nextApproval) {
                     $nextApproval->update(['status' => 'Pending']);
                 } else {
@@ -476,8 +478,15 @@ class ErpPaymentAdviceController extends Controller
             }
 
             // FALLBACK RULES (No active dynamic approval, use legacy flow)
-            if (!$user->hasRole('superadmin') && !$user->hasRole('finance') && !$user->hasRole('ceo')) {
+            if (!$isSuperadmin && !$user->hasRole('finance') && !$user->hasRole('ceo')) {
+                DB::rollBack();
                 return redirect()->back()->with('error', 'Hanya Finance / CEO / Superadmin yang berhak menyetujui Termin ini.');
+            }
+
+            $paOwnerId = $paymentAdviceDetail->paymentAdvice?->owner_id;
+            if (!$isSuperadmin && $paOwnerId && $paOwnerId == $user->id) {
+                DB::rollBack();
+                return redirect()->back()->with('error', 'Anda tidak dapat menyetujui Payment Advice yang Anda ajukan sendiri.');
             }
 
             $paymentAdviceDetail->update([
@@ -513,7 +522,7 @@ class ErpPaymentAdviceController extends Controller
 
         DB::beginTransaction();
         try {
-            $activeApproval = $paymentAdviceDetail->approvals()->where('status', 'Pending')->first();
+            $activeApproval = $paymentAdviceDetail->approvals()->where('status', 'Pending')->lockForUpdate()->first();
 
             if ($activeApproval) {
                 $isAuthorized = false;
@@ -524,7 +533,7 @@ class ErpPaymentAdviceController extends Controller
                         $isAuthorized = true;
                     }
                 } elseif ($activeApproval->assigned_to_role_id) {
-                    $hasRole = \Illuminate\Support\Facades\DB::connection('master')
+                    $hasRole = DB::connection('master')
                         ->table('role_user')
                         ->where('user_id', $user->id)
                         ->where('role_id', $activeApproval->assigned_to_role_id)
@@ -535,6 +544,7 @@ class ErpPaymentAdviceController extends Controller
                 }
 
                 if (!$isAuthorized) {
+                    DB::rollBack();
                     return redirect()->back()->with('error', 'Anda tidak memiliki akses untuk menolak termin ini.');
                 }
 
@@ -558,6 +568,7 @@ class ErpPaymentAdviceController extends Controller
 
             // FALLBACK RULES
             if (!$user->hasRole('superadmin') && !$user->hasRole('finance') && !$user->hasRole('ceo')) {
+                DB::rollBack();
                 return redirect()->back()->with('error', 'Hanya Finance / CEO / Superadmin yang berhak menolak (Reject) Termin ini.');
             }
 

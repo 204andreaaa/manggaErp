@@ -21,6 +21,7 @@ class ErpApproval extends Model
         'assigned_to_role_id',
         'assigned_to_user_id',
         'actual_approver_id',
+        'is_override',
         'status',
         'comments',
         'approved_at',
@@ -28,6 +29,7 @@ class ErpApproval extends Model
 
     protected $casts = [
         'approved_at' => 'datetime',
+        'is_override' => 'boolean',
     ];
 
     public function requestForm()

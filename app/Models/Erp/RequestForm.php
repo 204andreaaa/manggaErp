@@ -11,6 +11,7 @@ class RequestForm extends Model
     use SoftDeletes;
 
     protected $fillable = [
+        'created_by_id',
         'rf_no',
         'record_type',
         'project_code',

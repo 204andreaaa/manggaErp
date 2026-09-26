@@ -149,7 +149,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('approvals/{approval}/reject', [\App\Http\Controllers\Erp\ApprovalController::class, 'reject'])->name('approvals.reject');
 
         // Approval Configs (Superadmin Only)
-        Route::resource('approval-configs', \App\Http\Controllers\Erp\ApprovalConfigController::class)->only(['index', 'store', 'destroy']);
+        Route::resource('approval-configs', \App\Http\Controllers\Erp\ApprovalConfigController::class)->only(['index', 'store', 'update', 'destroy']);
 
         // Dedicated ERP Suppliers
         Route::get('suppliers/datatable', [\App\Http\Controllers\Erp\ErpSupplierController::class, 'datatable'])->name('suppliers.datatable');

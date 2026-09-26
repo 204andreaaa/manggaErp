@@ -468,206 +468,233 @@ class ErpPurchaseOrderController extends Controller
 
     public function submit(ErpPurchaseOrder $purchaseOrder)
     {
-        if ($purchaseOrder->status !== 'Draft') {
-            return redirect()->back()->with('error', 'Only Draft PO Requests can be submitted for approval.');
-        }
+        return DB::transaction(function () use ($purchaseOrder) {
+            // Lock the row so two concurrent submits can't both pass the checks below.
+            $purchaseOrder = ErpPurchaseOrder::where('id', $purchaseOrder->id)->lockForUpdate()->firstOrFail();
 
-        $poVerifConfig = \App\Models\Erp\ErpApprovalConfig::where('record_type', 'po_verification')->first();
-        if ($poVerifConfig && !$purchaseOrder->verified_by_id) {
-            $verifierName = $poVerifConfig->user?->name ?? 'Verifikator PO';
-            return redirect()->back()->with('error', "PO harus diverifikasi oleh {$verifierName} atau Superadmin terlebih dahulu sebelum di-submit.");
-        }
+            if ($purchaseOrder->status !== 'Draft') {
+                return redirect()->back()->with('error', 'Only Draft PO Requests can be submitted for approval.');
+            }
 
-        // Ambil data level yang sudah di-approve sebelum ada perubahan status
-        $previouslyApprovedLevels = $purchaseOrder->approvals()
-            ->where('level', '>', 0)
-            ->where('status', 'Approved')
-            ->get()
-            ->keyBy('level');
+            $poVerifConfig = \App\Models\Erp\ErpApprovalConfig::where('record_type', 'po_verification')->first();
+            if ($poVerifConfig && !$purchaseOrder->verified_by_id) {
+                $verifierName = $poVerifConfig->user?->name ?? 'Verifikator PO';
+                return redirect()->back()->with('error', "PO harus diverifikasi oleh {$verifierName} atau Superadmin terlebih dahulu sebelum di-submit.");
+            }
 
-        // Batalkan langkah aktif (Pending / Waiting) yang tersisa dari putaran sebelumnya
-        $purchaseOrder->approvals()
-            ->whereIn('status', ['Pending', 'Waiting'])
-            ->update(['status' => 'Cancelled']);
+            // Ambil data level yang sudah di-approve sebelum ada perubahan status
+            $previouslyApprovedLevels = $purchaseOrder->approvals()
+                ->where('level', '>', 0)
+                ->where('status', 'Approved')
+                ->get()
+                ->keyBy('level');
 
-        // Buat baris riwayat "Submitted" (Level 0)
-        \App\Models\Erp\ErpApproval::create([
-            'purchase_order_id' => $purchaseOrder->id,
-            'level' => 0,
-            'status' => 'Approved', // Set Approved agar baris ini dianggap selesai
-            'comments' => 'PO Submitted for approval',
-            'assigned_to_user_id' => auth()->id(),
-            'actual_approver_id' => auth()->id(),
-            'approved_at' => now(),
-        ]);
+            // Batalkan langkah aktif (Pending / Waiting) yang tersisa dari putaran sebelumnya
+            $purchaseOrder->approvals()
+                ->whereIn('status', ['Pending', 'Waiting'])
+                ->update(['status' => 'Cancelled']);
 
-        $totalCost = $purchaseOrder->total_po_amount_with_tax;
-        $isProject = $purchaseOrder->requestForm && $purchaseOrder->requestForm->record_type === 'project' ? 1 : 0;
+            // Buat baris riwayat "Submitted" (Level 0)
+            \App\Models\Erp\ErpApproval::create([
+                'purchase_order_id' => $purchaseOrder->id,
+                'level' => 0,
+                'status' => 'Approved', // Set Approved agar baris ini dianggap selesai
+                'comments' => 'PO Submitted for approval',
+                'assigned_to_user_id' => auth()->id(),
+                'actual_approver_id' => auth()->id(),
+                'approved_at' => now(),
+            ]);
 
-        $configs = \App\Models\Erp\ErpApprovalConfig::where('record_type', 'purchase_order')
-            ->where(function($q) use ($isProject) {
-                $q->whereNull('is_project')->orWhere('is_project', $isProject);
-            })
-            ->where(function($q) use ($totalCost) {
-                $q->whereNull('min_amount')->orWhere('min_amount', '<=', $totalCost);
-            })
-            ->where(function($q) use ($totalCost) {
-                $q->whereNull('max_amount')->orWhere('max_amount', '>=', $totalCost);
-            })
-            ->orderBy('level')
-            ->get();
+            $totalCost = $purchaseOrder->total_po_amount_with_tax;
+            $isProject = $purchaseOrder->requestForm && $purchaseOrder->requestForm->record_type === 'project' ? 1 : 0;
 
-        if ($configs->isNotEmpty()) {
-            $setPending = false;
-            foreach ($configs as $config) {
-                // Cari dari data yang disimpan di memori
-                $previousApproved = $previouslyApprovedLevels->get($config->level);
+            $configs = \App\Models\Erp\ErpApprovalConfig::where('record_type', 'purchase_order')
+                ->where(function($q) use ($isProject) {
+                    $q->whereNull('is_project')->orWhere('is_project', $isProject);
+                })
+                ->where(function($q) use ($totalCost) {
+                    $q->whereNull('min_amount')->orWhere('min_amount', '<=', $totalCost);
+                })
+                ->where(function($q) use ($totalCost) {
+                    $q->whereNull('max_amount')->orWhere('max_amount', '>=', $totalCost);
+                })
+                ->orderBy('level')
+                ->get();
 
-                if ($previousApproved) {
-                    // Jika level ini sudah pernah di-approve sebelumnya, kita TIDAK perlu membuat baris baru lagi.
-                    continue;
-                } else {
-                    \App\Models\Erp\ErpApproval::create([
-                        'purchase_order_id' => $purchaseOrder->id,
-                        'level' => $config->level,
-                        'assigned_to_role_id' => $config->role_id,
-                        'assigned_to_user_id' => $config->user_id,
-                        'status' => !$setPending ? 'Pending' : 'Waiting',
+            if ($configs->isNotEmpty()) {
+                $setPending = false;
+                foreach ($configs as $config) {
+                    // Cari dari data yang disimpan di memori
+                    $previousApproved = $previouslyApprovedLevels->get($config->level);
+
+                    if ($previousApproved) {
+                        // Jika level ini sudah pernah di-approve sebelumnya, kita TIDAK perlu membuat baris baru lagi.
+                        continue;
+                    } else {
+                        \App\Models\Erp\ErpApproval::create([
+                            'purchase_order_id' => $purchaseOrder->id,
+                            'level' => $config->level,
+                            'assigned_to_role_id' => $config->role_id,
+                            'assigned_to_user_id' => $config->user_id,
+                            'status' => !$setPending ? 'Pending' : 'Waiting',
+                        ]);
+                        $setPending = true;
+                    }
+                }
+
+                if (!$setPending) {
+                    $purchaseOrder->update([
+                        'status' => 'Approved',
+                        'approved_date' => now(),
                     ]);
-                    $setPending = true;
+                    $this->deductBudget($purchaseOrder);
+                    return redirect()->back()->with('success', 'PO submitted and automatically approved.');
                 }
             }
 
-            if (!$setPending) {
-                $purchaseOrder->update([
-                    'status' => 'Approved',
-                    'approved_date' => now(),
-                ]);
-                $this->deductBudget($purchaseOrder);
-                return redirect()->back()->with('success', 'PO submitted and automatically approved.');
+            $purchaseOrder->update([
+                'status' => 'Submitted',
+                'submitted_date' => now(),
+            ]);
+
+            if ($purchaseOrder->owner_id && $purchaseOrder->owner_id !== auth()->id()) {
+                \App\Helpers\NotificationHelper::send(
+                    $purchaseOrder->owner_id,
+                    'po_submitted',
+                    'PO Diajukan untuk Approval',
+                    "PO {$purchaseOrder->po_no} ({$purchaseOrder->supplier?->name}) telah diajukan ke proses persetujuan oleh " . auth()->user()->name . ".",
+                    route('erp.purchase-orders.show', $purchaseOrder),
+                    'purchase_order',
+                    $purchaseOrder->id
+                );
             }
-        }
 
-        $purchaseOrder->update([
-            'status' => 'Submitted',
-            'submitted_date' => now(),
-        ]);
-
-        if ($purchaseOrder->owner_id && $purchaseOrder->owner_id !== auth()->id()) {
-            \App\Helpers\NotificationHelper::send(
-                $purchaseOrder->owner_id,
-                'po_submitted',
-                'PO Diajukan untuk Approval',
-                "PO {$purchaseOrder->po_no} ({$purchaseOrder->supplier?->name}) telah diajukan ke proses persetujuan oleh " . auth()->user()->name . ".",
-                route('erp.purchase-orders.show', $purchaseOrder),
-                'purchase_order',
-                $purchaseOrder->id
-            );
-        }
-
-        return redirect()->back()->with('success', 'PO submitted for approval.');
+            return redirect()->back()->with('success', 'PO submitted for approval.');
+        });
     }
 
     public function approve(ErpPurchaseOrder $purchaseOrder, Request $request)
     {
         $user = auth()->user();
+        $isSuperadmin = $user->hasRole('superadmin');
 
-        // Check if there are dynamic approvals
-        $activeApproval = $purchaseOrder->approvals()->where('status', 'Pending')->first();
+        DB::beginTransaction();
+        try {
+            // Lock the PO row for the duration of the approval so a double-click / double
+            // request can't process the same step twice before either commits.
+            $purchaseOrder = ErpPurchaseOrder::where('id', $purchaseOrder->id)->lockForUpdate()->firstOrFail();
 
-        if ($activeApproval) {
-            $isAuthorized = false;
-            if ($user->hasRole('superadmin')) {
-                $isAuthorized = true;
-            } elseif ($activeApproval->assigned_to_user_id) {
-                if ($user->id == $activeApproval->assigned_to_user_id) {
-                    $isAuthorized = true;
+            // Check if there are dynamic approvals
+            $activeApproval = $purchaseOrder->approvals()->where('status', 'Pending')->lockForUpdate()->first();
+
+            if ($activeApproval) {
+                $isDesignatedApprover = false;
+                if ($activeApproval->assigned_to_user_id) {
+                    $isDesignatedApprover = ($user->id == $activeApproval->assigned_to_user_id);
+                } elseif ($activeApproval->assigned_to_role_id) {
+                    $isDesignatedApprover = DB::connection('master')
+                        ->table('role_user')
+                        ->where('user_id', $user->id)
+                        ->where('role_id', $activeApproval->assigned_to_role_id)
+                        ->exists();
                 }
-            } elseif ($activeApproval->assigned_to_role_id) {
-                $hasRole = \Illuminate\Support\Facades\DB::connection('tenant')
-                    ->table('role_user')
-                    ->where('user_id', $user->id)
-                    ->where('role_id', $activeApproval->assigned_to_role_id)
-                    ->exists();
-                if ($hasRole) {
-                    $isAuthorized = true;
+
+                if (!$isSuperadmin && !$isDesignatedApprover) {
+                    DB::rollBack();
+                    return redirect()->back()->with('error', 'Anda tidak memiliki akses untuk menyetujui tahap ini.');
                 }
-            }
 
-            if (!$isAuthorized) {
-                return redirect()->back()->with('error', 'Anda tidak memiliki akses untuk menyetujui tahap ini.');
-            }
+                // Segregation of duties: PO owner cannot approve their own PO.
+                if (!$isSuperadmin && $purchaseOrder->owner_id && $purchaseOrder->owner_id == $user->id) {
+                    DB::rollBack();
+                    return redirect()->back()->with('error', 'Anda tidak dapat menyetujui PO yang Anda ajukan sendiri.');
+                }
 
-            $activeApproval->update([
-                'status' => 'Approved',
-                'comments' => $request->input('comments'),
-                'actual_approver_id' => $user->id,
-                'approved_at' => now(),
-            ]);
-
-            $nextApproval = $purchaseOrder->approvals()->where('status', 'Waiting')->orderBy('level')->first();
-            if ($nextApproval) {
-                $nextApproval->update(['status' => 'Pending']);
-            } else {
-                $purchaseOrder->update([
+                $activeApproval->update([
                     'status' => 'Approved',
-                    'approved_date' => now(),
+                    'comments' => $request->input('comments'),
+                    'actual_approver_id' => $user->id,
+                    'approved_at' => now(),
+                    'is_override' => $isSuperadmin && !$isDesignatedApprover,
                 ]);
-                $this->deductBudget($purchaseOrder);
-                $this->generatePaymentAdvices($purchaseOrder);
-                \App\Models\Erp\ErpProduct::syncProductsFromPo($purchaseOrder);
 
-                if ($purchaseOrder->owner_id && $purchaseOrder->owner_id !== $user->id) {
-                    \App\Helpers\NotificationHelper::send(
-                        $purchaseOrder->owner_id,
-                        'po_approved',
-                        'PO Disetujui (Approved)',
-                        "PO {$purchaseOrder->po_no} ({$purchaseOrder->supplier?->name}) telah disetujui sepenuhnya.",
-                        route('erp.purchase-orders.show', $purchaseOrder),
-                        'purchase_order',
-                        $purchaseOrder->id
-                    );
+                $nextApproval = $purchaseOrder->approvals()->where('status', 'Waiting')->orderBy('level')->lockForUpdate()->first();
+                if ($nextApproval) {
+                    $nextApproval->update(['status' => 'Pending']);
+                } else {
+                    $purchaseOrder->update([
+                        'status' => 'Approved',
+                        'approved_date' => now(),
+                    ]);
+                    $this->deductBudget($purchaseOrder);
+                    $this->generatePaymentAdvices($purchaseOrder);
+                    \App\Models\Erp\ErpProduct::syncProductsFromPo($purchaseOrder);
+
+                    if ($purchaseOrder->owner_id && $purchaseOrder->owner_id !== $user->id) {
+                        \App\Helpers\NotificationHelper::send(
+                            $purchaseOrder->owner_id,
+                            'po_approved',
+                            'PO Disetujui (Approved)',
+                            "PO {$purchaseOrder->po_no} ({$purchaseOrder->supplier?->name}) telah disetujui sepenuhnya.",
+                            route('erp.purchase-orders.show', $purchaseOrder),
+                            'purchase_order',
+                            $purchaseOrder->id
+                        );
+                    }
+                }
+
+                DB::commit();
+                return redirect()->back()->with('success', 'Approval PO berhasil disetujui.');
+            }
+
+            // FALLBACK RULES (If no dynamic approval configs were set up)
+            $totalCost = $purchaseOrder->total_po_amount_with_tax;
+
+            if ($totalCost <= 1000000) {
+                // Must be procurement or superadmin
+                if (!$user->hasRole('procurement') && !$isSuperadmin) {
+                    DB::rollBack();
+                    return redirect()->back()->with('error', 'Only Procurement Manager (Febri Saputra) can approve POs <= 1,000,000 IDR.');
+                }
+            } else {
+                // Must be ceo or superadmin
+                if (!$user->hasRole('ceo') && !$isSuperadmin) {
+                    DB::rollBack();
+                    return redirect()->back()->with('error', 'Only CEO (Barry Japadermawan) can approve POs > 1,000,000 IDR.');
                 }
             }
 
-            return redirect()->back()->with('success', 'Approval PO berhasil disetujui.');
-        }
-
-        // FALLBACK RULES (If no dynamic approval configs were set up)
-        $totalCost = $purchaseOrder->total_po_amount_with_tax;
-
-        if ($totalCost <= 1000000) {
-            // Must be procurement or superadmin
-            if (!$user->hasRole('procurement') && !$user->hasRole('superadmin')) {
-                return redirect()->back()->with('error', 'Only Procurement Manager (Febri Saputra) can approve POs <= 1,000,000 IDR.');
+            if (!$isSuperadmin && $purchaseOrder->owner_id && $purchaseOrder->owner_id == $user->id) {
+                DB::rollBack();
+                return redirect()->back()->with('error', 'Anda tidak dapat menyetujui PO yang Anda ajukan sendiri.');
             }
-        } else {
-            // Must be ceo or superadmin
-            if (!$user->hasRole('ceo') && !$user->hasRole('superadmin')) {
-                return redirect()->back()->with('error', 'Only CEO (Barry Japadermawan) can approve POs > 1,000,000 IDR.');
+
+            $purchaseOrder->update([
+                'status' => 'Approved',
+                'approved_date' => now(),
+            ]);
+            $this->deductBudget($purchaseOrder);
+            $this->generatePaymentAdvices($purchaseOrder);
+            \App\Models\Erp\ErpProduct::syncProductsFromPo($purchaseOrder);
+
+            if ($purchaseOrder->owner_id && $purchaseOrder->owner_id !== $user->id) {
+                \App\Helpers\NotificationHelper::send(
+                    $purchaseOrder->owner_id,
+                    'po_approved',
+                    'PO Disetujui (Approved)',
+                    "PO {$purchaseOrder->po_no} ({$purchaseOrder->supplier?->name}) telah disetujui sepenuhnya.",
+                    route('erp.purchase-orders.show', $purchaseOrder),
+                    'purchase_order',
+                    $purchaseOrder->id
+                );
             }
-        }
 
-        $purchaseOrder->update([
-            'status' => 'Approved',
-            'approved_date' => now(),
-        ]);
-        $this->deductBudget($purchaseOrder);
-        $this->generatePaymentAdvices($purchaseOrder);
-        \App\Models\Erp\ErpProduct::syncProductsFromPo($purchaseOrder);
-
-        if ($purchaseOrder->owner_id && $purchaseOrder->owner_id !== $user->id) {
-            \App\Helpers\NotificationHelper::send(
-                $purchaseOrder->owner_id,
-                'po_approved',
-                'PO Disetujui (Approved)',
-                "PO {$purchaseOrder->po_no} ({$purchaseOrder->supplier?->name}) telah disetujui sepenuhnya.",
-                route('erp.purchase-orders.show', $purchaseOrder),
-                'purchase_order',
-                $purchaseOrder->id
-            );
+            DB::commit();
+            return redirect()->back()->with('success', 'PO approved successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->with('error', 'Gagal menyetujui PO: ' . $e->getMessage());
         }
-        return redirect()->back()->with('success', 'PO approved successfully.');
     }
 
     private function generatePaymentAdvices(ErpPurchaseOrder $po)
@@ -731,53 +758,112 @@ class ErpPurchaseOrderController extends Controller
     public function reject(ErpPurchaseOrder $purchaseOrder, Request $request)
     {
         $user = auth()->user();
+        $isSuperadmin = $user->hasRole('superadmin');
 
-        // Check if there are dynamic approvals
-        $activeApproval = $purchaseOrder->approvals()->where('status', 'Pending')->first();
+        $request->validate([
+            'comments' => 'required|string',
+        ]);
 
-        if ($activeApproval) {
-            $isAuthorized = false;
-            if ($user->hasRole('superadmin')) {
-                $isAuthorized = true;
-            } elseif ($activeApproval->assigned_to_user_id) {
-                if ($user->id == $activeApproval->assigned_to_user_id) {
+        DB::beginTransaction();
+        try {
+            $purchaseOrder = ErpPurchaseOrder::where('id', $purchaseOrder->id)->lockForUpdate()->firstOrFail();
+
+            // Check if there are dynamic approvals
+            $activeApproval = $purchaseOrder->approvals()->where('status', 'Pending')->lockForUpdate()->first();
+
+            if ($activeApproval) {
+                $isAuthorized = false;
+                if ($isSuperadmin) {
                     $isAuthorized = true;
+                } elseif ($activeApproval->assigned_to_user_id) {
+                    if ($user->id == $activeApproval->assigned_to_user_id) {
+                        $isAuthorized = true;
+                    }
+                } elseif ($activeApproval->assigned_to_role_id) {
+                    $hasRole = DB::connection('master')
+                        ->table('role_user')
+                        ->where('user_id', $user->id)
+                        ->where('role_id', $activeApproval->assigned_to_role_id)
+                        ->exists();
+                    if ($hasRole) {
+                        $isAuthorized = true;
+                    }
                 }
-            } elseif ($activeApproval->assigned_to_role_id) {
-                $hasRole = \Illuminate\Support\Facades\DB::connection('tenant')
-                    ->table('role_user')
-                    ->where('user_id', $user->id)
-                    ->where('role_id', $activeApproval->assigned_to_role_id)
-                    ->exists();
-                if ($hasRole) {
-                    $isAuthorized = true;
+
+                if (!$isAuthorized) {
+                    DB::rollBack();
+                    return redirect()->back()->with('error', 'Anda tidak memiliki akses untuk menolak tahap ini.');
+                }
+
+                $activeApproval->update([
+                    'status' => 'Rejected',
+                    'comments' => $request->input('comments'),
+                    'actual_approver_id' => $user->id,
+                    'approved_at' => now(),
+                ]);
+
+                // Cancel subsequent steps
+                $purchaseOrder->approvals()->where('status', 'Waiting')->update(['status' => 'Cancelled']);
+
+                $purchaseOrder->update([
+                    'status' => 'Rejected',
+                    'rejected_date' => now(),
+                    'verified_by_id' => null,
+                    'verification_timestamp' => null,
+                ]);
+
+                if ($purchaseOrder->owner_id && $purchaseOrder->owner_id !== $user->id) {
+                    \App\Helpers\NotificationHelper::send(
+                        $purchaseOrder->owner_id,
+                        'po_rejected',
+                        'PO Ditolak (Rejected)',
+                        "PO {$purchaseOrder->po_no} ditolak oleh {$user->name}. Alasan: {$request->input('comments')}",
+                        route('erp.purchase-orders.show', $purchaseOrder),
+                        'purchase_order',
+                        $purchaseOrder->id
+                    );
+                }
+
+                DB::commit();
+                return redirect()->back()->with('success', 'PO berhasil ditolak.');
+            }
+
+            // FALLBACK RULES (If no dynamic approval configs were set up)
+            $totalCost = $purchaseOrder->total_po_amount_with_tax;
+
+            if ($totalCost <= 1000000) {
+                if (!$user->hasRole('procurement') && !$isSuperadmin) {
+                    DB::rollBack();
+                    return redirect()->back()->with('error', 'Only Procurement Manager (Febri Saputra) can reject POs <= 1,000,000 IDR.');
+                }
+            } else {
+                if (!$user->hasRole('ceo') && !$isSuperadmin) {
+                    DB::rollBack();
+                    return redirect()->back()->with('error', 'Only CEO (Barry Japadermawan) can reject POs > 1,000,000 IDR.');
                 }
             }
 
-            if (!$isAuthorized) {
-                return redirect()->back()->with('error', 'Anda tidak memiliki akses untuk menolak tahap ini.');
+            // Collect affected products before rejecting/updating
+            $affectedProductIds = [];
+            foreach ($purchaseOrder->items as $item) {
+                $p = $item->requestFormItem?->erpProduct
+                    ?: \App\Models\Erp\ErpProduct::where('product_code', $item->requestFormItem?->product_id_text)
+                        ->orWhere('name', $item->requestFormItem?->product_name)
+                        ->first();
+                if ($p) $affectedProductIds[] = $p->id;
             }
-
-            $request->validate([
-                'comments' => 'required|string',
-            ]);
-
-            $activeApproval->update([
-                'status' => 'Rejected',
-                'comments' => $request->input('comments'),
-                'actual_approver_id' => $user->id,
-                'approved_at' => now(),
-            ]);
-
-            // Cancel subsequent steps
-            $purchaseOrder->approvals()->where('status', 'Waiting')->update(['status' => 'Cancelled']);
 
             $purchaseOrder->update([
                 'status' => 'Rejected',
                 'rejected_date' => now(),
                 'verified_by_id' => null,
                 'verification_timestamp' => null,
+                'description' => $purchaseOrder->description . "\nRejection Reason: " . $request->input('comments'),
             ]);
+
+            foreach (array_unique($affectedProductIds) as $pId) {
+                \App\Models\Erp\ErpProduct::syncBuyingPriceFromLatestApprovedPo($pId);
+            }
 
             if ($purchaseOrder->owner_id && $purchaseOrder->owner_id !== $user->id) {
                 \App\Helpers\NotificationHelper::send(
@@ -791,61 +877,12 @@ class ErpPurchaseOrderController extends Controller
                 );
             }
 
-            return redirect()->back()->with('success', 'PO berhasil ditolak.');
+            DB::commit();
+            return redirect()->back()->with('success', 'PO rejected successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->with('error', 'Gagal menolak PO: ' . $e->getMessage());
         }
-
-        // FALLBACK RULES (If no dynamic approval configs were set up)
-        $totalCost = $purchaseOrder->total_po_amount_with_tax;
-
-        if ($totalCost <= 1000000) {
-            if (!$user->hasRole('procurement') && !$user->hasRole('superadmin')) {
-                return redirect()->back()->with('error', 'Only Procurement Manager (Febri Saputra) can reject POs <= 1,000,000 IDR.');
-            }
-        } else {
-            if (!$user->hasRole('ceo') && !$user->hasRole('superadmin')) {
-                return redirect()->back()->with('error', 'Only CEO (Barry Japadermawan) can reject POs > 1,000,000 IDR.');
-            }
-        }
-
-        $request->validate([
-            'comments' => 'required|string',
-        ]);
-
-        // Collect affected products before rejecting/updating
-        $affectedProductIds = [];
-        foreach ($purchaseOrder->items as $item) {
-            $p = $item->requestFormItem?->erpProduct 
-                ?: \App\Models\Erp\ErpProduct::where('product_code', $item->requestFormItem?->product_id_text)
-                    ->orWhere('name', $item->requestFormItem?->product_name)
-                    ->first();
-            if ($p) $affectedProductIds[] = $p->id;
-        }
-
-        $purchaseOrder->update([
-            'status' => 'Rejected',
-            'rejected_date' => now(),
-            'verified_by_id' => null,
-            'verification_timestamp' => null,
-            'description' => $purchaseOrder->description . "\nRejection Reason: " . $request->input('comments'),
-        ]);
-
-        foreach (array_unique($affectedProductIds) as $pId) {
-            \App\Models\Erp\ErpProduct::syncBuyingPriceFromLatestApprovedPo($pId);
-        }
-
-        if ($purchaseOrder->owner_id && $purchaseOrder->owner_id !== $user->id) {
-            \App\Helpers\NotificationHelper::send(
-                $purchaseOrder->owner_id,
-                'po_rejected',
-                'PO Ditolak (Rejected)',
-                "PO {$purchaseOrder->po_no} ditolak oleh {$user->name}. Alasan: {$request->input('comments')}",
-                route('erp.purchase-orders.show', $purchaseOrder),
-                'purchase_order',
-                $purchaseOrder->id
-            );
-        }
-
-        return redirect()->back()->with('success', 'PO rejected successfully.');
     }
 
     public function destroy(ErpPurchaseOrder $purchaseOrder)
