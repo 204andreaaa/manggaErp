@@ -3,6 +3,10 @@
 @section('title', 'Create Request Form')
 
 @section('content')
+@php
+  $cloneFrom = $cloneFrom ?? null;
+  $cloneItems = $cloneItems ?? [];
+@endphp
 <style>
   .rf-nav-tabs .nav-link {
     color: #64748b;
@@ -34,13 +38,20 @@
   {{-- Header & Breadcrumb --}}
   <div class="d-flex align-items-center justify-content-between mb-4">
     <div>
-      <h4 class="mb-1 fw-bold text-dark"><i class="bx bx-file-find text-primary me-2"></i>Create Request Form</h4>
+      <h4 class="mb-1 fw-bold text-dark"><i class="bx bx-file-find text-primary me-2"></i>{{ $cloneFrom ? 'Clone Request Form' : 'Create Request Form' }}</h4>
       <div class="text-muted small">Tipe Dokumen: <span class="badge bg-label-primary fs-7">{{ $recordTypeLabel }}</span></div>
     </div>
     <a href="{{ route('erp.request-form.index') }}" class="btn btn-outline-secondary btn-sm">
       <i class="bx bx-arrow-back me-1"></i>Back to List
     </a>
   </div>
+
+  @if($cloneFrom)
+    <div class="alert alert-info shadow-sm mb-4">
+      <i class="bx bx-copy-alt me-1"></i>
+      Form ini hasil <strong>clone dari RF {{ $cloneFrom->rf_no }}</strong>. Semua data (termasuk daftar item) sudah keisi otomatis dan <strong>belum tersimpan</strong> — silakan cek, edit, tambah, atau hapus item sebelum klik Save RF.
+    </div>
+  @endif
 
   @if($errors->any())
     <div class="alert alert-danger shadow-sm mb-4">
@@ -117,7 +128,7 @@
                 <select name="project_code" id="headerProjectCode" class="form-select select2" required>
                   <option value="">-- Pilih Sub Project (JSI / Apjatel) --</option>
                   @foreach($subProjects as $sp)
-                    <option value="{{ $sp->sub_project_code }}" @selected(old('project_code') === $sp->sub_project_code)>
+                    <option value="{{ $sp->sub_project_code }}" @selected(old('project_code', $cloneFrom->project_code ?? '') === $sp->sub_project_code)>
                       {{ $sp->budgetParent?->name ?? 'Mandau' }} - {{ $sp->name }} ({{ $sp->sub_project_code }})
                     </option>
                   @endforeach
@@ -131,30 +142,33 @@
             <div class="row g-3">
               <div class="col-md-6">
                 <label class="form-label fw-semibold small text-uppercase text-muted">Requestor</label>
-                <input name="requestor" class="form-control" value="{{ old('requestor', auth()->user()->name ?? '') }}">
+                <input name="requestor" class="form-control" value="{{ old('requestor', $cloneFrom->requestor ?? (auth()->user()->name ?? '')) }}">
               </div>
               <div class="col-md-6">
                 <label class="form-label fw-semibold small text-uppercase text-muted">Owner</label>
-                <input name="owner" class="form-control" value="{{ old('owner', auth()->user()->name ?? '') }}">
+                <input name="owner" class="form-control" value="{{ old('owner', $cloneFrom->owner ?? (auth()->user()->name ?? '')) }}">
               </div>
               <div class="col-md-6">
                 <label class="form-label fw-semibold small text-uppercase text-muted">Priority</label>
                 <select name="priority" class="form-select">
                   @foreach(['Normal', 'High', 'Urgent', 'Low'] as $priority)
-                    <option value="{{ $priority }}" @selected(old('priority', 'Normal') === $priority)>{{ $priority }}</option>
+                    <option value="{{ $priority }}" @selected(old('priority', $cloneFrom->priority ?? 'Normal') === $priority)>{{ $priority }}</option>
                   @endforeach
                 </select>
               </div>
               <div class="col-md-6">
                 <label class="form-label fw-semibold small text-uppercase text-muted">Date <span class="text-danger">*</span></label>
                 <input type="date" name="rf_date" class="form-control" value="{{ old('rf_date', now()->toDateString()) }}" required>
+                @if($cloneFrom)
+                  <div class="form-text text-muted" style="font-size:11px;">Tanggal diisi hari ini, bukan tanggal RF asal.</div>
+                @endif
               </div>
               <div class="col-md-6">
                 <label class="form-label fw-semibold small text-uppercase text-muted">RF Type</label>
                 <select name="rf_type" class="form-select">
                   <option value="">--None--</option>
-                  <option value="Fixed Asset" @selected(old('rf_type') === 'Fixed Asset')>Fixed Asset</option>
-                  <option value="Non Fixed Asset" @selected(old('rf_type') === 'Non Fixed Asset')>Non Fixed Asset</option>
+                  <option value="Fixed Asset" @selected(old('rf_type', $cloneFrom->rf_type ?? '') === 'Fixed Asset')>Fixed Asset</option>
+                  <option value="Non Fixed Asset" @selected(old('rf_type', $cloneFrom->rf_type ?? '') === 'Non Fixed Asset')>Non Fixed Asset</option>
                 </select>
               </div>
               <div class="col-md-6">
@@ -185,15 +199,15 @@
 
             <div class="mb-3">
               <label class="form-label fw-semibold small text-uppercase text-muted">Short Remark</label>
-              <textarea name="remark" class="form-control" rows="2" placeholder="Ringkasan keperluan permohonan">{{ old('remark') }}</textarea>
+              <textarea name="remark" class="form-control" rows="2" placeholder="Ringkasan keperluan permohonan">{{ old('remark', $cloneFrom->remark ?? '') }}</textarea>
             </div>
             <div class="mb-3">
               <label class="form-label fw-semibold small text-uppercase text-muted">Long Remark (Detail Request)</label>
-              <textarea name="long_remark" class="form-control" rows="3" placeholder="Rincian lengkap dan latar belakang permohonan">{{ old('long_remark') }}</textarea>
+              <textarea name="long_remark" class="form-control" rows="3" placeholder="Rincian lengkap dan latar belakang permohonan">{{ old('long_remark', $cloneFrom->long_remark ?? '') }}</textarea>
             </div>
             <div class="mb-3">
               <label class="form-label fw-semibold small text-uppercase text-muted">Recommended Supplier</label>
-              <input name="recommend_supplier" class="form-control" value="{{ old('recommend_supplier') }}" placeholder="Nama vendor / supplier rujukan">
+              <input name="recommend_supplier" class="form-control" value="{{ old('recommend_supplier', $cloneFrom->recommend_supplier ?? '') }}" placeholder="Nama vendor / supplier rujukan">
             </div>
           </div>
         </div>
@@ -220,7 +234,7 @@
               ] as $field => $label)
                 <div class="col-md-4 col-sm-6">
                   <div class="form-check">
-                    <input class="form-check-input" type="checkbox" name="{{ $field }}" value="1" id="{{ $field }}" @checked(old($field))>
+                    <input class="form-check-input" type="checkbox" name="{{ $field }}" value="1" id="{{ $field }}" @checked(old($field, $cloneFrom->$field ?? false))>
                     <label class="form-check-label fw-medium text-secondary" for="{{ $field }}">{{ $label }}</label>
                   </div>
                 </div>
@@ -243,7 +257,7 @@
         </div>
 
         @php
-          $oldItems = old('items', []);
+          $oldItems = old('items', $cloneItems);
         @endphp
 
         <div id="lineHiddenInputs"></div>
@@ -469,7 +483,26 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   const initialItems = @json($oldItems);
-  const lineItems = [];
+  // Pre-fill the line items table from a clone source (or from old() input after
+  // a failed validation redirect) — normalize every field to a string the same
+  // way collectModalItem() does, so renderTable()/renderHiddenInputs() see the
+  // exact shape they expect either way.
+  const lineItems = (Array.isArray(initialItems) ? initialItems : []).map((item) => ({
+    product_name: item.product_name ?? '',
+    product_id_text: item.product_id_text ?? '',
+    wid: item.wid ?? '',
+    currency: item.currency ?? 'IDR',
+    status: item.status ?? 'Requested',
+    qty: String(item.qty ?? '1'),
+    qty_fulfilled: String(item.qty_fulfilled ?? '0'),
+    unit_cost: String(item.unit_cost ?? '0'),
+    original_total_cost: String(item.original_total_cost ?? '0'),
+    actual_cost: String(item.actual_cost ?? '0'),
+    date_required: item.date_required ?? '',
+    pic: item.pic ?? '',
+    within_budget: item.within_budget ? '1' : '0',
+    remark: item.remark ?? '',
+  }));
   const body = document.getElementById('lineItemsBody');
   const emptyRow = document.getElementById('emptyLineRow');
   const hiddenInputs = document.getElementById('lineHiddenInputs');
@@ -684,6 +717,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     renderHiddenInputs();
   }
+
+  // Render whatever was pre-filled (clone source, or old() input after a failed
+  // validation redirect) into the table right away.
+  renderTable();
 
   $('#lineProductName').on('change', function () {
     const opt = $(this).find(':selected');

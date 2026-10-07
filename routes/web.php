@@ -81,6 +81,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('request-form', [\App\Http\Controllers\Erp\RequestFormController::class, 'store'])->name('request-form.store');
         Route::get('request-form', [\App\Http\Controllers\Erp\RequestFormController::class, 'index'])->name('request-form.index');
         Route::get('request-form/{requestForm}/edit', [\App\Http\Controllers\Erp\RequestFormController::class, 'edit'])->name('request-form.edit');
+        Route::get('request-form/{requestForm}/clone', [\App\Http\Controllers\Erp\RequestFormController::class, 'cloneForm'])->name('request-form.clone');
         Route::put('request-form/{requestForm}', [\App\Http\Controllers\Erp\RequestFormController::class, 'update'])->name('request-form.update');
         Route::get('request-form/{requestForm}', [\App\Http\Controllers\Erp\RequestFormController::class, 'show'])->name('request-form.show');
         Route::post('request-form/{requestForm}/unlock', [\App\Http\Controllers\Erp\RequestFormController::class, 'unlock'])->name('request-form.unlock');
@@ -150,6 +151,27 @@ Route::middleware(['auth', 'active'])->group(function () {
 
         // Approval Configs (Superadmin Only)
         Route::resource('approval-configs', \App\Http\Controllers\Erp\ApprovalConfigController::class)->only(['index', 'store', 'update', 'destroy']);
+
+        // Budget Control - Master Data & Plan Hierarchy
+        Route::resource('annual-budget-plans', \App\Http\Controllers\Erp\AnnualBudgetPlanController::class)->only(['index', 'store', 'show', 'update']);
+        Route::post('annual-budget-plans/{annualBudgetPlan}/monthly-plans', [\App\Http\Controllers\Erp\MonthlyBudgetPlanController::class, 'store'])->name('annual-budget-plans.monthly-plans.store');
+        Route::get('monthly-budget-plans/{monthlyBudgetPlan}', [\App\Http\Controllers\Erp\MonthlyBudgetPlanController::class, 'show'])->name('monthly-budget-plans.show');
+        Route::put('monthly-budget-plans/{monthlyBudgetPlan}', [\App\Http\Controllers\Erp\MonthlyBudgetPlanController::class, 'update'])->name('monthly-budget-plans.update');
+        Route::post('monthly-budget-plans/{monthlyBudgetPlan}/budget-plan-details', [\App\Http\Controllers\Erp\BudgetPlanDetailController::class, 'store'])->name('monthly-budget-plans.budget-plan-details.store');
+        Route::put('budget-plan-details/{budgetPlanDetail}', [\App\Http\Controllers\Erp\BudgetPlanDetailController::class, 'update'])->name('budget-plan-details.update');
+
+        // Budget Control - Advance Request (Kasbon)
+        Route::resource('advance-requests', \App\Http\Controllers\Erp\AdvanceRequestController::class)->only(['index', 'create', 'store', 'show']);
+        Route::post('advance-requests/{advanceRequest}/submit', [\App\Http\Controllers\Erp\AdvanceRequestController::class, 'submit'])->name('advance-requests.submit');
+        Route::post('advance-requests/{advanceRequest}/pay', [\App\Http\Controllers\Erp\AdvanceRequestController::class, 'pay'])->name('advance-requests.pay');
+        Route::post('advance-requests/approvals/{approval}/approve', [\App\Http\Controllers\Erp\AdvanceRequestController::class, 'approve'])->name('advance-requests.approvals.approve');
+        Route::post('advance-requests/approvals/{approval}/reject', [\App\Http\Controllers\Erp\AdvanceRequestController::class, 'reject'])->name('advance-requests.approvals.reject');
+
+        // Budget Control - Expense Declaration (Realisasi)
+        Route::resource('expense-declarations', \App\Http\Controllers\Erp\ExpenseDeclarationController::class)->only(['index', 'create', 'store', 'show']);
+        Route::post('expense-declarations/{expenseDeclaration}/submit', [\App\Http\Controllers\Erp\ExpenseDeclarationController::class, 'submit'])->name('expense-declarations.submit');
+        Route::post('expense-declarations/approvals/{approval}/approve', [\App\Http\Controllers\Erp\ExpenseDeclarationController::class, 'approve'])->name('expense-declarations.approvals.approve');
+        Route::post('expense-declarations/approvals/{approval}/reject', [\App\Http\Controllers\Erp\ExpenseDeclarationController::class, 'reject'])->name('expense-declarations.approvals.reject');
 
         // Dedicated ERP Suppliers
         Route::get('suppliers/datatable', [\App\Http\Controllers\Erp\ErpSupplierController::class, 'datatable'])->name('suppliers.datatable');

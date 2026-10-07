@@ -71,6 +71,10 @@
         </a>
       @endif
 
+      <a href="{{ route('erp.request-form.clone', $rf) }}" class="btn btn-sm btn-outline-primary">
+        <i class="bx bx-copy-alt me-1"></i>Clone
+      </a>
+
       @if($rf->status !== 'Approved')
         <form action="{{ route('erp.approvals.submit', $rf) }}" method="POST" class="d-inline">
           @csrf

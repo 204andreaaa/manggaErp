@@ -87,6 +87,30 @@ return [
             'icon'        => 'bx bx-detail',
             'permissions' => ['payment_advice_details.view', 'payment_advice_details.update_invoice', 'payment_advice_details.submit', 'payment_advice_details.approve', 'payment_advice_details.reject', 'payment_advice_details.mark_paid'],
         ],
+        [
+            'key'         => 'annual_budget_plans',
+            'label'       => 'Budget Plans',
+            'route'       => 'erp.annual-budget-plans.index',
+            'group'       => 'finance',
+            'icon'        => 'bx bx-calendar',
+            'permissions' => ['annual_budget_plans.view', 'annual_budget_plans.create'],
+        ],
+        [
+            'key'         => 'advance_requests',
+            'label'       => 'Advance Requests (Kasbon)',
+            'route'       => 'erp.advance-requests.index',
+            'group'       => 'finance',
+            'icon'        => 'bx bx-wallet',
+            'permissions' => ['advance_requests.view', 'advance_requests.create', 'advance_requests.approve', 'advance_requests.pay'],
+        ],
+        [
+            'key'         => 'expense_declarations',
+            'label'       => 'Expense Declarations',
+            'route'       => 'erp.expense-declarations.index',
+            'group'       => 'finance',
+            'icon'        => 'bx bx-receipt',
+            'permissions' => ['expense_declarations.view', 'expense_declarations.create', 'expense_declarations.approve'],
+        ],
 
         // ================== INVENTORY & LOGISTIK ==================
         [

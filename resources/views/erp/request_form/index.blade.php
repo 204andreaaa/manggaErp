@@ -52,6 +52,7 @@
             <th class="text-uppercase fw-bold small">Date</th>
             <th class="text-uppercase fw-bold small text-center">Status</th>
             <th class="text-uppercase fw-bold small text-end">Total</th>
+            <th class="text-uppercase fw-bold small">Remark</th>
             <th class="text-uppercase fw-bold small text-center">Items</th>
             <th class="text-uppercase fw-bold small text-center" style="width:8%;">Action</th>
           </tr>
@@ -124,6 +125,7 @@ $(function () {
             { data: 'rf_date', name: 'rf_date', className: 'align-middle' },
             { data: 'status', name: 'status', className: 'align-middle text-center' },
             { data: 'total_amount', name: 'total_amount', className: 'align-middle text-end' },
+            { data: 'remark', orderable: false, className: 'align-middle small text-muted' },
             { data: 'items_count', orderable: false, className: 'align-middle text-center' },
             { data: 'actions', orderable: false, searchable: false, className: 'align-middle text-center' },
         ],

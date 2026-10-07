@@ -41,6 +41,7 @@
             <th style="width:8%;" class="text-uppercase fw-bold small">NO</th>
             <th style="width:12%;" class="text-uppercase fw-bold small">CODE</th>
             <th class="text-uppercase fw-bold small">BUDGET NAME</th>
+            <th class="text-uppercase fw-bold small">KAM</th>
             <th class="text-uppercase fw-bold small text-end">TOTAL BUDGET</th>
             <th class="text-uppercase fw-bold small text-end">REMAINING BUDGET</th>
             <th style="width:10%;" class="text-uppercase fw-bold small text-center">STATUS</th>
@@ -70,6 +71,15 @@
         <div class="mb-3">
           <label class="form-label fw-semibold">Budget Name <span class="text-danger">*</span></label>
           <input name="name" class="form-control" required placeholder="e.g. Budget IT 2026">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">KAM (Key Account Manager)</label>
+          <select name="kam_user_id" class="form-select">
+            <option value="">-- None --</option>
+            @foreach($users as $u)
+              <option value="{{ $u->id }}">{{ $u->name }}</option>
+            @endforeach
+          </select>
         </div>
         <div class="mb-3">
           <label class="form-label fw-semibold">Total Budget <span class="text-danger">*</span></label>
@@ -112,6 +122,15 @@
           <input name="name" id="edit_name" class="form-control" required>
         </div>
         <div class="mb-3">
+          <label class="form-label fw-semibold">KAM (Key Account Manager)</label>
+          <select name="kam_user_id" id="edit_kam_user_id" class="form-select">
+            <option value="">-- None --</option>
+            @foreach($users as $u)
+              <option value="{{ $u->id }}">{{ $u->name }}</option>
+            @endforeach
+          </select>
+        </div>
+        <div class="mb-3">
           <label class="form-label fw-semibold">Total Budget <span class="text-danger">*</span></label>
           <input type="number" name="total_budget" id="edit_total_budget" class="form-control" required min="0" step="0.01">
           <div class="form-text text-warning">Changing this will adjust the remaining budget accordingly.</div>
@@ -150,6 +169,7 @@ $(function () {
             { data: 'rownum',           name: 'id',               className: 'align-middle fw-semibold', orderable: false },
             { data: 'budget_code',      name: 'budget_code',      className: 'align-middle fw-bold' },
             { data: 'name',             name: 'name',             className: 'align-middle' },
+            { data: 'kam',              name: 'kam',              className: 'align-middle', orderable: false },
             { data: 'total_budget',     name: 'total_budget',     className: 'align-middle text-end text-primary fw-semibold' },
             { data: 'remaining_budget', name: 'remaining_budget', className: 'align-middle text-end text-success fw-semibold' },
             { data: 'status',           name: 'status',           className: 'align-middle text-center' },
@@ -184,10 +204,11 @@ $(function () {
         }
     });
 
-    window.openEdit = function (id, code, name, total_budget, status) {
+    window.openEdit = function (id, code, name, kam_user_id, total_budget, status) {
         $('#edit_id').val(id);
         $('#edit_budget_code').val(code);
         $('#edit_name').val(name);
+        $('#edit_kam_user_id').val(kam_user_id || '');
         $('#edit_total_budget').val(total_budget);
         $('#edit_status').val(status);
         $('#formEdit').attr('action', "{{ route('erp.budget-parents.update', ':id') }}".replace(':id', id));

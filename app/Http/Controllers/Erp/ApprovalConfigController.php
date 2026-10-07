@@ -12,7 +12,7 @@ use App\Models\Role;
 class ApprovalConfigController extends Controller
 {
     private const SINGLE_STEP_TYPES = ['po_verification', 'gr_verification'];
-    private const MULTI_LEVEL_TYPES = ['request_form', 'purchase_order', 'payment_advice'];
+    private const MULTI_LEVEL_TYPES = ['request_form', 'purchase_order', 'payment_advice', 'advance_request', 'expense_declaration'];
 
     public function index()
     {
@@ -23,6 +23,8 @@ class ApprovalConfigController extends Controller
         $rfConfigs = $configs->where('record_type', 'request_form');
         $poConfigs = $configs->where('record_type', 'purchase_order');
         $paConfigs = $configs->where('record_type', 'payment_advice');
+        $advReqConfigs = $configs->where('record_type', 'advance_request');
+        $expDeclConfigs = $configs->where('record_type', 'expense_declaration');
         $poVerifConfigs = $configs->where('record_type', 'po_verification');
         $grVerifConfigs = $configs->where('record_type', 'gr_verification');
 
@@ -44,6 +46,8 @@ class ApprovalConfigController extends Controller
             'request_form' => $rfConfigs->max('level') ?? 0,
             'purchase_order' => $poConfigs->max('level') ?? 0,
             'payment_advice' => $paConfigs->max('level') ?? 0,
+            'advance_request' => $advReqConfigs->max('level') ?? 0,
+            'expense_declaration' => $expDeclConfigs->max('level') ?? 0,
             'po_verification' => $poVerifConfigs->max('level') ?? 0,
             'gr_verification' => $grVerifConfigs->max('level') ?? 0,
         ];
@@ -51,7 +55,7 @@ class ApprovalConfigController extends Controller
         $coverageGaps = $this->findCoverageGaps($configs);
 
         return view('erp.approval_configs.index', compact(
-            'rfConfigs', 'poConfigs', 'paConfigs', 'poVerifConfigs', 'grVerifConfigs',
+            'rfConfigs', 'poConfigs', 'paConfigs', 'advReqConfigs', 'expDeclConfigs', 'poVerifConfigs', 'grVerifConfigs',
             'users', 'roles', 'maxLevels', 'coverageGaps'
         ));
     }
@@ -106,7 +110,7 @@ class ApprovalConfigController extends Controller
         }
 
         $data = $request->validate([
-            'record_type' => 'required|in:request_form,purchase_order,payment_advice,po_verification,gr_verification',
+            'record_type' => 'required|in:request_form,purchase_order,payment_advice,advance_request,expense_declaration,po_verification,gr_verification',
             'level' => 'required|integer|min:1',
             'name' => 'required|string|max:100',
             'assign_type' => 'required|in:user,role',
@@ -205,8 +209,10 @@ class ApprovalConfigController extends Controller
 
             // A real RF/PO is always concretely project (1) or non-project (0) at submit
             // time — is_project=null on a config is only ever a wildcard match. Payment
-            // Advice submission never filters by is_project at all, so it only needs one pass.
-            $isProjectVariants = $type === 'payment_advice' ? [null] : [1, 0];
+            // Advice, Advance Request, and Expense Declaration submission never filter by
+            // is_project at all, so they only need one pass.
+            $noProjectDimension = in_array($type, ['payment_advice', 'advance_request', 'expense_declaration'], true);
+            $isProjectVariants = $noProjectDimension ? [null] : [1, 0];
 
             foreach ($isProjectVariants as $isProject) {
                 $relevant = $level1Configs->filter(function ($cfg) use ($isProject) {

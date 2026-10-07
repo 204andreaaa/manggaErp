@@ -83,6 +83,7 @@ class RequestFormController extends Controller
                     'rf_date' => $rf->rf_date?->format('Y/m/d') ?? '-',
                     'status' => '<span class="badge bg-label-'.$statusClass.'">'.e($rf->status).'</span>',
                     'total_amount' => 'IDR '.number_format($rf->total_amount, 0, ',', '.'),
+                    'remark' => e(\Illuminate\Support\Str::limit($rf->remark ?? '-', 60)),
                     'items_count' => $rf->items_count,
                     'actions' => '<a href="'.$viewUrl.'" class="btn btn-sm btn-primary"><i class="bx bx-show"></i></a>',
                 ];
@@ -114,6 +115,57 @@ class RequestFormController extends Controller
             'users' => $users,
             'subProjects' => $subProjects,
             'workItems' => $workItems,
+        ]);
+    }
+
+    /**
+     * Show the create form pre-filled from an existing RF ("Clone"). Nothing is
+     * persisted here — it's the same create/store flow as a brand new RF, just
+     * with the fields and line items pre-populated so the user can review, edit,
+     * add, or remove anything before actually saving.
+     */
+    public function cloneForm(RequestForm $requestForm)
+    {
+        $requestForm->load('items');
+
+        $recordType = $requestForm->record_type;
+
+        $products = \App\Models\Erp\ErpProduct::orderBy('name')->get();
+        $users = \App\Models\User::orderBy('name')->get();
+        $subProjects = \App\Models\Erp\ErpSubProject::with(['budgetParent', 'workItems'])->get();
+        $workItems = \App\Models\Erp\ErpWorkItem::with('subProject.budgetParent')->get();
+
+        // Copy the requester-entered values as-is (qty, cost, product, etc.), but
+        // always reset anything that reflects the SOURCE RF's own progress —
+        // qty_fulfilled and status — since the cloned RF hasn't been through
+        // PR/PO/approval yet.
+        $cloneItems = $requestForm->items->map(fn ($item) => [
+            'product_name' => $item->product_name,
+            'product_id_text' => $item->product_id_text,
+            'wid' => $item->wid,
+            'currency' => $item->currency,
+            'status' => 'Requested',
+            'qty' => (string) $item->qty,
+            'qty_fulfilled' => '0',
+            'unit_cost' => (string) $item->unit_cost,
+            'original_total_cost' => (string) $item->original_total_cost,
+            'actual_cost' => (string) $item->actual_cost,
+            'date_required' => optional($item->date_required)->format('Y-m-d'),
+            'pic' => $item->pic,
+            'within_budget' => $item->within_budget ? '1' : '0',
+            'remark' => $item->remark,
+        ])->values()->all();
+
+        return view('erp.request_form.create', [
+            'recordType' => $recordType,
+            'recordTypeLabel' => $recordType === 'project' ? 'Project Based' : 'Non Project Based',
+            'nextRfNo' => $this->generateNextCode(),
+            'products' => $products,
+            'users' => $users,
+            'subProjects' => $subProjects,
+            'workItems' => $workItems,
+            'cloneFrom' => $requestForm,
+            'cloneItems' => $cloneItems,
         ]);
     }
 

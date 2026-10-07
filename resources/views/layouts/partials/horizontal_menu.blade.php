@@ -15,7 +15,9 @@ $isSuperAdmin   = $u?->hasRole('superadmin') || $u?->hasRole('admin');
 $isAdminProject = $isSuperAdmin || $u?->hasRole(['admin_project', 'project_admin']) || $u?->canSeeMenu('work_items') || $u?->canSeeMenu('budget_parents') || $u?->canSeeMenu('sub_projects');
 $isGA           = $isSuperAdmin || $u?->hasRole(['ga', 'general_affair']) || $u?->canSeeMenu('goods_receipts');
 $isProcurement  = $isSuperAdmin || $u?->hasRole('procurement') || $u?->hasPermission('purchase_orders.create') || $u?->canSeeMenu('suppliers') || $u?->canSeeMenu('payment_terms');
-$isFinance      = $isSuperAdmin || $u?->hasRole('finance') || $u?->canSeeMenu('payment_advices') || $u?->canSeeMenu('payment_advice_details');
+$isFinance      = $isSuperAdmin || $u?->hasRole('finance') || $u?->canSeeMenu('payment_advices') || $u?->canSeeMenu('payment_advice_details')
+    || $u?->canSeeMenu('annual_budget_plans') || $u?->canSeeMenu('advance_requests')
+    || $u?->canSeeMenu('expense_declarations');
 $isLogistik     = $isSuperAdmin || $u?->hasRole(['logistik', 'warehouse']) || $u?->canSeeMenu('stocks') || $u?->canSeeMenu('warehouses');
 $isHRIS         = $isSuperAdmin || $u?->hasRole(['hrd', 'hr_manager']) || $u?->canSeeMenu('employees') || $u?->canSeeMenu('departments') || $u?->canSeeMenu('hr_attendances') || $u?->canSeeMenu('hr_payroll');
 $isCEO          = $isSuperAdmin || $u?->hasRole('ceo');
@@ -194,6 +196,21 @@ if ($isGA || $isLogistik) {
                     <li>
                         <a class="dropdown-item" href="{{ $rl('erp.purchase-orders.index') }}">
                             <i class="bx bx-check-shield me-2"></i> PO Verification
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item {{ request()->routeIs('erp.annual-budget-plans.*') || request()->routeIs('erp.monthly-budget-plans.*') ? 'active' : '' }}" href="{{ $rl('erp.annual-budget-plans.index') }}">
+                            <i class="bx bx-calendar me-2"></i> Budget Plans
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item {{ request()->routeIs('erp.advance-requests.*') ? 'active' : '' }}" href="{{ $rl('erp.advance-requests.index') }}">
+                            <i class="bx bx-wallet me-2"></i> Advance Requests (Kasbon)
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item {{ request()->routeIs('erp.expense-declarations.*') ? 'active' : '' }}" href="{{ $rl('erp.expense-declarations.index') }}">
+                            <i class="bx bx-receipt me-2"></i> Expense Declarations
                         </a>
                     </li>
                 </ul>

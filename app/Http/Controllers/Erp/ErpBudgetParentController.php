@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Erp;
 
 use App\Http\Controllers\Controller;
 use App\Models\Erp\ErpBudgetParent;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -12,7 +13,8 @@ class ErpBudgetParentController extends Controller
     public function index()
     {
         abort_unless(auth()->user()->hasPermission('budget_parents.view') || auth()->user()->hasPermission('budgets.view'), 403);
-        return view('erp.budget_parents.index');
+        $users = User::orderBy('name')->get();
+        return view('erp.budget_parents.index', compact('users'));
     }
 
     public function datatable(Request $r)
@@ -28,7 +30,7 @@ class ErpBudgetParentController extends Controller
         $orderCol    = $columns[$orderColIdx] ?? 'id';
         $search      = trim((string) $r->input('search.value', ''));
 
-        $base = ErpBudgetParent::query();
+        $base = ErpBudgetParent::with('kam');
 
         $recordsTotal = (clone $base)->count();
 
@@ -46,7 +48,7 @@ class ErpBudgetParentController extends Controller
             ->skip($start)->take($length)->get()
             ->map(function ($c, $i) use ($start) {
                 $editBtn = (auth()->user()->hasPermission('budget_parents.update') || auth()->user()->hasPermission('budgets.update'))
-                    ? '<button class="btn btn-sm btn-warning text-white me-1" onclick="openEdit('.$c->id.',\''.addslashes(e($c->budget_code)).'\',\''.addslashes(e($c->name)).'\',\''.$c->total_budget.'\',\''.addslashes(e($c->status)).'\')"><i class="bx bx-edit-alt"></i></button>'
+                    ? '<button class="btn btn-sm btn-warning text-white me-1" onclick="openEdit('.$c->id.',\''.addslashes(e($c->budget_code)).'\',\''.addslashes(e($c->name)).'\','.($c->kam_user_id ?: 'null').',\''.$c->total_budget.'\',\''.addslashes(e($c->status)).'\')"><i class="bx bx-edit-alt"></i></button>'
                     : '';
 
                 $deleteBtn = (auth()->user()->hasPermission('budget_parents.delete') || auth()->user()->hasPermission('budgets.delete'))
@@ -57,6 +59,7 @@ class ErpBudgetParentController extends Controller
                     'rownum'           => $start + $i + 1,
                     'budget_code'      => e($c->budget_code),
                     'name'             => e($c->name),
+                    'kam'              => e($c->kam->name ?? '-'),
                     'total_budget'     => number_format($c->total_budget, 2),
                     'remaining_budget' => number_format($c->remaining_budget, 2),
                     'status'           => e($c->status),
@@ -79,6 +82,7 @@ class ErpBudgetParentController extends Controller
         $data = $r->validate([
             'budget_code'  => ['required', 'max:50', Rule::unique('tenant.erp_budget_parents', 'budget_code')],
             'name'         => ['required', 'max:255'],
+            'kam_user_id'  => ['nullable', 'integer'],
             'total_budget' => ['required', 'numeric', 'min:0'],
             'status'       => ['required', 'max:50'],
         ]);
@@ -99,6 +103,7 @@ class ErpBudgetParentController extends Controller
         $data = $r->validate([
             'budget_code'  => ['required', 'max:50', Rule::unique('tenant.erp_budget_parents', 'budget_code')->ignore($budget->id)],
             'name'         => ['required', 'max:255'],
+            'kam_user_id'  => ['nullable', 'integer'],
             'total_budget' => ['required', 'numeric', 'min:0'],
             'status'       => ['required', 'max:50'],
         ]);

@@ -17,6 +17,8 @@ class ErpApproval extends Model
         'purchase_order_id',
         'payment_advice_id',
         'payment_advice_detail_id',
+        'advance_request_id',
+        'expense_declaration_id',
         'level',
         'assigned_to_role_id',
         'assigned_to_user_id',
@@ -50,6 +52,16 @@ class ErpApproval extends Model
     public function paymentAdviceDetail()
     {
         return $this->belongsTo(ErpPaymentAdviceDetail::class, 'payment_advice_detail_id');
+    }
+
+    public function advanceRequest()
+    {
+        return $this->belongsTo(AdvanceRequest::class, 'advance_request_id');
+    }
+
+    public function expenseDeclaration()
+    {
+        return $this->belongsTo(ExpenseDeclaration::class, 'expense_declaration_id');
     }
 
     public function assignedRole()

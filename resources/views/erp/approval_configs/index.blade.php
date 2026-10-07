@@ -36,7 +36,7 @@
       <ul class="mb-0 small">
         @foreach($coverageGaps as $gap)
           <li>
-            <span class="fw-semibold">{{ ['request_form' => 'Request Form', 'purchase_order' => 'Purchase Order', 'payment_advice' => 'Payment Advice'][$gap['record_type']] }}</span>
+            <span class="fw-semibold">{{ ['request_form' => 'Request Form', 'purchase_order' => 'Purchase Order', 'payment_advice' => 'Payment Advice', 'advance_request' => 'Advance Request', 'expense_declaration' => 'Expense Declaration'][$gap['record_type']] }}</span>
             @if(!is_null($gap['is_project']))
               ({{ $gap['is_project'] ? 'Project' : 'Non-Project' }})
             @endif
@@ -138,6 +138,64 @@
             <tbody>
               @forelse($paConfigs as $config)
                 @include('erp.approval_configs._row', ['config' => $config, 'badgeClass' => 'bg-label-info'])
+              @empty
+                <tr><td colspan="5" class="text-center text-muted py-4">No configuration found</td></tr>
+              @endforelse
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Advance Request Configs -->
+    <div class="col-12">
+      <div class="card h-100">
+        <div class="card-header border-bottom py-3 d-flex justify-content-between align-items-center">
+          <h6 class="mb-0 fw-bold text-warning"><i class="bx bx-wallet me-2"></i>Advance Request (Kasbon) Approval Workflow</h6>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Level / Step</th>
+                <th>Name</th>
+                <th>Assigned To</th>
+                <th>Conditions</th>
+                <th class="text-end">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              @forelse($advReqConfigs as $config)
+                @include('erp.approval_configs._row', ['config' => $config, 'badgeClass' => 'bg-label-warning'])
+              @empty
+                <tr><td colspan="5" class="text-center text-muted py-4">No configuration found</td></tr>
+              @endforelse
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Expense Declaration Configs -->
+    <div class="col-12">
+      <div class="card h-100">
+        <div class="card-header border-bottom py-3 d-flex justify-content-between align-items-center">
+          <h6 class="mb-0 fw-bold text-danger"><i class="bx bx-receipt me-2"></i>Expense Declaration (Realisasi) Approval Workflow</h6>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Level / Step</th>
+                <th>Name</th>
+                <th>Assigned To</th>
+                <th>Conditions</th>
+                <th class="text-end">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              @forelse($expDeclConfigs as $config)
+                @include('erp.approval_configs._row', ['config' => $config, 'badgeClass' => 'bg-label-danger'])
               @empty
                 <tr><td colspan="5" class="text-center text-muted py-4">No configuration found</td></tr>
               @endforelse
@@ -254,6 +312,8 @@
                   <option value="request_form">Request Form (RF)</option>
                   <option value="purchase_order">Purchase Order (PO)</option>
                   <option value="payment_advice">Payment Advice (PA)</option>
+                  <option value="advance_request">Advance Request (Kasbon)</option>
+                  <option value="expense_declaration">Expense Declaration (Realisasi)</option>
                 </optgroup>
                 <optgroup label="Document Verifications">
                   <option value="po_verification">🛒 PO Procurement Verifier (Verifikasi PO)</option>
@@ -391,7 +451,8 @@ document.addEventListener('DOMContentLoaded', function() {
             if (workflowTypeCol) workflowTypeCol.className = 'col-md-6 mb-3';
             if (conditionsSection) conditionsSection.style.display = 'block';
             // Payment Advice's approval flow never filters by project type at runtime.
-            if (isProjectCol) isProjectCol.style.display = (selectedType === 'payment_advice') ? 'none' : 'block';
+            const noProjectDimension = ['payment_advice', 'advance_request', 'expense_declaration'].includes(selectedType);
+            if (isProjectCol) isProjectCol.style.display = noProjectDimension ? 'none' : 'block';
 
             if (!form.dataset.editing) {
                 const currentMax = maxLevels[selectedType] || 0;
