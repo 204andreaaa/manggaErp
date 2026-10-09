@@ -658,7 +658,7 @@
         // unreachable, Echo just never connects; the page still works exactly
         // like before (manual "Refresh Notifikasi" / next page load).
         //
-        // Wrapped in DOMContentLoaded because @vite's bundle (which creates
+        // Wrapped in DOMContentLoaded because the Vite bundle (which creates
         // window.Echo in bootstrap.js) loads as a deferred module script —
         // it only becomes available once the document is parsed, so a plain
         // inline script reaching this point earlier would otherwise see
