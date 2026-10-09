@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use App\Models\Erp\RequestForm;
 use App\Models\Erp\ErpApproval;
 use App\Models\Erp\ErpApprovalConfig;
+use App\Helpers\NotificationHelper;
 
 class ApprovalController extends Controller
 {
@@ -49,6 +50,7 @@ class ApprovalController extends Controller
             }
 
             $isFirst = true;
+            $firstApproverId = null;
             foreach ($configs as $config) {
                 ErpApproval::create([
                     'request_form_id' => $requestForm->id,
@@ -57,12 +59,30 @@ class ApprovalController extends Controller
                     'assigned_to_user_id' => $config->user_id,
                     'status' => $isFirst ? 'Pending' : 'Waiting',
                 ]);
+                if ($isFirst) {
+                    $firstApproverId = $config->user_id;
+                }
                 $isFirst = false;
             }
 
             $requestForm->update(['status' => 'Submitted']);
 
             DB::commit();
+
+            NotificationHelper::pushLive('request_form', $requestForm->id, $requestForm->status);
+
+            if ($firstApproverId) {
+                NotificationHelper::send(
+                    $firstApproverId,
+                    'rf_submitted',
+                    'Request Form Menunggu Persetujuan',
+                    "RF {$requestForm->rf_no} menunggu persetujuan Anda.",
+                    route('erp.request-form.show', $requestForm),
+                    'request_form',
+                    $requestForm->id
+                );
+            }
+
             return redirect()->back()->with('success', 'Request Form submitted for approval successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -125,17 +145,44 @@ class ApprovalController extends Controller
                 'is_override' => $isSuperadmin && !$isDesignatedApprover,
             ]);
 
+            $notifyUserId = null;
+            $notifyTitle = null;
+            $notifyBody = null;
+
             if ($requestForm) {
                 $nextApproval = $requestForm->approvals()->where('status', 'Waiting')->orderBy('level')->lockForUpdate()->first();
 
                 if ($nextApproval) {
                     $nextApproval->update(['status' => 'Pending']);
+                    $notifyUserId = $nextApproval->assigned_to_user_id;
+                    $notifyTitle = 'Request Form Menunggu Persetujuan';
+                    $notifyBody = "RF {$requestForm->rf_no} menunggu persetujuan Anda.";
                 } else {
                     $requestForm->update(['status' => 'Approved']);
+                    $notifyUserId = $requestForm->created_by_id;
+                    $notifyTitle = 'Request Form Disetujui';
+                    $notifyBody = "RF {$requestForm->rf_no} telah disetujui sepenuhnya.";
                 }
             }
 
             DB::commit();
+
+            if ($requestForm) {
+                NotificationHelper::pushLive('request_form', $requestForm->id, $requestForm->status);
+            }
+
+            if ($notifyUserId) {
+                NotificationHelper::send(
+                    $notifyUserId,
+                    'rf_approval_update',
+                    $notifyTitle,
+                    $notifyBody,
+                    route('erp.request-form.show', $requestForm),
+                    'request_form',
+                    $requestForm->id
+                );
+            }
+
             return redirect()->back()->with('success', 'Approval berhasil disubmit.');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -201,6 +248,22 @@ class ApprovalController extends Controller
             }
 
             DB::commit();
+
+            if ($requestForm) {
+                NotificationHelper::pushLive('request_form', $requestForm->id, $requestForm->status);
+            }
+
+            if ($requestForm && $requestForm->created_by_id) {
+                NotificationHelper::send(
+                    $requestForm->created_by_id,
+                    'rf_rejected',
+                    'Request Form Ditolak',
+                    "RF {$requestForm->rf_no} ditolak. Alasan: {$request->input('reason')}",
+                    route('erp.request-form.show', $requestForm),
+                    'request_form',
+                    $requestForm->id
+                );
+            }
 
             return redirect()->back()->with('success', 'Request Form berhasil ditolak (Rejected).');
         } catch (\Exception $e) {

@@ -1017,6 +1017,14 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('attachmentIframe').src = url;
     new bootstrap.Modal(document.getElementById('attachmentModal')).show();
   };
+
+  // Live refresh: this exact RF got submitted/approved/rejected by someone
+  // else while we had it open — reload so status/approval timeline stay current.
+  window.addEventListener('erp-live-update', function (e) {
+    if (e.detail.record_type === 'request_form' && e.detail.id == {{ $rf->id }}) {
+      location.reload();
+    }
+  });
 });
 </script>
 @endpush

@@ -920,6 +920,14 @@ function showAttachmentModal(url, filename) {
         }
     }, 400);
 }
+
+// Live refresh: this exact PO got submitted/approved/rejected by someone else
+// while we had it open — reload so status/approval tabs stay current.
+window.addEventListener('erp-live-update', function (e) {
+    if (e.detail.record_type === 'purchase_order' && e.detail.id == {{ $purchaseOrder->id }}) {
+        location.reload();
+    }
+});
 </script>
 @endpush
 @endsection

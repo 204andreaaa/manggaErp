@@ -9,6 +9,7 @@ use App\Models\Erp\ErpApproval;
 use App\Models\Erp\ErpApprovalConfig;
 use App\Models\Erp\ErpWorkItem;
 use App\Models\Erp\ExpenseDeclaration;
+use App\Helpers\NotificationHelper;
 use App\Services\BudgetRollupService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -120,6 +121,7 @@ class ExpenseDeclarationController extends Controller
             }
 
             $isFirst = true;
+            $firstApproverId = null;
             foreach ($configs as $config) {
                 ErpApproval::create([
                     'expense_declaration_id' => $expenseDeclaration->id,
@@ -128,10 +130,27 @@ class ExpenseDeclarationController extends Controller
                     'assigned_to_user_id' => $config->user_id,
                     'status' => $isFirst ? 'Pending' : 'Waiting',
                 ]);
+                if ($isFirst) {
+                    $firstApproverId = $config->user_id;
+                }
                 $isFirst = false;
             }
 
             $expenseDeclaration->update(['status' => 'Submitted']);
+
+            NotificationHelper::pushLive('expense_declaration', $expenseDeclaration->id, $expenseDeclaration->status);
+
+            if ($firstApproverId) {
+                NotificationHelper::send(
+                    $firstApproverId,
+                    'expense_declaration_submitted',
+                    'Deklarasi Menunggu Persetujuan',
+                    "Expense Declaration {$expenseDeclaration->code} menunggu persetujuan Anda.",
+                    route('erp.expense-declarations.show', $expenseDeclaration),
+                    'expense_declaration',
+                    $expenseDeclaration->id
+                );
+            }
 
             return redirect()->back()->with('success', 'Expense Declaration submitted for approval.');
         });
@@ -189,6 +208,20 @@ class ExpenseDeclarationController extends Controller
 
                 if ($nextApproval) {
                     $nextApproval->update(['status' => 'Pending']);
+
+                    NotificationHelper::pushLive('expense_declaration', $declaration->id, $declaration->status);
+
+                    if ($nextApproval->assigned_to_user_id) {
+                        NotificationHelper::send(
+                            $nextApproval->assigned_to_user_id,
+                            'expense_declaration_submitted',
+                            'Deklarasi Menunggu Persetujuan',
+                            "Expense Declaration {$declaration->code} menunggu persetujuan Anda.",
+                            route('erp.expense-declarations.show', $declaration),
+                            'expense_declaration',
+                            $declaration->id
+                        );
+                    }
                 } else {
                     $declaration->update(['status' => 'Approved']);
 
@@ -196,6 +229,20 @@ class ExpenseDeclarationController extends Controller
 
                     if ($declaration->record_type === 'with_advance' && $declaration->advance_request_id) {
                         BudgetRollupService::recalculateAdvanceRequest($declaration->advance_request_id);
+                    }
+
+                    NotificationHelper::pushLive('expense_declaration', $declaration->id, $declaration->status);
+
+                    if ($declaration->request_by_id) {
+                        NotificationHelper::send(
+                            $declaration->request_by_id,
+                            'expense_declaration_approved',
+                            'Deklarasi Disetujui',
+                            "Expense Declaration {$declaration->code} telah disetujui.",
+                            route('erp.expense-declarations.show', $declaration),
+                            'expense_declaration',
+                            $declaration->id
+                        );
                     }
                 }
             }
@@ -248,6 +295,20 @@ class ExpenseDeclarationController extends Controller
             if ($declaration) {
                 $declaration->approvals()->where('status', 'Waiting')->update(['status' => 'Cancelled']);
                 $declaration->update(['status' => 'Rejected']);
+
+                NotificationHelper::pushLive('expense_declaration', $declaration->id, $declaration->status);
+
+                if ($declaration->request_by_id) {
+                    NotificationHelper::send(
+                        $declaration->request_by_id,
+                        'expense_declaration_rejected',
+                        'Deklarasi Ditolak',
+                        "Expense Declaration {$declaration->code} ditolak. Alasan: {$request->input('reason')}",
+                        route('erp.expense-declarations.show', $declaration),
+                        'expense_declaration',
+                        $declaration->id
+                    );
+                }
             }
 
             return redirect()->back()->with('success', 'Expense Declaration berhasil ditolak.');

@@ -759,5 +759,14 @@
       return new bootstrap.Tooltip(tooltipTriggerEl)
     });
   });
+
+  // Live refresh: this termin's parent Payment Advice got a submit/approve/
+  // reject/pay action by someone else while we had it open — reload so the
+  // approval status stays current.
+  window.addEventListener('erp-live-update', function (e) {
+    if (e.detail.record_type === 'payment_advice' && e.detail.id == {{ $paymentAdviceDetail->erp_payment_advice_id }}) {
+      location.reload();
+    }
+  });
 </script>
 @endsection

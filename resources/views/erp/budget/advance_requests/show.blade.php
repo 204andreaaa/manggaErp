@@ -151,6 +151,14 @@ function openReject(id) {
   document.getElementById('formReject').action = "{{ route('erp.advance-requests.approvals.reject', ['approval' => '__ID__']) }}".replace('__ID__', id);
   new bootstrap.Modal(document.getElementById('modalReject')).show();
 }
+
+// Live refresh: this exact Advance Request got submitted/approved/rejected/paid
+// by someone else while we had it open — reload so status stays current.
+window.addEventListener('erp-live-update', function (e) {
+  if (e.detail.record_type === 'advance_request' && e.detail.id == {{ $advanceRequest->id }}) {
+    location.reload();
+  }
+});
 </script>
 @endpush
 @endsection

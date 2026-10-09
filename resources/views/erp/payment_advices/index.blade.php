@@ -45,7 +45,7 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
-  $('#payment-advice-table').DataTable({
+  const table = $('#payment-advice-table').DataTable({
     processing: true,
     serverSide: true,
     ajax: {
@@ -69,6 +69,14 @@ $(document).ready(function() {
       { data: 'action', name: 'action', orderable: false, searchable: false }
     ],
     order: [[1, 'desc']]
+  });
+
+  // Live refresh: reload this table's data whenever another user submits/
+  // approves/rejects/pays a Payment Advice termin elsewhere.
+  window.addEventListener('erp-live-update', function (e) {
+    if (e.detail.record_type === 'payment_advice') {
+      table.ajax.reload(null, false);
+    }
   });
 });
 </script>

@@ -136,6 +136,14 @@ $(function () {
 
     $('#pageLength').on('change', function () { table.page.len(+this.value).draw(); });
     $('#dtSearch').on('keyup change', function () { table.search(this.value).draw(); });
+
+    // Live refresh: reload this table's data (keeping current page/sort) whenever
+    // another user submits/approves/rejects a Request Form elsewhere.
+    window.addEventListener('erp-live-update', function (e) {
+        if (e.detail.record_type === 'request_form') {
+            table.ajax.reload(null, false);
+        }
+    });
 });
 </script>
 @endpush

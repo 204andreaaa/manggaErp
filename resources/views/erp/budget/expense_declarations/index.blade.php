@@ -61,4 +61,14 @@
     <div class="card-footer">{{ $declarations->links() }}</div>
   </div>
 </div>
+
+<script>
+  // Live refresh: server-rendered paginated list, no ajax source — a full
+  // reload is the only way to reflect another user's change live.
+  window.addEventListener('erp-live-update', function (e) {
+    if (e.detail.record_type === 'expense_declaration') {
+      location.reload();
+    }
+  });
+</script>
 @endsection

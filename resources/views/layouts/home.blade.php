@@ -653,6 +653,29 @@
             audio.play().catch(e => console.warn('🔔 [Notif] Sound error:', e));
         }
 
+        // Live notifications via Reverb — listens on this user's own private
+        // channel (already authorized in routes/channels.php). If Reverb is
+        // unreachable, Echo just never connects; the page still works exactly
+        // like before (manual "Refresh Notifikasi" / next page load).
+        @auth
+        if (window.Echo) {
+            window.Echo.private('App.Models.User.{{ auth()->id() }}')
+                .listen('.notification.created', function () {
+                    fetchNavbarNotifications();
+                    playNotificationSound();
+                });
+
+            // Generic "a record changed" pulse — any list/detail page can listen
+            // for window 'erp-live-update' and decide for itself whether to
+            // reload its own (permission-checked) data. No business data rides
+            // on the websocket event itself, only type/id/status.
+            window.Echo.private('erp.live')
+                .listen('.record.changed', function (e) {
+                    window.dispatchEvent(new CustomEvent('erp-live-update', { detail: e }));
+                });
+        }
+        @endauth
+
         function fetchNavbarNotifications() {
             fetch('/notifications', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
                 .then(r => r.json())

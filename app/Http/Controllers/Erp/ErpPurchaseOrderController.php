@@ -548,6 +548,7 @@ class ErpPurchaseOrderController extends Controller
                         'approved_date' => now(),
                     ]);
                     $this->deductBudget($purchaseOrder);
+                    \App\Helpers\NotificationHelper::pushLive('purchase_order', $purchaseOrder->id, $purchaseOrder->status);
                     return redirect()->back()->with('success', 'PO submitted and automatically approved.');
                 }
             }
@@ -556,6 +557,8 @@ class ErpPurchaseOrderController extends Controller
                 'status' => 'Submitted',
                 'submitted_date' => now(),
             ]);
+
+            \App\Helpers\NotificationHelper::pushLive('purchase_order', $purchaseOrder->id, $purchaseOrder->status);
 
             if ($purchaseOrder->owner_id && $purchaseOrder->owner_id !== auth()->id()) {
                 \App\Helpers\NotificationHelper::send(
@@ -621,6 +624,7 @@ class ErpPurchaseOrderController extends Controller
                 $nextApproval = $purchaseOrder->approvals()->where('status', 'Waiting')->orderBy('level')->lockForUpdate()->first();
                 if ($nextApproval) {
                     $nextApproval->update(['status' => 'Pending']);
+                    \App\Helpers\NotificationHelper::pushLive('purchase_order', $purchaseOrder->id, $purchaseOrder->status);
                 } else {
                     $purchaseOrder->update([
                         'status' => 'Approved',
@@ -629,6 +633,8 @@ class ErpPurchaseOrderController extends Controller
                     $this->deductBudget($purchaseOrder);
                     $this->generatePaymentAdvices($purchaseOrder);
                     \App\Models\Erp\ErpProduct::syncProductsFromPo($purchaseOrder);
+
+                    \App\Helpers\NotificationHelper::pushLive('purchase_order', $purchaseOrder->id, $purchaseOrder->status);
 
                     if ($purchaseOrder->owner_id && $purchaseOrder->owner_id !== $user->id) {
                         \App\Helpers\NotificationHelper::send(
@@ -676,6 +682,8 @@ class ErpPurchaseOrderController extends Controller
             $this->deductBudget($purchaseOrder);
             $this->generatePaymentAdvices($purchaseOrder);
             \App\Models\Erp\ErpProduct::syncProductsFromPo($purchaseOrder);
+
+            \App\Helpers\NotificationHelper::pushLive('purchase_order', $purchaseOrder->id, $purchaseOrder->status);
 
             if ($purchaseOrder->owner_id && $purchaseOrder->owner_id !== $user->id) {
                 \App\Helpers\NotificationHelper::send(
@@ -812,6 +820,8 @@ class ErpPurchaseOrderController extends Controller
                     'verification_timestamp' => null,
                 ]);
 
+                \App\Helpers\NotificationHelper::pushLive('purchase_order', $purchaseOrder->id, $purchaseOrder->status);
+
                 if ($purchaseOrder->owner_id && $purchaseOrder->owner_id !== $user->id) {
                     \App\Helpers\NotificationHelper::send(
                         $purchaseOrder->owner_id,
@@ -864,6 +874,8 @@ class ErpPurchaseOrderController extends Controller
             foreach (array_unique($affectedProductIds) as $pId) {
                 \App\Models\Erp\ErpProduct::syncBuyingPriceFromLatestApprovedPo($pId);
             }
+
+            \App\Helpers\NotificationHelper::pushLive('purchase_order', $purchaseOrder->id, $purchaseOrder->status);
 
             if ($purchaseOrder->owner_id && $purchaseOrder->owner_id !== $user->id) {
                 \App\Helpers\NotificationHelper::send(

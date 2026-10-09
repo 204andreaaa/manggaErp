@@ -8,6 +8,7 @@ use App\Models\Erp\ErpPaymentAdviceDetail;
 use App\Models\Erp\ErpPurchaseOrder;
 use App\Models\Erp\ErpGoodsReceipt;
 use App\Models\Erp\ErpApproval;
+use App\Helpers\NotificationHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -387,6 +388,7 @@ class ErpPaymentAdviceController extends Controller
                 ->orderBy('level')
                 ->get();
 
+            $firstApproverId = null;
             if ($configs->isEmpty()) {
                 // If no dynamic configs, fallback to 1-level CEO/Finance
                 \App\Models\Erp\ErpApproval::create([
@@ -404,11 +406,29 @@ class ErpPaymentAdviceController extends Controller
                         'assigned_to_user_id' => $config->user_id,
                         'status' => $isFirst ? 'Pending' : 'Waiting',
                     ]);
+                    if ($isFirst) {
+                        $firstApproverId = $config->user_id;
+                    }
                     $isFirst = false;
                 }
             }
 
             DB::commit();
+
+            NotificationHelper::pushLive('payment_advice', $paymentAdviceDetail->erp_payment_advice_id, $paymentAdviceDetail->approval_status);
+
+            if ($firstApproverId) {
+                NotificationHelper::send(
+                    $firstApproverId,
+                    'payment_advice_submitted',
+                    'Termin Pembayaran Menunggu Persetujuan',
+                    "Termin {$paymentAdviceDetail->supplier_detail_no} menunggu persetujuan Anda.",
+                    route('erp.payment-advices.show', $paymentAdviceDetail->erp_payment_advice_id),
+                    'payment_advice_detail',
+                    $paymentAdviceDetail->id
+                );
+            }
+
             return redirect()->back()->with('success', 'Rincian termin berhasil disubmit untuk approval.');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -458,22 +478,44 @@ class ErpPaymentAdviceController extends Controller
 
                 // Promote next step if any
                 $nextApproval = $paymentAdviceDetail->approvals()->where('status', 'Waiting')->orderBy('level')->lockForUpdate()->first();
+                $notifyUserId = null;
+                $notifyFinal = false;
                 if ($nextApproval) {
                     $nextApproval->update(['status' => 'Pending']);
+                    $notifyUserId = $nextApproval->assigned_to_user_id;
                 } else {
                     // Fully approved
                     $paymentAdviceDetail->update([
                         'approval_status' => 'Approved',
                         'approved_date' => now()
                     ]);
-                    
+
                     // Recalculate PA Header
                     if ($paymentAdviceDetail->paymentAdvice) {
                         $this->recalculateTotals($paymentAdviceDetail->paymentAdvice);
                     }
+                    $notifyUserId = $paymentAdviceDetail->submitted_by_id;
+                    $notifyFinal = true;
                 }
 
                 DB::commit();
+
+                NotificationHelper::pushLive('payment_advice', $paymentAdviceDetail->erp_payment_advice_id, $paymentAdviceDetail->approval_status);
+
+                if ($notifyUserId) {
+                    NotificationHelper::send(
+                        $notifyUserId,
+                        $notifyFinal ? 'payment_advice_approved' : 'payment_advice_submitted',
+                        $notifyFinal ? 'Termin Pembayaran Disetujui' : 'Termin Pembayaran Menunggu Persetujuan',
+                        $notifyFinal
+                            ? "Termin {$paymentAdviceDetail->supplier_detail_no} telah disetujui."
+                            : "Termin {$paymentAdviceDetail->supplier_detail_no} menunggu persetujuan Anda.",
+                        route('erp.payment-advices.show', $paymentAdviceDetail->erp_payment_advice_id),
+                        'payment_advice_detail',
+                        $paymentAdviceDetail->id
+                    );
+                }
+
                 return redirect()->back()->with('success', 'Approval Rincian Termin berhasil disetujui.');
             }
 
@@ -509,6 +551,9 @@ class ErpPaymentAdviceController extends Controller
             }
 
             DB::commit();
+
+            NotificationHelper::pushLive('payment_advice', $paymentAdviceDetail->erp_payment_advice_id, $paymentAdviceDetail->approval_status);
+
             return redirect()->back()->with('success', 'Rincian Termin berhasil disetujui (Approved).');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -563,6 +608,21 @@ class ErpPaymentAdviceController extends Controller
                 ]);
 
                 DB::commit();
+
+                NotificationHelper::pushLive('payment_advice', $paymentAdviceDetail->erp_payment_advice_id, $paymentAdviceDetail->approval_status);
+
+                if ($paymentAdviceDetail->submitted_by_id) {
+                    NotificationHelper::send(
+                        $paymentAdviceDetail->submitted_by_id,
+                        'payment_advice_rejected',
+                        'Termin Pembayaran Ditolak',
+                        "Termin {$paymentAdviceDetail->supplier_detail_no} ditolak. Alasan: {$request->input('reason')}",
+                        route('erp.payment-advices.show', $paymentAdviceDetail->erp_payment_advice_id),
+                        'payment_advice_detail',
+                        $paymentAdviceDetail->id
+                    );
+                }
+
                 return redirect()->back()->with('success', 'Rincian Termin berhasil ditolak.');
             }
 
@@ -587,6 +647,9 @@ class ErpPaymentAdviceController extends Controller
             ]);
 
             DB::commit();
+
+            NotificationHelper::pushLive('payment_advice', $paymentAdviceDetail->erp_payment_advice_id, $paymentAdviceDetail->approval_status);
+
             return redirect()->back()->with('success', 'Rincian Termin telah ditolak (Rejected).');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -621,6 +684,20 @@ class ErpPaymentAdviceController extends Controller
             $paymentAdviceDetail->update($updateData);
 
             DB::commit();
+
+            NotificationHelper::pushLive('payment_advice', $paymentAdviceDetail->erp_payment_advice_id, 'Paid');
+
+            if ($paymentAdviceDetail->submitted_by_id) {
+                NotificationHelper::send(
+                    $paymentAdviceDetail->submitted_by_id,
+                    'payment_advice_paid',
+                    'Termin Pembayaran Sudah Dibayar',
+                    "Termin {$paymentAdviceDetail->supplier_detail_no} telah dibayar.",
+                    route('erp.payment-advices.show', $paymentAdviceDetail->erp_payment_advice_id),
+                    'payment_advice_detail',
+                    $paymentAdviceDetail->id
+                );
+            }
 
             return redirect()->back()->with('success', 'Pembayaran termin berhasil dicatat & ditandai Lunas.');
         } catch (\Exception $e) {

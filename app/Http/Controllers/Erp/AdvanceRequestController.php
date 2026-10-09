@@ -8,6 +8,7 @@ use App\Models\Erp\BudgetPlanDetail;
 use App\Models\Erp\ErpApproval;
 use App\Models\Erp\ErpApprovalConfig;
 use App\Models\Erp\ErpWorkItem;
+use App\Helpers\NotificationHelper;
 use App\Services\BudgetRollupService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -102,6 +103,7 @@ class AdvanceRequestController extends Controller
             }
 
             $isFirst = true;
+            $firstApproverId = null;
             foreach ($configs as $config) {
                 ErpApproval::create([
                     'advance_request_id' => $advanceRequest->id,
@@ -110,10 +112,27 @@ class AdvanceRequestController extends Controller
                     'assigned_to_user_id' => $config->user_id,
                     'status' => $isFirst ? 'Pending' : 'Waiting',
                 ]);
+                if ($isFirst) {
+                    $firstApproverId = $config->user_id;
+                }
                 $isFirst = false;
             }
 
             $advanceRequest->update(['status' => 'Submitted']);
+
+            NotificationHelper::pushLive('advance_request', $advanceRequest->id, $advanceRequest->status);
+
+            if ($firstApproverId) {
+                NotificationHelper::send(
+                    $firstApproverId,
+                    'advance_request_submitted',
+                    'Kasbon Menunggu Persetujuan',
+                    "Advance Request {$advanceRequest->code} menunggu persetujuan Anda.",
+                    route('erp.advance-requests.show', $advanceRequest),
+                    'advance_request',
+                    $advanceRequest->id
+                );
+            }
 
             return redirect()->back()->with('success', 'Advance Request submitted for approval.');
         });
@@ -172,6 +191,20 @@ class AdvanceRequestController extends Controller
 
                 if ($nextApproval) {
                     $nextApproval->update(['status' => 'Pending']);
+
+                    NotificationHelper::pushLive('advance_request', $advanceRequest->id, $advanceRequest->status);
+
+                    if ($nextApproval->assigned_to_user_id) {
+                        NotificationHelper::send(
+                            $nextApproval->assigned_to_user_id,
+                            'advance_request_submitted',
+                            'Kasbon Menunggu Persetujuan',
+                            "Advance Request {$advanceRequest->code} menunggu persetujuan Anda.",
+                            route('erp.advance-requests.show', $advanceRequest),
+                            'advance_request',
+                            $advanceRequest->id
+                        );
+                    }
                 } else {
                     // Fully approved — per spec, actual_amount defaults to what was
                     // requested; Finance can still adjust it before marking Paid.
@@ -181,6 +214,28 @@ class AdvanceRequestController extends Controller
                     ]);
 
                     BudgetRollupService::recalculateDetail($advanceRequest->budget_plan_detail_id);
+
+                    NotificationHelper::pushLive('advance_request', $advanceRequest->id, $advanceRequest->status);
+
+                    if ($advanceRequest->request_by_id) {
+                        NotificationHelper::send(
+                            $advanceRequest->request_by_id,
+                            'advance_request_approved',
+                            'Kasbon Disetujui',
+                            "Advance Request {$advanceRequest->code} telah disetujui sepenuhnya.",
+                            route('erp.advance-requests.show', $advanceRequest),
+                            'advance_request',
+                            $advanceRequest->id
+                        );
+                    }
+                    NotificationHelper::notifyFinance(
+                        'advance_request_ready_to_pay',
+                        'Kasbon Siap Dibayar',
+                        "Advance Request {$advanceRequest->code} sudah disetujui, siap diproses pembayarannya.",
+                        route('erp.advance-requests.show', $advanceRequest),
+                        'advance_request',
+                        $advanceRequest->id
+                    );
                 }
             }
 
@@ -232,6 +287,20 @@ class AdvanceRequestController extends Controller
             if ($advanceRequest) {
                 $advanceRequest->approvals()->where('status', 'Waiting')->update(['status' => 'Cancelled']);
                 $advanceRequest->update(['status' => 'Rejected']);
+
+                NotificationHelper::pushLive('advance_request', $advanceRequest->id, $advanceRequest->status);
+
+                if ($advanceRequest->request_by_id) {
+                    NotificationHelper::send(
+                        $advanceRequest->request_by_id,
+                        'advance_request_rejected',
+                        'Kasbon Ditolak',
+                        "Advance Request {$advanceRequest->code} ditolak. Alasan: {$request->input('reason')}",
+                        route('erp.advance-requests.show', $advanceRequest),
+                        'advance_request',
+                        $advanceRequest->id
+                    );
+                }
             }
 
             return redirect()->back()->with('success', 'Advance Request berhasil ditolak.');
@@ -262,6 +331,20 @@ class AdvanceRequestController extends Controller
                 'payment_date' => now(),
                 'paid_by_id' => $user->id,
             ]);
+
+            NotificationHelper::pushLive('advance_request', $advanceRequest->id, $advanceRequest->status);
+
+            if ($advanceRequest->request_by_id) {
+                NotificationHelper::send(
+                    $advanceRequest->request_by_id,
+                    'advance_request_paid',
+                    'Kasbon Sudah Dibayar',
+                    "Advance Request {$advanceRequest->code} telah dibayar.",
+                    route('erp.advance-requests.show', $advanceRequest),
+                    'advance_request',
+                    $advanceRequest->id
+                );
+            }
 
             return redirect()->back()->with('success', 'Advance Request ditandai sudah dibayar.');
         });

@@ -135,6 +135,14 @@ function openReject(id) {
   document.getElementById('formReject').action = "{{ route('erp.expense-declarations.approvals.reject', ['approval' => '__ID__']) }}".replace('__ID__', id);
   new bootstrap.Modal(document.getElementById('modalReject')).show();
 }
+
+// Live refresh: this exact Expense Declaration got submitted/approved/rejected
+// by someone else while we had it open — reload so status stays current.
+window.addEventListener('erp-live-update', function (e) {
+  if (e.detail.record_type === 'expense_declaration' && e.detail.id == {{ $expenseDeclaration->id }}) {
+    location.reload();
+  }
+});
 </script>
 @endpush
 @endsection

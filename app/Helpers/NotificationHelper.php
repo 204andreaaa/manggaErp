@@ -2,17 +2,35 @@
 
 namespace App\Helpers;
 
+use App\Events\ErpRecordChanged;
+use App\Events\NotificationCreated;
 use App\Models\Notification;
 use App\Models\User;
+use Illuminate\Support\Facades\Log;
 
 class NotificationHelper
 {
+    /**
+     * Push a "this record changed" pulse to every logged-in user so list/detail
+     * pages can refresh themselves live. Carries no business data beyond
+     * type/id/status — pages still re-fetch through their normal, permission-
+     * checked routes, so this never bypasses authorization.
+     */
+    public static function pushLive(string $recordType, int $recordId, string $status): void
+    {
+        try {
+            broadcast(new ErpRecordChanged($recordType, $recordId, $status));
+        } catch (\Throwable $e) {
+            Log::warning('ErpRecordChanged broadcast failed: '.$e->getMessage());
+        }
+    }
+
     /**
      * Kirim notif ke satu user.
      */
     public static function send(int $userId, string $type, string $title, string $body = '', string $url = '', string $refType = '', int $refId = null): void
     {
-        Notification::create([
+        $notification = Notification::create([
             'user_id'        => $userId,
             'type'           => $type,
             'title'          => $title,
@@ -22,6 +40,16 @@ class NotificationHelper
             'reference_id'   => $refId,
             'is_read'        => false,
         ]);
+
+        // Best-effort live push — the notification row above is already saved
+        // and is the source of truth (picked up on next page load/refresh
+        // regardless). If Reverb is unreachable, swallow the error here so a
+        // websocket hiccup never breaks the action that triggered this notice.
+        try {
+            broadcast(new NotificationCreated($notification));
+        } catch (\Throwable $e) {
+            Log::warning('NotificationCreated broadcast failed: '.$e->getMessage());
+        }
     }
 
     /**

@@ -606,5 +606,13 @@
       return new bootstrap.Tooltip(tooltipTriggerEl)
     });
   });
+
+  // Live refresh: any termin under this Payment Advice changed elsewhere —
+  // reload so totals/approval statuses stay current.
+  window.addEventListener('erp-live-update', function (e) {
+    if (e.detail.record_type === 'payment_advice' && e.detail.id == {{ $paymentAdvice->id }}) {
+      location.reload();
+    }
+  });
 </script>
 @endsection

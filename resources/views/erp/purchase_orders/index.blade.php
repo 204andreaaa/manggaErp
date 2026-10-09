@@ -151,6 +151,15 @@ $(document).ready(function() {
       table.column(6).search('^' + filterVal + '$', true, false).draw();
     }
   });
+
+  // Live refresh: this table renders straight from server-side HTML (no ajax
+  // source), so the only way to reflect another user's PO change live is a
+  // full reload. Harmless here since it's a read-only list page.
+  window.addEventListener('erp-live-update', function (e) {
+    if (e.detail.record_type === 'purchase_order') {
+      location.reload();
+    }
+  });
 });
 </script>
 @endpush

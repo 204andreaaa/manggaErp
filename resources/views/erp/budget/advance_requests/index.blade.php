@@ -64,4 +64,14 @@
     <div class="card-footer">{{ $advanceRequests->links() }}</div>
   </div>
 </div>
+
+<script>
+  // Live refresh: this is a server-rendered paginated list (no ajax source),
+  // so the only way to reflect another user's change live is a full reload.
+  window.addEventListener('erp-live-update', function (e) {
+    if (e.detail.record_type === 'advance_request') {
+      location.reload();
+    }
+  });
+</script>
 @endsection
