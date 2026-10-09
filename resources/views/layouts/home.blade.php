@@ -657,23 +657,31 @@
         // channel (already authorized in routes/channels.php). If Reverb is
         // unreachable, Echo just never connects; the page still works exactly
         // like before (manual "Refresh Notifikasi" / next page load).
+        //
+        // Wrapped in DOMContentLoaded because @vite's bundle (which creates
+        // window.Echo in bootstrap.js) loads as a deferred module script —
+        // it only becomes available once the document is parsed, so a plain
+        // inline script reaching this point earlier would otherwise see
+        // window.Echo as undefined and silently skip the subscription.
         @auth
-        if (window.Echo) {
-            window.Echo.private('App.Models.User.{{ auth()->id() }}')
-                .listen('.notification.created', function () {
-                    fetchNavbarNotifications();
-                    playNotificationSound();
-                });
+        document.addEventListener('DOMContentLoaded', function () {
+            if (window.Echo) {
+                window.Echo.private('App.Models.User.{{ auth()->id() }}')
+                    .listen('.notification.created', function () {
+                        fetchNavbarNotifications();
+                        playNotificationSound();
+                    });
 
-            // Generic "a record changed" pulse — any list/detail page can listen
-            // for window 'erp-live-update' and decide for itself whether to
-            // reload its own (permission-checked) data. No business data rides
-            // on the websocket event itself, only type/id/status.
-            window.Echo.private('erp.live')
-                .listen('.record.changed', function (e) {
-                    window.dispatchEvent(new CustomEvent('erp-live-update', { detail: e }));
-                });
-        }
+                // Generic "a record changed" pulse — any list/detail page can listen
+                // for window 'erp-live-update' and decide for itself whether to
+                // reload its own (permission-checked) data. No business data rides
+                // on the websocket event itself, only type/id/status.
+                window.Echo.private('erp.live')
+                    .listen('.record.changed', function (e) {
+                        window.dispatchEvent(new CustomEvent('erp-live-update', { detail: e }));
+                    });
+            }
+        });
         @endauth
 
         function fetchNavbarNotifications() {
