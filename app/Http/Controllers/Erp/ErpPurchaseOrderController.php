@@ -223,6 +223,9 @@ class ErpPurchaseOrderController extends Controller
             }
 
             DB::commit();
+
+            \App\Helpers\NotificationHelper::pushLive('purchase_order', $po->id, $po->status);
+
             return redirect()->route('erp.purchase-orders.show', $po)->with('success', 'PO Request created successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -409,6 +412,9 @@ class ErpPurchaseOrderController extends Controller
             }
 
             DB::commit();
+
+            \App\Helpers\NotificationHelper::pushLive('purchase_order', $purchaseOrder->id, $purchaseOrder->status);
+
             return redirect()->route('erp.purchase-orders.show', $purchaseOrder)->with('success', 'PO Request updated successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -953,6 +959,8 @@ class ErpPurchaseOrderController extends Controller
             \App\Models\Erp\ErpProduct::syncBuyingPriceFromLatestApprovedPo($pId);
         }
 
+        \App\Helpers\NotificationHelper::pushLive('purchase_order', $purchaseOrder->id, 'Deleted');
+
         return redirect()->route('erp.procurement.dashboard')->with('success', 'PO dihapus. Stok fisik yang pernah diterima telah dikurangi kembali, dan status barang (RF Item) dikembalikan agar dapat dipesan ulang.');
     }
 
@@ -983,6 +991,8 @@ class ErpPurchaseOrderController extends Controller
             'verified_by_id' => $user->id,
             'verification_timestamp' => now(),
         ]);
+
+        \App\Helpers\NotificationHelper::pushLive('purchase_order', $purchaseOrder->id, $purchaseOrder->status);
 
         if ($purchaseOrder->owner_id && $purchaseOrder->owner_id !== $user->id) {
             \App\Helpers\NotificationHelper::send(
@@ -1044,6 +1054,9 @@ class ErpPurchaseOrderController extends Controller
             \App\Models\Erp\ErpProduct::syncProductsFromPo($purchaseOrder);
 
             \Illuminate\Support\Facades\DB::commit();
+
+            \App\Helpers\NotificationHelper::pushLive('purchase_order', $purchaseOrder->id, $purchaseOrder->status);
+
             return redirect()->back()->with('success', 'Purchase Order berhasil di-unlock. Status kembali menjadi Draft, verifikasi & approval telah direset.');
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\DB::rollBack();
@@ -1105,6 +1118,8 @@ class ErpPurchaseOrderController extends Controller
         foreach (array_unique($affectedProductIds) as $pId) {
             \App\Models\Erp\ErpProduct::syncBuyingPriceFromLatestApprovedPo($pId);
         }
+
+        \App\Helpers\NotificationHelper::pushLive('purchase_order', $purchaseOrder->id, $purchaseOrder->status);
 
         return redirect()->back()->with('success', 'Purchase Order has been cancelled successfully, and the budget has been refunded.');
     }

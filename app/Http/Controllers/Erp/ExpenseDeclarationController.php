@@ -79,6 +79,8 @@ class ExpenseDeclarationController extends Controller
             'status' => 'Draft',
         ]));
 
+        NotificationHelper::pushLive('expense_declaration', $declaration->id, $declaration->status);
+
         return redirect()
             ->route('erp.expense-declarations.show', $declaration)
             ->with('success', 'Expense Declaration berhasil dibuat.');

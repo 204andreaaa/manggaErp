@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Erp;
 
+use App\Helpers\NotificationHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Erp\ErpPurchaseOrder;
 use App\Models\Erp\ErpWorkItem;
@@ -300,6 +301,8 @@ class RequestFormController extends Controller
             return $rf;
         });
 
+        NotificationHelper::pushLive('request_form', $rf->id, $rf->status);
+
         return redirect()
             ->route('erp.request-form.show', $rf)
             ->with('success', 'Request Form berhasil dibuat.');
@@ -458,6 +461,8 @@ class RequestFormController extends Controller
             }
         });
 
+        NotificationHelper::pushLive('request_form', $requestForm->id, $requestForm->status);
+
         return redirect()
             ->route('erp.request-form.show', $requestForm)
             ->with('success', 'Request Form berhasil diperbarui.');
@@ -503,6 +508,8 @@ class RequestFormController extends Controller
             // Revert status to Draft
             $requestForm->update(['status' => 'Draft']);
         });
+
+        NotificationHelper::pushLive('request_form', $requestForm->id, $requestForm->status);
 
         return redirect()->back()->with('success', 'Request Form berhasil di-unlock. Approval telah direset dan status kembali menjadi Draft.');
     }
@@ -572,6 +579,8 @@ class RequestFormController extends Controller
             $requestForm->approvals()->delete();
             $requestForm->notesAttachments()->delete();
             $requestForm->delete();
+
+            NotificationHelper::pushLive('request_form', $requestForm->id, 'Deleted');
         });
 
         return redirect()->route('erp.request-form.index')->with('success', "Request Form {$requestForm->rf_no} dan seluruh data turunannya (PO, GR, Payment Advice, PR) berhasil dihapus dan nilai budget WID dikembalikan seperti semula.");

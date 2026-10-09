@@ -61,6 +61,8 @@ class AdvanceRequestController extends Controller
             'status' => 'Draft',
         ]));
 
+        NotificationHelper::pushLive('advance_request', $advanceRequest->id, $advanceRequest->status);
+
         return redirect()
             ->route('erp.advance-requests.show', $advanceRequest)
             ->with('success', 'Advance Request berhasil dibuat.');

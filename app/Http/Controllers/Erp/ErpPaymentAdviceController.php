@@ -157,6 +157,8 @@ class ErpPaymentAdviceController extends Controller
 
             DB::commit();
 
+            NotificationHelper::pushLive('payment_advice', $pa->id, $pa->approval_status);
+
             return redirect()->route('erp.payment-advices.show', $pa)->with('success', 'Payment Advice Header & Termin 1 berhasil dibuat.');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -210,6 +212,8 @@ class ErpPaymentAdviceController extends Controller
 
             DB::commit();
 
+            NotificationHelper::pushLive('payment_advice', $paymentAdvice->id, $paymentAdvice->approval_status);
+
             return redirect()->route('erp.payment-advices.show', $paymentAdvice)->with('success', 'Termin pembayaran baru (' . $pad->supplier_detail_no . ') berhasil ditambahkan.');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -237,6 +241,11 @@ class ErpPaymentAdviceController extends Controller
             }
 
             DB::commit();
+
+            if ($pa) {
+                NotificationHelper::pushLive('payment_advice', $pa->id, $pa->approval_status);
+            }
+
             return redirect()->back()->with('success', 'Termin pembayaran berhasil dihapus.');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -324,6 +333,8 @@ class ErpPaymentAdviceController extends Controller
         }
 
         $paymentAdviceDetail->update($updateData);
+
+        NotificationHelper::pushLive('payment_advice', $paymentAdviceDetail->erp_payment_advice_id, $paymentAdviceDetail->approval_status);
 
         return redirect()->back()->with('success', 'Data Invoice Vendor (' . $paymentAdviceDetail->invoice_no . ') berhasil disimpan.');
     }
@@ -719,6 +730,8 @@ class ErpPaymentAdviceController extends Controller
             $paymentAdvice->delete();
 
             DB::commit();
+
+            NotificationHelper::pushLive('payment_advice', $paymentAdvice->id, 'Deleted');
 
             return redirect()->route('erp.payment-advices.index')->with('success', 'Payment Advice berhasil dihapus.');
         } catch (\Exception $e) {
