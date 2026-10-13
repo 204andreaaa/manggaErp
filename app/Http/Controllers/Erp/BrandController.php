@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Erp;
 
+use App\Helpers\NotificationHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Erp\Brand;
 use Illuminate\Http\Request;
@@ -77,7 +78,9 @@ class BrandController extends Controller
             'description' => ['nullable', 'max:255'],
         ]);
 
-        Brand::create($data);
+        $brand = Brand::create($data);
+
+        NotificationHelper::pushLive('brand', $brand->id, 'created');
 
         return response()->json(['success' => 'Brand created successfully']);
     }
@@ -94,13 +97,18 @@ class BrandController extends Controller
 
         $brand->update($data);
 
+        NotificationHelper::pushLive('brand', $brand->id, 'updated');
+
         return response()->json(['success' => 'Brand updated successfully']);
     }
 
     public function destroy($id)
     {
         abort_unless(auth()->user()->hasPermission('products.delete'), 403);
-        Brand::findOrFail($id)->delete();
+        $brand = Brand::findOrFail($id);
+        $brand->delete();
+
+        NotificationHelper::pushLive('brand', $brand->id, 'deleted');
 
         return response()->json(['success' => 'Brand deleted successfully']);
     }

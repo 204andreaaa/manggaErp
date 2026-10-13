@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Erp;
 
+use App\Helpers\NotificationHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Erp\ProductType;
 use Illuminate\Http\Request;
@@ -77,7 +78,9 @@ class ProductTypeController extends Controller
             'description' => ['nullable', 'max:255'],
         ]);
 
-        ProductType::create($data);
+        $productType = ProductType::create($data);
+
+        NotificationHelper::pushLive('product_type', $productType->id, 'created');
 
         return response()->json(['success' => 'Product Type created successfully']);
     }
@@ -94,13 +97,18 @@ class ProductTypeController extends Controller
 
         $type->update($data);
 
+        NotificationHelper::pushLive('product_type', $type->id, 'updated');
+
         return response()->json(['success' => 'Product Type updated successfully']);
     }
 
     public function destroy($id)
     {
         abort_unless(auth()->user()->hasPermission('products.delete'), 403);
-        ProductType::findOrFail($id)->delete();
+        $type = ProductType::findOrFail($id);
+        $type->delete();
+
+        NotificationHelper::pushLive('product_type', $type->id, 'deleted');
 
         return response()->json(['success' => 'Product Type deleted successfully']);
     }

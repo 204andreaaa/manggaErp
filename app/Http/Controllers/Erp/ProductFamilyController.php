@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Erp;
 
+use App\Helpers\NotificationHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Erp\ProductFamily;
 use Illuminate\Http\Request;
@@ -77,7 +78,9 @@ class ProductFamilyController extends Controller
             'description' => ['nullable', 'max:255'],
         ]);
 
-        ProductFamily::create($data);
+        $family = ProductFamily::create($data);
+
+        NotificationHelper::pushLive('product_family', $family->id, 'created');
 
         return response()->json(['success' => 'Product Family created successfully']);
     }
@@ -94,13 +97,18 @@ class ProductFamilyController extends Controller
 
         $family->update($data);
 
+        NotificationHelper::pushLive('product_family', $family->id, 'updated');
+
         return response()->json(['success' => 'Product Family updated successfully']);
     }
 
     public function destroy($id)
     {
         abort_unless(auth()->user()->hasPermission('products.delete'), 403);
-        ProductFamily::findOrFail($id)->delete();
+        $family = ProductFamily::findOrFail($id);
+        $family->delete();
+
+        NotificationHelper::pushLive('product_family', $family->id, 'deleted');
 
         return response()->json(['success' => 'Product Family deleted successfully']);
     }

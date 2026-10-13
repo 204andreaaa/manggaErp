@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Erp;
 
+use App\Helpers\NotificationHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Erp\Currency;
 use Illuminate\Http\Request;
@@ -80,7 +81,9 @@ class CurrencyController extends Controller
             'symbol' => ['nullable', 'max:10'],
         ]);
 
-        Currency::create($data);
+        $currency = Currency::create($data);
+
+        NotificationHelper::pushLive('currency', $currency->id, 'created');
 
         return response()->json(['success' => 'Currency created successfully']);
     }
@@ -98,13 +101,18 @@ class CurrencyController extends Controller
 
         $currency->update($data);
 
+        NotificationHelper::pushLive('currency', $currency->id, 'updated');
+
         return response()->json(['success' => 'Currency updated successfully']);
     }
 
     public function destroy($id)
     {
         abort_unless(auth()->user()->hasPermission('products.delete'), 403);
-        Currency::findOrFail($id)->delete();
+        $currency = Currency::findOrFail($id);
+        $currency->delete();
+
+        NotificationHelper::pushLive('currency', $currency->id, 'deleted');
 
         return response()->json(['success' => 'Currency deleted successfully']);
     }

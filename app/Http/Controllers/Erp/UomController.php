@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Erp;
 
+use App\Helpers\NotificationHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Erp\Uom;
 use Illuminate\Http\Request;
@@ -77,7 +78,9 @@ class UomController extends Controller
             'description' => ['nullable', 'max:255'],
         ]);
 
-        Uom::create($data);
+        $uom = Uom::create($data);
+
+        NotificationHelper::pushLive('uom', $uom->id, 'created');
 
         return response()->json(['success' => 'UOM created successfully']);
     }
@@ -94,13 +97,18 @@ class UomController extends Controller
 
         $uom->update($data);
 
+        NotificationHelper::pushLive('uom', $uom->id, 'updated');
+
         return response()->json(['success' => 'UOM updated successfully']);
     }
 
     public function destroy($id)
     {
         abort_unless(auth()->user()->hasPermission('products.delete'), 403);
-        Uom::findOrFail($id)->delete();
+        $uom = Uom::findOrFail($id);
+        $uom->delete();
+
+        NotificationHelper::pushLive('uom', $uom->id, 'deleted');
 
         return response()->json(['success' => 'UOM deleted successfully']);
     }

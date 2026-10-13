@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Erp;
 
+use App\Helpers\NotificationHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Erp\ProductModel;
 use Illuminate\Http\Request;
@@ -77,7 +78,9 @@ class ProductModelController extends Controller
             'description' => ['nullable', 'max:255'],
         ]);
 
-        ProductModel::create($data);
+        $productModel = ProductModel::create($data);
+
+        NotificationHelper::pushLive('product_model', $productModel->id, 'created');
 
         return response()->json(['success' => 'Product Model created successfully']);
     }
@@ -94,13 +97,18 @@ class ProductModelController extends Controller
 
         $model->update($data);
 
+        NotificationHelper::pushLive('product_model', $model->id, 'updated');
+
         return response()->json(['success' => 'Product Model updated successfully']);
     }
 
     public function destroy($id)
     {
         abort_unless(auth()->user()->hasPermission('products.delete'), 403);
-        ProductModel::findOrFail($id)->delete();
+        $model = ProductModel::findOrFail($id);
+        $model->delete();
+
+        NotificationHelper::pushLive('product_model', $model->id, 'deleted');
 
         return response()->json(['success' => 'Product Model deleted successfully']);
     }

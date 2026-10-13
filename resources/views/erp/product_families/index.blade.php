@@ -201,6 +201,12 @@ $(function () {
             Swal.fire({ icon:'error', title:'Error', text: err.message });
         }
     };
+
+    window.addEventListener('erp-live-update', function (e) {
+        if (e.detail.record_type === 'product_family') {
+            DT.ajax.reload(null, false);
+        }
+    });
 });
 </script>
 @endpush
