@@ -607,10 +607,26 @@
     });
   });
 
+  // Remember/restore the active tab across a live-refresh reload (see below),
+  // so an approval elsewhere doesn't bounce the user back to tab 1.
+  const paTabStorageKey = 'pa-active-tab-{{ $paymentAdvice->id }}';
+  const savedPaTab = sessionStorage.getItem(paTabStorageKey);
+  if (savedPaTab) {
+    sessionStorage.removeItem(paTabStorageKey);
+    const triggerEl = document.querySelector(`#paShowTab button[data-bs-target="${savedPaTab}"]`);
+    if (triggerEl) {
+      new bootstrap.Tab(triggerEl).show();
+    }
+  }
+
   // Live refresh: any termin under this Payment Advice changed elsewhere —
   // reload so totals/approval statuses stay current.
   window.addEventListener('erp-live-update', function (e) {
     if (e.detail.record_type === 'payment_advice' && e.detail.id == {{ $paymentAdvice->id }}) {
+      const activeTabBtn = document.querySelector('#paShowTab button.active');
+      if (activeTabBtn) {
+        sessionStorage.setItem(paTabStorageKey, activeTabBtn.getAttribute('data-bs-target'));
+      }
       location.reload();
     }
   });

@@ -921,10 +921,26 @@ function showAttachmentModal(url, filename) {
     }, 400);
 }
 
+// Remember/restore the active tab across a live-refresh reload (see below),
+// so an approval elsewhere doesn't bounce the user back to tab 1.
+const poTabStorageKey = 'po-active-tab-{{ $purchaseOrder->id }}';
+const savedPoTab = sessionStorage.getItem(poTabStorageKey);
+if (savedPoTab) {
+    sessionStorage.removeItem(poTabStorageKey);
+    const triggerEl = document.querySelector(`#poShowTab button[data-bs-target="${savedPoTab}"]`);
+    if (triggerEl) {
+        new bootstrap.Tab(triggerEl).show();
+    }
+}
+
 // Live refresh: this exact PO got submitted/approved/rejected by someone else
 // while we had it open — reload so status/approval tabs stay current.
 window.addEventListener('erp-live-update', function (e) {
     if (e.detail.record_type === 'purchase_order' && e.detail.id == {{ $purchaseOrder->id }}) {
+        const activeTabBtn = document.querySelector('#poShowTab button.active');
+        if (activeTabBtn) {
+            sessionStorage.setItem(poTabStorageKey, activeTabBtn.getAttribute('data-bs-target'));
+        }
         location.reload();
     }
 });

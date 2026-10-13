@@ -954,6 +954,7 @@
 document.addEventListener('DOMContentLoaded', function () {
   // Tab Navigation JS
   const tabList = ['tab-general', 'tab-items', 'tab-notes', 'tab-approval'];
+  const rfTabStorageKey = 'rf-active-tab-{{ $rf->id }}';
   let currentTabIndex = 0;
 
   const btnPrevTab = document.getElementById('btnPrevTab');
@@ -962,6 +963,22 @@ document.addEventListener('DOMContentLoaded', function () {
   function updateTabButtons() {
     btnPrevTab.style.visibility = currentTabIndex === 0 ? 'hidden' : 'visible';
     btnNextTab.style.display = currentTabIndex === tabList.length - 1 ? 'none' : 'inline-flex';
+  }
+
+  // Restore the tab the user was on before a live-refresh reload (see the
+  // erp-live-update listener below), so an approval elsewhere doesn't kick
+  // them back to tab 1. Normal navigation to this page has nothing saved,
+  // so it still opens on tab 1 as before.
+  const savedTab = sessionStorage.getItem(rfTabStorageKey);
+  if (savedTab && tabList.includes(savedTab)) {
+    sessionStorage.removeItem(rfTabStorageKey);
+    const savedIndex = tabList.indexOf(savedTab);
+    const triggerEl = document.querySelector(`#rfTab button[data-bs-target="#${savedTab}"]`);
+    if (triggerEl) {
+      new bootstrap.Tab(triggerEl).show();
+      currentTabIndex = savedIndex;
+      updateTabButtons();
+    }
   }
 
   btnNextTab.addEventListener('click', function() {
@@ -1020,8 +1037,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Live refresh: this exact RF got submitted/approved/rejected by someone
   // else while we had it open — reload so status/approval timeline stay current.
+  // The active tab is saved first and restored above after reload, so the
+  // user stays on whatever tab (e.g. Approval & PR) they were looking at.
   window.addEventListener('erp-live-update', function (e) {
     if (e.detail.record_type === 'request_form' && e.detail.id == {{ $rf->id }}) {
+      sessionStorage.setItem(rfTabStorageKey, tabList[currentTabIndex]);
       location.reload();
     }
   });
