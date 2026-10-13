@@ -97,7 +97,7 @@
               <i class="bx bx-bolt-circle me-1"></i>Gunakan Sisa Maksimal
             </button>
           </div>
-          <input type="number" name="allocated_budget" id="create_allocated_budget" class="form-control" required min="0" step="0.01" placeholder="e.g. 50000000">
+          <input type="number" name="allocated_budget" id="create_allocated_budget" class="form-control" required min="0.01" step="0.01" placeholder="e.g. 50000000">
         </div>
       </div>
       <div class="modal-footer border-top">
@@ -151,7 +151,7 @@
               <i class="bx bx-bolt-circle me-1"></i>Gunakan Sisa Maksimal
             </button>
           </div>
-          <input type="number" name="allocated_budget" id="edit_allocated_budget" class="form-control" required min="0" step="0.01">
+          <input type="number" name="allocated_budget" id="edit_allocated_budget" class="form-control" required min="0.01" step="0.01">
         </div>
       </div>
       <div class="modal-footer border-top">

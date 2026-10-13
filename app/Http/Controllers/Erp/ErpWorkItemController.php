@@ -137,7 +137,7 @@ class ErpWorkItemController extends Controller
             'sub_project_id'   => ['required', 'exists:tenant.erp_sub_projects,id'],
             'wid_code'         => ['required', 'max:50', Rule::unique('tenant.erp_work_items', 'wid_code')],
             'name'             => ['required', 'max:255'],
-            'allocated_budget' => ['required', 'numeric', 'min:0', 'max:999999999999'],
+            'allocated_budget' => ['required', 'numeric', 'min:0.01', 'max:999999999999'],
         ]);
 
         DB::connection('tenant')->beginTransaction();
@@ -157,8 +157,11 @@ class ErpWorkItemController extends Controller
                 $formattedAllocated = number_format($totalAllocated, 0, ',', '.');
                 $formattedAvailable = number_format($availableBudget, 0, ',', '.');
                 $formattedInput = number_format($data['allocated_budget'], 0, ',', '.');
+                $suggestion = $availableBudget > 0
+                    ? "Anda menginput Rp {$formattedInput}. Mohon masukkan nominal maksimal Rp {$formattedAvailable}."
+                    : "Sisa pagu sudah habis (Rp 0). Naikkan Total Pagu Induk atau kurangi alokasi Work Item lain terlebih dahulu sebelum menambah WID baru.";
 
-                throw new \Exception("Alokasi Anggaran Melebihi Batas Pagu!\n\nInduk: {$budgetParent->name} ({$budgetParent->budget_code})\n• Total Pagu Induk: Rp {$formattedTotal}\n• Sudah Teralokasi: Rp {$formattedAllocated}\n• Sisa Pagu Tersedia: Rp {$formattedAvailable}\n\nAnda menginput Rp {$formattedInput}. Mohon masukkan nominal maksimal Rp {$formattedAvailable}.");
+                throw new \Exception("Alokasi Anggaran Melebihi Batas Pagu!\n\nInduk: {$budgetParent->name} ({$budgetParent->budget_code})\n• Total Pagu Induk: Rp {$formattedTotal}\n• Sudah Teralokasi: Rp {$formattedAllocated}\n• Sisa Pagu Tersedia: Rp {$formattedAvailable}\n\n{$suggestion}");
             }
 
             $data['remaining_budget'] = $data['allocated_budget'];
@@ -184,7 +187,7 @@ class ErpWorkItemController extends Controller
             'sub_project_id'   => ['required', 'exists:tenant.erp_sub_projects,id'],
             'wid_code'         => ['required', 'max:50', Rule::unique('tenant.erp_work_items', 'wid_code')->ignore($workItem->id)],
             'name'             => ['required', 'max:255'],
-            'allocated_budget' => ['required', 'numeric', 'min:0', 'max:999999999999'],
+            'allocated_budget' => ['required', 'numeric', 'min:0.01', 'max:999999999999'],
         ]);
 
         DB::connection('tenant')->beginTransaction();
@@ -204,8 +207,11 @@ class ErpWorkItemController extends Controller
                 $formattedAllocated = number_format($totalAllocated, 0, ',', '.');
                 $formattedAvailable = number_format($availableBudget, 0, ',', '.');
                 $formattedInput = number_format($data['allocated_budget'], 0, ',', '.');
+                $suggestion = $availableBudget > 0
+                    ? "Anda menginput Rp {$formattedInput}. Mohon masukkan nominal maksimal Rp {$formattedAvailable}."
+                    : "Sisa pagu sudah habis (Rp 0). Naikkan Total Pagu Induk atau kurangi alokasi Work Item lain terlebih dahulu.";
 
-                throw new \Exception("Alokasi Anggaran Melebihi Batas Pagu!\n\nInduk: {$budgetParent->name} ({$budgetParent->budget_code})\n• Total Pagu Induk: Rp {$formattedTotal}\n• Sudah Teralokasi: Rp {$formattedAllocated}\n• Sisa Pagu Tersedia: Rp {$formattedAvailable}\n\nAnda menginput Rp {$formattedInput}. Mohon masukkan nominal maksimal Rp {$formattedAvailable}.");
+                throw new \Exception("Alokasi Anggaran Melebihi Batas Pagu!\n\nInduk: {$budgetParent->name} ({$budgetParent->budget_code})\n• Total Pagu Induk: Rp {$formattedTotal}\n• Sudah Teralokasi: Rp {$formattedAllocated}\n• Sisa Pagu Tersedia: Rp {$formattedAvailable}\n\n{$suggestion}");
             }
 
             $diff = $data['allocated_budget'] - $workItem->allocated_budget;
