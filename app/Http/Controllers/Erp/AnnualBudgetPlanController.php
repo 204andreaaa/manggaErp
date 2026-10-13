@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Erp;
 
+use App\Helpers\NotificationHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Erp\AnnualBudgetPlan;
 use App\Models\Erp\ErpBudgetParent;
@@ -39,6 +40,8 @@ class AnnualBudgetPlanController extends Controller
         ]);
 
         $plan = $this->createWithGeneratedCode($data);
+
+        NotificationHelper::pushLive('annual_budget_plan', $plan->id, 'created');
 
         return redirect()->route('erp.annual-budget-plans.show', $plan)->with('success', 'Annual Budget Plan berhasil dibuat.');
     }
@@ -78,6 +81,8 @@ class AnnualBudgetPlanController extends Controller
         }
 
         $annualBudgetPlan->update($data);
+
+        NotificationHelper::pushLive('annual_budget_plan', $annualBudgetPlan->id, 'updated');
 
         return redirect()->route('erp.annual-budget-plans.show', $annualBudgetPlan)->with('success', 'Annual Budget Plan berhasil diperbarui.');
     }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Erp;
 
+use App\Helpers\NotificationHelper;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Role;
@@ -99,7 +100,7 @@ class UserController extends Controller
 
         $customDept = $data['department'] ?? null;
 
-        DB::transaction(function () use ($payload, $roleIds, $customDept) {
+        $user = DB::transaction(function () use ($payload, $roleIds, $customDept) {
             $user = User::create($payload);
             $user->roles()->sync($roleIds);
 
@@ -110,7 +111,11 @@ class UserController extends Controller
             }
 
             $this->syncEmployeeProfile($user, $customDept);
+
+            return $user;
         });
+
+        NotificationHelper::pushLive('user', $user->id, 'created');
 
         return back()->with('success', 'User created successfully.');
     }
@@ -190,6 +195,8 @@ class UserController extends Controller
             $this->syncEmployeeProfile($user, $customDept);
         });
 
+        NotificationHelper::pushLive('user', $user->id, 'updated');
+
         return back()->with('edit_success', 'User updated.');
     }
 
@@ -253,6 +260,8 @@ class UserController extends Controller
         delete_file_if_exists($user->signature_path);
 
         $user->delete();
+
+        NotificationHelper::pushLive('user', $user->id, 'deleted');
 
         return response()->json(['success' => 'User deleted.']);
     }

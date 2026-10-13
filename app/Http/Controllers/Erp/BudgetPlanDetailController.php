@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Erp;
 
+use App\Helpers\NotificationHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Erp\BudgetPlanDetail;
 use App\Models\Erp\MonthlyBudgetPlan;
@@ -44,6 +45,8 @@ class BudgetPlanDetailController extends Controller
         $detail = $this->createWithGeneratedCode($data);
         BudgetRollupService::recalculateDetail($detail->id);
 
+        NotificationHelper::pushLive('monthly_budget_plan', $monthlyBudgetPlan->id, 'updated');
+
         return redirect()
             ->route('erp.monthly-budget-plans.show', $monthlyBudgetPlan)
             ->with('success', 'Budget Plan Detail berhasil dibuat.');
@@ -74,6 +77,8 @@ class BudgetPlanDetailController extends Controller
 
         $budgetPlanDetail->update($data);
         BudgetRollupService::recalculateDetail($budgetPlanDetail->id);
+
+        NotificationHelper::pushLive('monthly_budget_plan', $budgetPlanDetail->monthly_budget_plan_id, 'updated');
 
         return redirect()
             ->route('erp.monthly-budget-plans.show', $budgetPlanDetail->monthly_budget_plan_id)

@@ -904,6 +904,15 @@
                     showConfirmButton: false
                 });
             @endif
+
+            // Live refresh: this table's rows are rendered server-side (DataTable
+            // only paginates/searches client-side, no ajax source), so another
+            // user's create/update/delete just reloads the page.
+            window.addEventListener('erp-live-update', function (e) {
+                if (e.detail.record_type === 'user') {
+                    location.reload();
+                }
+            });
         });
     </script>
 @endpush

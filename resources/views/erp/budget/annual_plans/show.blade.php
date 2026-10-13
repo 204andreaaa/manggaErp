@@ -157,6 +157,16 @@
         }
         new bootstrap.Modal(document.getElementById('modalMonth')).show();
     };
+
+    // Live refresh: this exact Annual Budget Plan (or one of its Monthly Budget
+    // Plans, which also pushes here since this page lists them) changed elsewhere
+    // — reload so totals / monthly rows stay current. No destroy route exists for
+    // annual budget plans yet, so there's no "Deleted" redirect branch to handle.
+    window.addEventListener('erp-live-update', function (e) {
+        if (e.detail.record_type === 'annual_budget_plan' && e.detail.id == {{ $annualBudgetPlan->id }}) {
+            location.reload();
+        }
+    });
 })();
 </script>
 @endpush

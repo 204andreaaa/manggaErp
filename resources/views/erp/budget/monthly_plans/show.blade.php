@@ -176,6 +176,15 @@
         }
         new bootstrap.Modal(document.getElementById('modalDetail')).show();
     };
+
+    // Live refresh: this exact Monthly Budget Plan (or one of its Budget Plan
+    // Details, which also pushes here since this page lists them) changed
+    // elsewhere — reload so totals / detail rows stay current.
+    window.addEventListener('erp-live-update', function (e) {
+        if (e.detail.record_type === 'monthly_budget_plan' && e.detail.id == {{ $monthlyBudgetPlan->id }}) {
+            location.reload();
+        }
+    });
 })();
 </script>
 @endpush

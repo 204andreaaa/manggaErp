@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Erp;
 
+use App\Helpers\NotificationHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Erp\ErpProduct;
 use App\Models\Erp\ProductFamily;
@@ -237,7 +238,9 @@ class ErpProductController extends Controller
             $data['image'] = 'uploads/products/' . $filename;
         }
 
-        ErpProduct::create($data);
+        $product = ErpProduct::create($data);
+
+        NotificationHelper::pushLive('product', $product->id, 'created');
 
         return response()->json(['success' => 'ERP Product created successfully.']);
     }
@@ -293,13 +296,18 @@ class ErpProductController extends Controller
 
         $product->update($data);
 
+        NotificationHelper::pushLive('product', $product->id, 'updated');
+
         return response()->json(['success' => 'ERP Product updated successfully.']);
     }
 
     public function destroy($id)
     {
         abort_unless(auth()->user()->hasPermission('products.delete'), 403);
-        ErpProduct::findOrFail($id)->delete();
+        $product = ErpProduct::findOrFail($id);
+        $product->delete();
+
+        NotificationHelper::pushLive('product', $product->id, 'deleted');
 
         return response()->json(['success' => 'ERP Product deleted successfully.']);
     }

@@ -590,6 +590,14 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         });
     });
+
+    // Live refresh: this table is rendered server-side (no ajax DataTable),
+    // so another user's role create/update/delete just reloads the page.
+    window.addEventListener('erp-live-update', function (e) {
+        if (e.detail.record_type === 'role') {
+            location.reload();
+        }
+    });
 });
 </script>
 @endpush

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Erp;
 
+use App\Helpers\NotificationHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Role;
 use Illuminate\Http\Request;
@@ -64,13 +65,15 @@ class RoleController extends Controller
             $data['home_route'] = $registry[$firstKey]['route'] ?? null;
         }
 
-        Role::create([
+        $role = Role::create([
             'slug'        => $data['slug'],
             'name'        => $data['name'],
             'home_route'  => $data['home_route'],
             'menu_keys'   => $data['menu_keys'],
             'permissions' => $data['permissions'] ?? [],
         ]);
+
+        NotificationHelper::pushLive('role', $role->id, 'created');
 
         return back()->with('success', 'Role berhasil dibuat.');
     }
@@ -108,6 +111,8 @@ class RoleController extends Controller
             'permissions' => $data['permissions'] ?? [],
         ]);
 
+        NotificationHelper::pushLive('role', $role->id, 'updated');
+
         return back()->with('success', 'Role berhasil diupdate.');
     }
 
@@ -116,6 +121,8 @@ class RoleController extends Controller
         $this->ensureRolePermission('roles.delete');
 
         $role->delete();
+
+        NotificationHelper::pushLive('role', $role->id, 'deleted');
 
         return response()->json(['success' => true]);
     }

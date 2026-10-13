@@ -153,6 +153,14 @@
         }
         new bootstrap.Modal(document.getElementById('modalPlan')).show();
     };
+
+    // Live refresh: this table is rendered server-side (no ajax DataTable),
+    // so another user's annual budget plan create/update just reloads the page.
+    window.addEventListener('erp-live-update', function (e) {
+        if (e.detail.record_type === 'annual_budget_plan') {
+            location.reload();
+        }
+    });
 })();
 </script>
 @endpush

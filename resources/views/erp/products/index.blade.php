@@ -1022,6 +1022,14 @@ $(function () {
             Swal.fire({ icon: 'error', title: 'Error', text: err.message });
         }
     };
+
+    // Live refresh: another user created/edited/deleted a product elsewhere —
+    // reload this DataTable's current page/filter so the list stays current.
+    window.addEventListener('erp-live-update', function (e) {
+        if (e.detail.record_type === 'product') {
+            DT.ajax.reload(null, false);
+        }
+    });
 });
 </script>
 @endpush
