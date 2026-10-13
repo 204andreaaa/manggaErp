@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Erp;
 
+use App\Helpers\NotificationHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Erp\ErpBudgetParent;
 use App\Models\User;
@@ -90,7 +91,9 @@ class ErpBudgetParentController extends Controller
         // When creating, remaining budget equals total budget initially
         $data['remaining_budget'] = $data['total_budget'];
 
-        ErpBudgetParent::create($data);
+        $budget = ErpBudgetParent::create($data);
+
+        NotificationHelper::pushLive('budget_parent', $budget->id, 'created');
 
         return response()->json(['success' => 'Budget Parent created successfully']);
     }
@@ -119,13 +122,18 @@ class ErpBudgetParentController extends Controller
 
         $budget->update($data);
 
+        NotificationHelper::pushLive('budget_parent', $budget->id, 'updated');
+
         return response()->json(['success' => 'Budget Parent updated successfully']);
     }
 
     public function destroy($id)
     {
         abort_unless(auth()->user()->hasPermission('budget_parents.delete') || auth()->user()->hasPermission('budgets.delete'), 403);
-        ErpBudgetParent::findOrFail($id)->delete();
+        $budget = ErpBudgetParent::findOrFail($id);
+        $budget->delete();
+
+        NotificationHelper::pushLive('budget_parent', $budget->id, 'deleted');
 
         return response()->json(['success' => 'Budget Parent deleted successfully']);
     }

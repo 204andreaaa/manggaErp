@@ -253,6 +253,13 @@ $(function () {
             Swal.fire({ icon:'error', title:'Error', text: err.message });
         }
     };
+
+    // Live refresh: another user created/edited/deleted a budget parent.
+    window.addEventListener('erp-live-update', function (e) {
+        if (e.detail.record_type === 'budget_parent') {
+            DT.ajax.reload(null, false);
+        }
+    });
 });
 </script>
 @endpush

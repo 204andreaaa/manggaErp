@@ -230,6 +230,13 @@ $(function () {
         theme: 'bootstrap-5',
         dropdownParent: $('#modalEdit')
     });
+
+    // Live refresh: another user created/edited/deleted a sub project.
+    window.addEventListener('erp-live-update', function (e) {
+        if (e.detail.record_type === 'sub_project') {
+            DT.ajax.reload(null, false);
+        }
+    });
 });
 </script>
 @endpush

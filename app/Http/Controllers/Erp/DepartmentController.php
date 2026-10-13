@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Erp;
 
+use App\Helpers\NotificationHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Department;
 use App\Models\Employee;
@@ -58,7 +59,9 @@ class DepartmentController extends Controller
 
         $data['code'] = strtoupper(trim($data['code']));
 
-        Department::create($data);
+        $department = Department::create($data);
+
+        NotificationHelper::pushLive('department', $department->id, 'created');
 
         return back()->with('success', 'Department berhasil ditambahkan.');
     }
@@ -84,6 +87,8 @@ class DepartmentController extends Controller
             Employee::on('master')->where('department', $oldName)->update(['department' => $data['name']]);
         }
 
+        NotificationHelper::pushLive('department', $department->id, 'updated');
+
         return back()->with('edit_success', 'Department berhasil diperbarui.');
     }
 
@@ -99,6 +104,8 @@ class DepartmentController extends Controller
         }
 
         $department->delete();
+
+        NotificationHelper::pushLive('department', $department->id, 'deleted');
 
         return response()->json(['success' => 'Department berhasil dihapus.']);
     }

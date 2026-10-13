@@ -354,6 +354,13 @@ $(function () {
         theme: 'bootstrap-5',
         dropdownParent: $('#modalEdit')
     });
+
+    // Live refresh: another user created/edited/deleted a work item.
+    window.addEventListener('erp-live-update', function (e) {
+        if (e.detail.record_type === 'work_item') {
+            DT.ajax.reload(null, false);
+        }
+    });
 });
 </script>
 @endpush

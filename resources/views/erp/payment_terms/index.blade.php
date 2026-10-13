@@ -248,6 +248,13 @@ $(document).ready(function() {
         let $form = $(this).closest('form');
         recalc($form);
     });
+
+    // Live refresh: another user created/edited/deleted a payment term.
+    window.addEventListener('erp-live-update', function (e) {
+        if (e.detail.record_type === 'payment_term') {
+            location.reload();
+        }
+    });
 });
 </script>
 @endpush

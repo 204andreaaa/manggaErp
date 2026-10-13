@@ -344,6 +344,13 @@ $(function () {
             }
         });
     });
+
+    // Live refresh: another user created/edited/deleted a supplier.
+    window.addEventListener('erp-live-update', function (e) {
+        if (e.detail.record_type === 'supplier') {
+            table.ajax.reload(null, false);
+        }
+    });
 });
 </script>
 @endpush

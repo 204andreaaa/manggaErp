@@ -315,6 +315,13 @@ $(function () {
             }
         });
     });
+
+    // Live refresh: another user created/edited/deleted a warehouse.
+    window.addEventListener('erp-live-update', function (e) {
+        if (e.detail.record_type === 'warehouse') {
+            table.ajax.reload(null, false);
+        }
+    });
 });
 </script>
 @endpush

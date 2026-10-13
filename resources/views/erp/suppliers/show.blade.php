@@ -410,4 +410,23 @@
     </form>
   </div>
 </div>
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  // Live refresh: this exact supplier got created/edited/deleted by someone
+  // else while we had it open.
+  window.addEventListener('erp-live-update', function (e) {
+    if (e.detail.record_type === 'supplier' && e.detail.id == {{ $supplier->id }}) {
+      if (e.detail.status === 'deleted') {
+        // The record is gone — reloading this same URL would just 404.
+        window.location.href = "{{ route('erp.suppliers.index') }}";
+        return;
+      }
+      location.reload();
+    }
+  });
+});
+</script>
+@endpush
 @endsection

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Erp;
 
+use App\Helpers\NotificationHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Erp\ErpWarehouse;
 use Illuminate\Http\Request;
@@ -140,7 +141,9 @@ class ErpWarehouseController extends Controller
             'remark'         => ['nullable'],
         ]);
 
-        ErpWarehouse::create($request->all());
+        $warehouse = ErpWarehouse::create($request->all());
+
+        NotificationHelper::pushLive('warehouse', $warehouse->id, 'created');
 
         return response()->json([
             'success' => 'Warehouse created successfully.'
@@ -188,6 +191,8 @@ class ErpWarehouseController extends Controller
 
         $warehouse->update($request->all());
 
+        NotificationHelper::pushLive('warehouse', $warehouse->id, 'updated');
+
         if ($request->expectsJson()) {
             return response()->json([
                 'success' => 'Warehouse updated successfully.'
@@ -202,6 +207,8 @@ class ErpWarehouseController extends Controller
         abort_unless(auth()->user()->hasPermission('warehouse.delete'), 403);
 
         $warehouse->delete();
+
+        NotificationHelper::pushLive('warehouse', $warehouse->id, 'deleted');
 
         return response()->json([
             'success' => 'Warehouse deleted successfully.'

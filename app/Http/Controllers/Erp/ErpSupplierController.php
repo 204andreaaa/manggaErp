@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Erp;
 
+use App\Helpers\NotificationHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Erp\ErpSupplier;
 use App\Models\Erp\ErpSupplierContact;
@@ -153,7 +154,9 @@ class ErpSupplierController extends Controller
             'website'       => ['nullable','max:150'],
         ]);
 
-        ErpSupplier::create($request->all());
+        $supplier = ErpSupplier::create($request->all());
+
+        NotificationHelper::pushLive('supplier', $supplier->id, 'created');
 
         return response()->json([
             'success' => 'Supplier created successfully.'
@@ -206,6 +209,8 @@ class ErpSupplierController extends Controller
 
         $supplier->update($request->all());
 
+        NotificationHelper::pushLive('supplier', $supplier->id, 'updated');
+
         if ($request->expectsJson()) {
             return response()->json([
                 'success' => 'Supplier updated successfully.'
@@ -220,6 +225,8 @@ class ErpSupplierController extends Controller
         abort_unless(auth()->user()->hasRole(['procurement', 'superadmin']) || auth()->user()->hasPermission('supplier.delete'), 403);
 
         $supplier->delete();
+
+        NotificationHelper::pushLive('supplier', $supplier->id, 'deleted');
 
         return response()->json([
             'success' => 'Supplier deleted successfully.'

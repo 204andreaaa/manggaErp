@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Erp;
 
+use App\Helpers\NotificationHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Erp\ErpPaymentTerm;
 use Illuminate\Http\Request;
@@ -42,11 +43,13 @@ class ErpPaymentTermController extends Controller
             return redirect()->back()->with('error', "Total percentage must be exactly 100%. Current total is {$total}%.");
         }
 
-        ErpPaymentTerm::create([
+        $term = ErpPaymentTerm::create([
             'name' => $data['name'],
             'is_active' => true,
             'term_schedule' => $schedule
         ]);
+
+        NotificationHelper::pushLive('payment_term', $term->id, 'created');
 
         return redirect()->back()->with('success', 'Payment Term created successfully.');
     }
@@ -84,6 +87,8 @@ class ErpPaymentTermController extends Controller
             'term_schedule' => $schedule
         ]);
 
+        NotificationHelper::pushLive('payment_term', $paymentTerm->id, 'updated');
+
         return redirect()->back()->with('success', 'Payment Term updated successfully.');
     }
     
@@ -91,6 +96,7 @@ class ErpPaymentTermController extends Controller
     {
         abort_unless(auth()->user()->hasRole(['procurement', 'finance', 'superadmin']) || auth()->user()->hasPermission('supplier.create'), 403);
         $paymentTerm->delete();
+        NotificationHelper::pushLive('payment_term', $paymentTerm->id, 'deleted');
         return redirect()->back()->with('success', 'Payment Term deleted successfully.');
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Erp;
 
+use App\Helpers\NotificationHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Erp\ErpSubProject;
 use App\Models\Erp\ErpBudgetParent;
@@ -84,7 +85,9 @@ class ErpSubProjectController extends Controller
             'name'              => ['required', 'max:255'],
         ]);
 
-        ErpSubProject::create($data);
+        $project = ErpSubProject::create($data);
+
+        NotificationHelper::pushLive('sub_project', $project->id, 'created');
 
         return response()->json(['success' => 'Sub Project created successfully']);
     }
@@ -102,13 +105,18 @@ class ErpSubProjectController extends Controller
 
         $project->update($data);
 
+        NotificationHelper::pushLive('sub_project', $project->id, 'updated');
+
         return response()->json(['success' => 'Sub Project updated successfully']);
     }
 
     public function destroy($id)
     {
         abort_unless(auth()->user()->hasPermission('sub_projects.delete') || auth()->user()->hasPermission('budgets.delete'), 403);
-        ErpSubProject::findOrFail($id)->delete();
+        $project = ErpSubProject::findOrFail($id);
+        $project->delete();
+
+        NotificationHelper::pushLive('sub_project', $project->id, 'deleted');
 
         return response()->json(['success' => 'Sub Project deleted successfully']);
     }

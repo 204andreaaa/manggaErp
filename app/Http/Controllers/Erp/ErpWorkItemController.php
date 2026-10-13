@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Erp;
 
+use App\Helpers\NotificationHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Erp\ErpWorkItem;
 use App\Models\Erp\ErpSubProject;
@@ -161,9 +162,12 @@ class ErpWorkItemController extends Controller
             }
 
             $data['remaining_budget'] = $data['allocated_budget'];
-            ErpWorkItem::create($data);
+            $workItem = ErpWorkItem::create($data);
 
             DB::connection('tenant')->commit();
+
+            NotificationHelper::pushLive('work_item', $workItem->id, 'created');
+
             return response()->json(['success' => 'Work Item created successfully']);
         } catch (\Exception $e) {
             DB::connection('tenant')->rollBack();
@@ -214,6 +218,9 @@ class ErpWorkItemController extends Controller
             $workItem->update($data);
 
             DB::connection('tenant')->commit();
+
+            NotificationHelper::pushLive('work_item', $workItem->id, 'updated');
+
             return response()->json(['success' => 'Work Item updated successfully']);
         } catch (\Exception $e) {
             DB::connection('tenant')->rollBack();
@@ -224,7 +231,10 @@ class ErpWorkItemController extends Controller
     public function destroy($id)
     {
         abort_unless(auth()->user()->hasPermission('work_items.delete') || auth()->user()->hasPermission('budgets.delete'), 403);
-        ErpWorkItem::findOrFail($id)->delete();
+        $workItem = ErpWorkItem::findOrFail($id);
+        $workItem->delete();
+
+        NotificationHelper::pushLive('work_item', $workItem->id, 'deleted');
 
         return response()->json(['success' => 'Work Item deleted successfully']);
     }

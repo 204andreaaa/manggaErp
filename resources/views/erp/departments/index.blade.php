@@ -403,6 +403,13 @@ $(function() {
             showConfirmButton: false
         });
     @endif
+
+    // Live refresh: another user created/edited/deleted a department.
+    window.addEventListener('erp-live-update', function (e) {
+        if (e.detail.record_type === 'department') {
+            location.reload();
+        }
+    });
 });
 </script>
 @endpush
