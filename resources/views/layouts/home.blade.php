@@ -642,16 +642,23 @@
 
     {{-- 🔔 CONSOLIDATED NOTIFICATION LOGIC --}}
     <script>
-        // Bootstrap sets aria-hidden on the page behind a modal as soon as it
-        // starts opening, but the button that triggered the modal can still
-        // hold keyboard focus for a moment — browsers warn about focus stuck
-        // inside an aria-hidden ancestor. Blurring whatever's focused right as
-        // any modal opens (app-wide, not per-page) avoids that harmlessly.
-        document.addEventListener('show.bs.modal', function () {
-            if (document.activeElement && typeof document.activeElement.blur === 'function') {
-                document.activeElement.blur();
+        // Both Bootstrap modals and SweetAlert2 mark the page behind them
+        // aria-hidden as soon as they open, but whatever had keyboard focus
+        // a moment ago (a modal's close button, the button that triggered a
+        // Swal, etc.) doesn't always lose focus in time — browsers warn about
+        // focus stuck inside an aria-hidden ancestor. Watching for aria-hidden
+        // being set anywhere and blurring the focused element if it ends up
+        // inside that now-hidden subtree covers every library uniformly,
+        // app-wide, instead of hooking each one's own "opened" event.
+        new MutationObserver(function (mutations) {
+            for (const m of mutations) {
+                if (m.target.getAttribute('aria-hidden') === 'true' &&
+                    document.activeElement &&
+                    m.target.contains(document.activeElement)) {
+                    document.activeElement.blur();
+                }
             }
-        });
+        }).observe(document.body, { attributes: true, attributeFilter: ['aria-hidden'], subtree: true });
 
         const NOTIF_SOUND_URL = "{{ asset('assets/sounds/notif.mp3') }}";
         let lastNotifTime = 0;
