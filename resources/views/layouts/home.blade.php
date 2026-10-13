@@ -650,15 +650,20 @@
         // being set anywhere and blurring the focused element if it ends up
         // inside that now-hidden subtree covers every library uniformly,
         // app-wide, instead of hooking each one's own "opened" event.
-        new MutationObserver(function (mutations) {
-            for (const m of mutations) {
-                if (m.target.getAttribute('aria-hidden') === 'true' &&
-                    document.activeElement &&
-                    m.target.contains(document.activeElement)) {
-                    document.activeElement.blur();
+        //
+        // Wrapped in DOMContentLoaded because this <script> tag sits in
+        // <head>, before document.body exists — observe() needs a real Node.
+        document.addEventListener('DOMContentLoaded', function () {
+            new MutationObserver(function (mutations) {
+                for (const m of mutations) {
+                    if (m.target.getAttribute('aria-hidden') === 'true' &&
+                        document.activeElement &&
+                        m.target.contains(document.activeElement)) {
+                        document.activeElement.blur();
+                    }
                 }
-            }
-        }).observe(document.body, { attributes: true, attributeFilter: ['aria-hidden'], subtree: true });
+            }).observe(document.body, { attributes: true, attributeFilter: ['aria-hidden'], subtree: true });
+        });
 
         const NOTIF_SOUND_URL = "{{ asset('assets/sounds/notif.mp3') }}";
         let lastNotifTime = 0;
