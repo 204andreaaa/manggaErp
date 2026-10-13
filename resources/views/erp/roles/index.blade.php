@@ -4,6 +4,7 @@
 
 @push('styles')
 <style>
+    .swal2-container{ z-index:20000 !important; }
     /* Modal Dialog & Scrollbar Enhancements */
     #mdlAddRole .modal-dialog,
     #mdlEditRole .modal-dialog {

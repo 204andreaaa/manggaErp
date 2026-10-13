@@ -4,6 +4,7 @@
 
 @push('styles')
 <style>
+    .swal2-container{ z-index:20000 !important; }
     .dept-card-stats {
         border-radius: 0.75rem;
         transition: transform 0.2s ease, box-shadow 0.2s ease;

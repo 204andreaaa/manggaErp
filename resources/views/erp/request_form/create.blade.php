@@ -8,6 +8,7 @@
   $cloneItems = $cloneItems ?? [];
 @endphp
 <style>
+  .swal2-container{ z-index:20000 !important; }
   .rf-nav-tabs .nav-link {
     color: #64748b;
     border: none;

@@ -3,6 +3,9 @@
 @section('title', 'Budget Parents')
 
 @section('content')
+<style>
+    .swal2-container{ z-index:20000 !important; }
+</style>
 <div class="container-xxl flex-grow-1 container-p-y">
 
   {{-- TOP BAR --}}

@@ -4,6 +4,7 @@
 
 @section('content')
 <style>
+  .swal2-container{ z-index:20000 !important; }
   .po-nav-tabs .nav-link {
     color: #64748b;
     border: none;

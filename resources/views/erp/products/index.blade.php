@@ -4,6 +4,7 @@
 
 @section('content')
 <style>
+  .swal2-container{ z-index:20000 !important; }
   #dtProducts {
     border-collapse: separate;
     border-spacing: 0;
