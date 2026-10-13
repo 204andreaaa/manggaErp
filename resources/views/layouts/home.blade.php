@@ -642,6 +642,17 @@
 
     {{-- 🔔 CONSOLIDATED NOTIFICATION LOGIC --}}
     <script>
+        // Bootstrap sets aria-hidden on the page behind a modal as soon as it
+        // starts opening, but the button that triggered the modal can still
+        // hold keyboard focus for a moment — browsers warn about focus stuck
+        // inside an aria-hidden ancestor. Blurring whatever's focused right as
+        // any modal opens (app-wide, not per-page) avoids that harmlessly.
+        document.addEventListener('show.bs.modal', function () {
+            if (document.activeElement && typeof document.activeElement.blur === 'function') {
+                document.activeElement.blur();
+            }
+        });
+
         const NOTIF_SOUND_URL = "{{ asset('assets/sounds/notif.mp3') }}";
         let lastNotifTime = 0;
 
