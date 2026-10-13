@@ -937,6 +937,11 @@ if (savedPoTab) {
 // while we had it open — reload so status/approval tabs stay current.
 window.addEventListener('erp-live-update', function (e) {
     if (e.detail.record_type === 'purchase_order' && e.detail.id == {{ $purchaseOrder->id }}) {
+        if (e.detail.status === 'Deleted') {
+            // The record is gone — reloading this same URL would just 404.
+            window.location.href = "{{ route('erp.purchase-orders.index') }}";
+            return;
+        }
         const activeTabBtn = document.querySelector('#poShowTab button.active');
         if (activeTabBtn) {
             sessionStorage.setItem(poTabStorageKey, activeTabBtn.getAttribute('data-bs-target'));

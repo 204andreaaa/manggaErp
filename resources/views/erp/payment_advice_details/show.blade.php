@@ -765,6 +765,11 @@
   // approval status stays current.
   window.addEventListener('erp-live-update', function (e) {
     if (e.detail.record_type === 'payment_advice' && e.detail.id == {{ $paymentAdviceDetail->erp_payment_advice_id }}) {
+      if (e.detail.status === 'Deleted') {
+        // The parent Payment Advice is gone — reloading this URL would just 404.
+        window.location.href = "{{ route('erp.payment-advices.index') }}";
+        return;
+      }
       location.reload();
     }
   });

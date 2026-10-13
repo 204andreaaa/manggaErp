@@ -1041,6 +1041,11 @@ document.addEventListener('DOMContentLoaded', function () {
   // user stays on whatever tab (e.g. Approval & PR) they were looking at.
   window.addEventListener('erp-live-update', function (e) {
     if (e.detail.record_type === 'request_form' && e.detail.id == {{ $rf->id }}) {
+      if (e.detail.status === 'Deleted') {
+        // The record is gone — reloading this same URL would just 404.
+        window.location.href = "{{ route('erp.request-form.index') }}";
+        return;
+      }
       sessionStorage.setItem(rfTabStorageKey, tabList[currentTabIndex]);
       location.reload();
     }

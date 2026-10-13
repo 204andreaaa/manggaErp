@@ -623,6 +623,11 @@
   // reload so totals/approval statuses stay current.
   window.addEventListener('erp-live-update', function (e) {
     if (e.detail.record_type === 'payment_advice' && e.detail.id == {{ $paymentAdvice->id }}) {
+      if (e.detail.status === 'Deleted') {
+        // The record is gone — reloading this same URL would just 404.
+        window.location.href = "{{ route('erp.payment-advices.index') }}";
+        return;
+      }
       const activeTabBtn = document.querySelector('#paShowTab button.active');
       if (activeTabBtn) {
         sessionStorage.setItem(paTabStorageKey, activeTabBtn.getAttribute('data-bs-target'));
