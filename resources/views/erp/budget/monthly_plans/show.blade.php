@@ -118,11 +118,12 @@
           <label class="form-label fw-semibold">Expense Type <span class="text-danger">*</span></label>
           <select name="expense_type" class="form-select" required>
             <option value="Personnel">Personnel</option>
+            <option value="Materials">Materials</option>
             <option value="Materials-Subcon">Materials-Subcon</option>
             <option value="Transportation & Telecommunication">Transportation & Telecommunication</option>
             <option value="Office">Office</option>
-            <option value="Other Expense">Other Expense</option>
             <option value="Utilities">Utilities</option>
+            <option value="Other Expense">Other Expense</option>
           </select>
         </div>
         <div class="mb-3 form-check">

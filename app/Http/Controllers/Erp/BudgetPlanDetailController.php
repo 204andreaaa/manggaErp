@@ -14,8 +14,8 @@ use Illuminate\Validation\Rule;
 class BudgetPlanDetailController extends Controller
 {
     private const EXPENSE_TYPES = [
-        'Personnel', 'Materials-Subcon', 'Transportation & Telecommunication',
-        'Office', 'Other Expense', 'Utilities',
+        'Personnel', 'Materials', 'Materials-Subcon', 'Transportation & Telecommunication',
+        'Office', 'Utilities', 'Other Expense',
     ];
 
     public function store(Request $request, MonthlyBudgetPlan $monthlyBudgetPlan)
