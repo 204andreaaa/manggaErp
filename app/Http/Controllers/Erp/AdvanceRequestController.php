@@ -27,14 +27,36 @@ class AdvanceRequestController extends Controller
         return view('erp.budget.advance_requests.index', compact('advanceRequests'));
     }
 
+    // Same rows (and order) as the Salesforce "New Advance Request" form.
+    public const EXPENSE_TYPES = [
+        'Personnel', 'Materials', 'Transportation & Telecommunication',
+        'Office', 'Utilities', 'Other Expense',
+    ];
+
     public function create()
     {
         abort_unless(auth()->user()->hasPermission('advance_requests.create'), 403);
 
-        $details = BudgetPlanDetail::with('monthlyBudgetPlan.annualBudgetPlan.budgetParent')->get();
-        $workItems = ErpWorkItem::orderBy('wid_code')->get();
+        return view('erp.budget.advance_requests.create', array_merge(
+            self::budgetFormOptions(),
+            ['expenseTypes' => self::EXPENSE_TYPES]
+        ));
+    }
 
-        return view('erp.budget.advance_requests.create', compact('details', 'workItems'));
+    /**
+     * Dropdown data shared by the kasbon and declaration forms: Budget Parents,
+     * the Area/Work Type/Subtype combos that actually have an Annual Budget Plan,
+     * WIDs tagged with their Budget Parent, and users for "Request By".
+     */
+    public static function budgetFormOptions(): array
+    {
+        return [
+            'budgetParents' => \App\Models\Erp\ErpBudgetParent::orderBy('name')->get(['id', 'budget_code', 'name']),
+            'annualPlans' => \App\Models\Erp\AnnualBudgetPlan::orderBy('year')
+                ->get(['id', 'budget_parent_id', 'year', 'area', 'work_type', 'work_subtype']),
+            'workItems' => ErpWorkItem::with('subProject:id,budget_parent_id')->orderBy('wid_code')->get(),
+            'users' => \App\Models\User::orderBy('name')->get(['id', 'name']),
+        ];
     }
 
     public function store(Request $request)
@@ -42,30 +64,99 @@ class AdvanceRequestController extends Controller
         abort_unless(auth()->user()->hasPermission('advance_requests.create'), 403);
 
         $data = $request->validate([
-            'budget_plan_detail_id' => ['required', 'exists:erp_budget_plan_details,id'],
-            'work_id' => ['required', 'exists:erp_work_items,id'],
-            'budget_period' => ['required', 'date'],
             'advance_request_date' => ['required', 'date'],
+            'budget_parent_id' => ['required', 'exists:erp_budget_parents,id'],
+            'area' => ['required', 'string', 'max:150'],
+            'work_type' => ['required', 'string', 'max:80'],
+            'work_subtype' => ['nullable', 'string', 'max:150'],
+            'work_id' => ['required', 'exists:erp_work_items,id'],
+            'request_by_id' => ['required', 'integer', 'exists:master.users,id'],
             'number_of_site' => ['nullable', 'integer', 'min:1'],
-            'amount_per_unit' => ['required', 'numeric', 'min:0'],
-            'description' => ['nullable', 'string'],
+            'lines' => ['required', 'array'],
+            'lines.*.checked' => ['nullable', 'boolean'],
+            'lines.*.amount' => ['nullable', 'numeric', 'min:0'],
+            'lines.*.description' => ['nullable', 'string'],
         ]);
 
-        $totalAmount = !empty($data['number_of_site'])
-            ? $data['amount_per_unit'] * $data['number_of_site']
-            : $data['amount_per_unit'];
+        $lines = self::checkedLines($data['lines'], self::EXPENSE_TYPES);
 
-        $advanceRequest = $this->createWithGeneratedCode(array_merge($data, [
-            'request_by_id' => auth()->id(),
-            'total_amount_advance' => $totalAmount,
-            'status' => 'Draft',
-        ]));
+        $work = ErpWorkItem::with('subProject')->findOrFail($data['work_id']);
+        if ((int) $work->subProject?->budget_parent_id !== (int) $data['budget_parent_id']) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'work_id' => "WID {$work->wid_code} bukan milik Account (Budget Parent) yang dipilih.",
+            ]);
+        }
 
-        NotificationHelper::pushLive('advance_request', $advanceRequest->id, $advanceRequest->status);
+        // Resolve every line's budget first, so one missing line aborts the whole form.
+        $monthly = \App\Services\BudgetDetailResolver::monthlyFor(
+            $data['budget_parent_id'], $data['area'], $data['work_type'], $data['work_subtype'] ?? null, $data['advance_request_date']
+        );
+        foreach ($lines as $type => $line) {
+            $lines[$type]['detail'] = \App\Services\BudgetDetailResolver::detailFor($monthly, $type);
+        }
+
+        $created = DB::transaction(function () use ($data, $lines) {
+            $created = [];
+            foreach ($lines as $line) {
+                $amount = (float) $line['amount'];
+                $created[] = $this->createWithGeneratedCode([
+                    'budget_plan_detail_id' => $line['detail']->id,
+                    'work_id' => $data['work_id'],
+                    'budget_period' => $data['advance_request_date'],
+                    'advance_request_date' => $data['advance_request_date'],
+                    'request_by_id' => $data['request_by_id'],
+                    'number_of_site' => $data['number_of_site'] ?? null,
+                    'amount_per_unit' => $amount,
+                    'total_amount_advance' => !empty($data['number_of_site']) ? $amount * $data['number_of_site'] : $amount,
+                    'description' => $line['description'] ?? null,
+                    'status' => 'Draft',
+                ]);
+            }
+            return $created;
+        });
+
+        foreach ($created as $advanceRequest) {
+            NotificationHelper::pushLive('advance_request', $advanceRequest->id, $advanceRequest->status);
+        }
+
+        if (count($created) === 1) {
+            return redirect()
+                ->route('erp.advance-requests.show', $created[0])
+                ->with('success', 'Advance Request berhasil dibuat.');
+        }
 
         return redirect()
-            ->route('erp.advance-requests.show', $advanceRequest)
-            ->with('success', 'Advance Request berhasil dibuat.');
+            ->route('erp.advance-requests.index')
+            ->with('success', count($created).' Advance Request berhasil dibuat (satu per Expense Type): '.collect($created)->pluck('code')->implode(', ').'.');
+    }
+
+    /**
+     * Keeps only the expense-type rows the user ticked (or filled an amount for),
+     * keyed by expense type. Rejects the form if nothing usable was entered.
+     */
+    public static function checkedLines(array $lines, array $allowedTypes): array
+    {
+        $picked = [];
+        foreach ($allowedTypes as $i => $type) {
+            $line = $lines[$i] ?? [];
+            $amount = (float) ($line['amount'] ?? 0);
+            if (!empty($line['checked']) || $amount > 0) {
+                if ($amount <= 0) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        "lines.{$i}.amount" => "Amount untuk {$type} wajib diisi lebih dari 0.",
+                    ]);
+                }
+                $picked[$type] = ['amount' => $amount, 'description' => $line['description'] ?? null];
+            }
+        }
+
+        if (!$picked) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'lines' => 'Isi minimal satu Expense Type (centang dan isi Amount-nya).',
+            ]);
+        }
+
+        return $picked;
     }
 
     public function show(AdvanceRequest $advanceRequest)
@@ -76,6 +167,7 @@ class AdvanceRequestController extends Controller
             'budgetPlanDetail.monthlyBudgetPlan.annualBudgetPlan.budgetParent',
             'work', 'requestBy', 'paidBy',
             'approvals.assignedUser', 'approvals.actualApprover',
+            'expenseDeclarations.budgetPlanDetail', 'expenseDeclarations.work',
         ]);
 
         return view('erp.budget.advance_requests.show', compact('advanceRequest'));

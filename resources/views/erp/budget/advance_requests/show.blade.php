@@ -35,7 +35,11 @@
         <div class="card-header"><h6 class="mb-0 fw-bold">Detail Kasbon</h6></div>
         <div class="card-body">
           <dl class="row mb-0">
-            <dt class="col-sm-4 text-muted">Budget Line</dt><dd class="col-sm-8">{{ $detail?->code }}</dd>
+            <dt class="col-sm-4 text-muted">Account</dt><dd class="col-sm-8">{{ $budgetParent->name ?? '-' }}</dd>
+            <dt class="col-sm-4 text-muted">Area</dt><dd class="col-sm-8">{{ $detail?->monthlyBudgetPlan?->area ?? '-' }}</dd>
+            <dt class="col-sm-4 text-muted">Work Type / Subtype</dt><dd class="col-sm-8">{{ $detail?->monthlyBudgetPlan?->work_type ?? '-' }}{{ $detail?->monthlyBudgetPlan?->work_subtype ? ' / '.$detail->monthlyBudgetPlan->work_subtype : '' }}</dd>
+            <dt class="col-sm-4 text-muted">Expense Type</dt><dd class="col-sm-8 fw-semibold">{{ $detail?->expense_type }}</dd>
+            <dt class="col-sm-4 text-muted">Budget Plan Detail</dt><dd class="col-sm-8">{{ $detail?->code }}</dd>
             <dt class="col-sm-4 text-muted">Work (WID)</dt><dd class="col-sm-8">{{ $advanceRequest->work?->wid_code }} - {{ $advanceRequest->work?->name }}</dd>
             <dt class="col-sm-4 text-muted">Requestor</dt><dd class="col-sm-8">{{ $advanceRequest->requestBy?->name }}</dd>
             <dt class="col-sm-4 text-muted">Tanggal Pengajuan</dt><dd class="col-sm-8">{{ $advanceRequest->advance_request_date?->format('d M Y') }}</dd>
@@ -71,6 +75,42 @@
               <button class="btn btn-success btn-sm" onclick="return confirm('Tandai kasbon ini sudah dibayar?')"><i class="bx bx-dollar-circle me-1"></i>Tandai Sudah Dibayar</button>
             </form>
           @endif
+        </div>
+      </div>
+
+      <div class="card mt-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h6 class="mb-0 fw-bold">Expense Declaration</h6>
+          @if($advanceRequest->status === 'Approved' && $advanceRequest->payment_status === 'Paid' && auth()->user()->hasPermission('expense_declarations.create'))
+            <a href="{{ route('erp.expense-declarations.create', ['advance_request_id' => $advanceRequest->id]) }}" class="btn btn-primary btn-sm"><i class="bx bx-plus me-1"></i>New Expense Declaration</a>
+          @endif
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead class="table-light">
+              <tr><th>Code</th><th>Expense Type</th><th>Work Id</th><th>Description</th><th class="text-end">Amount</th><th class="text-center">Status</th></tr>
+            </thead>
+            <tbody>
+              @forelse($advanceRequest->expenseDeclarations as $decl)
+                <tr>
+                  <td><a href="{{ route('erp.expense-declarations.show', $decl) }}" class="fw-semibold">{{ $decl->code }}</a></td>
+                  <td>{{ $decl->budgetPlanDetail?->expense_type }}</td>
+                  <td>{{ $decl->work?->wid_code }}</td>
+                  <td class="small">{{ $decl->description }}</td>
+                  <td class="text-end">{{ number_format($decl->converted_amount_idr, 0, ',', '.') }}</td>
+                  <td class="text-center"><span class="badge bg-label-{{ match($decl->status) { 'Approved' => 'success', 'Rejected' => 'danger', 'Submitted' => 'info', default => 'secondary' } }}">{{ $decl->status }}</span></td>
+                </tr>
+              @empty
+                <tr><td colspan="6" class="text-center text-muted py-3">
+                  @if($advanceRequest->status === 'Approved' && $advanceRequest->payment_status === 'Paid')
+                    Belum ada deklarasi untuk kasbon ini.
+                  @else
+                    Expense Declaration bisa dibuat setelah kasbon Approved dan sudah dibayar.
+                  @endif
+                </td></tr>
+              @endforelse
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

@@ -29,61 +29,126 @@ class ExpenseDeclarationController extends Controller
         return view('erp.budget.expense_declarations.index', compact('declarations'));
     }
 
-    public function create()
+    // Same rows (and order) as the Salesforce "New Expense Declaration" form.
+    public const EXPENSE_TYPES = [
+        'Personnel', 'Materials', 'Materials-Subcon', 'Transportation & Telecommunication',
+        'Office', 'Utilities', 'Other Expense',
+    ];
+
+    public function create(Request $request)
     {
         abort_unless(auth()->user()->hasPermission('expense_declarations.create'), 403);
 
-        $details = BudgetPlanDetail::with('monthlyBudgetPlan.annualBudgetPlan.budgetParent')->get();
-        $workItems = ErpWorkItem::orderBy('wid_code')->get();
-        $advanceRequests = AdvanceRequest::where('status', 'Approved')
+        $advanceRequests = AdvanceRequest::with(['budgetPlanDetail.monthlyBudgetPlan.annualBudgetPlan', 'work'])
+            ->where('status', 'Approved')
             ->where('payment_status', 'Paid')
+            ->latest()
             ->get();
 
-        return view('erp.budget.expense_declarations.create', compact('details', 'workItems', 'advanceRequests'));
+        $preselectedAdvance = $request->query('advance_request_id');
+
+        return view('erp.budget.expense_declarations.create', array_merge(
+            AdvanceRequestController::budgetFormOptions(),
+            [
+                'expenseTypes' => self::EXPENSE_TYPES,
+                'advanceRequests' => $advanceRequests,
+                'preselectedAdvance' => $advanceRequests->firstWhere('id', (int) $preselectedAdvance) ? (int) $preselectedAdvance : null,
+            ]
+        ));
     }
 
     public function store(Request $request)
     {
         abort_unless(auth()->user()->hasPermission('expense_declarations.create'), 403);
 
+        $withoutAdvance = $request->input('record_type') === 'without_advance';
+
         $data = $request->validate([
             'record_type' => ['required', 'in:with_advance,without_advance'],
-            'budget_plan_detail_id' => ['required', 'exists:erp_budget_plan_details,id'],
             'advance_request_id' => ['nullable', 'exists:erp_advance_requests,id'],
-            'work_id' => ['required', 'exists:erp_work_items,id'],
-            'site_name' => ['nullable', 'string', 'max:150'],
-            'is_indirect' => ['nullable', 'boolean'],
-            'po_number' => ['nullable', 'string', 'max:80'],
-            'vehicle_info' => ['nullable', 'string', 'max:150'],
+            'budget_parent_id' => [$withoutAdvance ? 'required' : 'nullable', 'exists:erp_budget_parents,id'],
+            'area' => [$withoutAdvance ? 'required' : 'nullable', 'string', 'max:150'],
+            'work_type' => [$withoutAdvance ? 'required' : 'nullable', 'string', 'max:80'],
+            'work_subtype' => ['nullable', 'string', 'max:150'],
+            'work_id' => [$withoutAdvance ? 'required' : 'nullable', 'exists:erp_work_items,id'],
+            'request_by_id' => ['required', 'integer', 'exists:master.users,id'],
             'request_date' => ['required', 'date'],
-            'description' => ['nullable', 'string'],
-            'amount_declaration' => ['required', 'numeric', 'min:0'],
-            'currency' => ['nullable', 'string', 'max:10'],
-            'exchange_rate' => ['nullable', 'numeric', 'min:0'],
-            'rfin_ref' => ['nullable', 'string', 'max:120'],
-            'remark_rf_line' => ['nullable', 'string', 'max:150'],
-            'remark' => ['nullable', 'string'],
+            'vehicle_info' => ['nullable', 'string', 'max:150'],
+            'site_name' => ['nullable', 'string', 'max:150'],
+            'po_number' => ['nullable', 'string', 'max:80'],
+            'lines' => ['required', 'array'],
+            'lines.*.checked' => ['nullable', 'boolean'],
+            'lines.*.amount' => ['nullable', 'numeric', 'min:0'],
+            'lines.*.description' => ['nullable', 'string'],
         ]);
 
         $this->assertRecordTypeRules($data);
 
-        $currency = $data['currency'] ?? 'IDR';
-        $exchangeRate = $data['exchange_rate'] ?? 1;
+        $lines = AdvanceRequestController::checkedLines($data['lines'], self::EXPENSE_TYPES);
 
-        $declaration = $this->createWithGeneratedCode(array_merge($data, [
-            'currency' => $currency,
-            'exchange_rate' => $exchangeRate,
-            'converted_amount_idr' => $data['amount_declaration'] * $exchangeRate,
-            'is_indirect' => (bool) ($data['is_indirect'] ?? false),
-            'request_by_id' => auth()->id(),
-            'status' => 'Draft',
-        ]));
+        if ($withoutAdvance) {
+            $work = ErpWorkItem::with('subProject')->findOrFail($data['work_id']);
+            if ((int) $work->subProject?->budget_parent_id !== (int) $data['budget_parent_id']) {
+                throw ValidationException::withMessages([
+                    'work_id' => "WID {$work->wid_code} bukan milik Account (Budget Parent) yang dipilih.",
+                ]);
+            }
+            $workId = $work->id;
+            $monthly = \App\Services\BudgetDetailResolver::monthlyFor(
+                $data['budget_parent_id'], $data['area'], $data['work_type'], $data['work_subtype'] ?? null, $data['request_date']
+            );
+        } else {
+            // A declaration against a kasbon always lands in the kasbon's own month,
+            // Account and WID — whatever the form posted for those is ignored.
+            $advanceRequest = AdvanceRequest::with('budgetPlanDetail.monthlyBudgetPlan')->findOrFail($data['advance_request_id']);
+            $workId = $advanceRequest->work_id;
+            $monthly = $advanceRequest->budgetPlanDetail->monthlyBudgetPlan;
+        }
 
-        NotificationHelper::pushLive('expense_declaration', $declaration->id, $declaration->status);
+        foreach ($lines as $type => $line) {
+            $lines[$type]['detail'] = \App\Services\BudgetDetailResolver::detailFor($monthly, $type);
+        }
 
-        return redirect()
-            ->route('erp.expense-declarations.show', $declaration)
-            ->with('success', 'Expense Declaration berhasil dibuat.');
+        $created = DB::transaction(function () use ($data, $lines, $workId, $withoutAdvance) {
+            $created = [];
+            foreach ($lines as $line) {
+                $created[] = $this->createWithGeneratedCode([
+                    'record_type' => $data['record_type'],
+                    'budget_plan_detail_id' => $line['detail']->id,
+                    'advance_request_id' => $withoutAdvance ? null : $data['advance_request_id'],
+                    'work_id' => $workId,
+                    'site_name' => $data['site_name'] ?? null,
+                    'is_indirect' => (bool) $line['detail']->is_indirect,
+                    'po_number' => $withoutAdvance ? ($data['po_number'] ?? null) : null,
+                    'vehicle_info' => $data['vehicle_info'] ?? null,
+                    'request_by_id' => $data['request_by_id'],
+                    'request_date' => $data['request_date'],
+                    'description' => $line['description'] ?? null,
+                    'amount_declaration' => $line['amount'],
+                    'currency' => 'IDR',
+                    'exchange_rate' => 1,
+                    'converted_amount_idr' => $line['amount'],
+                    'status' => 'Draft',
+                ]);
+            }
+            return $created;
+        });
+
+        foreach ($created as $declaration) {
+            NotificationHelper::pushLive('expense_declaration', $declaration->id, $declaration->status);
+        }
+
+        $message = count($created) === 1
+            ? 'Expense Declaration berhasil dibuat.'
+            : count($created).' Expense Declaration berhasil dibuat (satu per Expense Type): '.collect($created)->pluck('code')->implode(', ').'.';
+
+        if (!$withoutAdvance) {
+            return redirect()->route('erp.advance-requests.show', $data['advance_request_id'])->with('success', $message);
+        }
+
+        return count($created) === 1
+            ? redirect()->route('erp.expense-declarations.show', $created[0])->with('success', $message)
+            : redirect()->route('erp.expense-declarations.index')->with('success', $message);
     }
 
     public function show(ExpenseDeclaration $expenseDeclaration)
