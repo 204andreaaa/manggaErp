@@ -83,7 +83,7 @@
             @foreach($expenseTypes as $i => $type)
               <tr>
                 <td class="fw-semibold">{{ $type }}</td>
-                <td class="text-center"><input type="checkbox" class="form-check-input line-check" name="lines[{{ $i }}][checked]" value="1" @checked(old("lines.$i.checked"))></td>
+                <td class="text-center"><input type="radio" class="form-check-input line-check" name="expense_index" value="{{ $i }}" @checked((string) old('expense_index') === (string) $i)></td>
                 <td><span class="badge bg-label-secondary">IDR</span></td>
                 <td><input type="number" step="0.01" min="0" class="form-control form-control-sm line-amount" name="lines[{{ $i }}][amount]" value="{{ old("lines.$i.amount") }}"></td>
                 <td><input type="text" class="form-control form-control-sm" name="lines[{{ $i }}][description]" value="{{ old("lines.$i.description") }}"></td>
@@ -92,7 +92,7 @@
           </tbody>
         </table>
       </div>
-      <div class="form-text mt-2">Tiap Expense Type yang diisi disimpan sebagai satu Advance Request tersendiri, masing-masing memotong Budget Plan Detail jenis biaya itu.</div>
+      <div class="form-text mt-2">Satu kasbon untuk 1 Expense Type. Rincian ke beberapa Expense Type dilakukan nanti lewat Expense Declaration di halaman kasbon ini.</div>
     </div>
 
     <div class="card-footer d-flex justify-content-end gap-2">
@@ -110,4 +110,25 @@
     'workId' => old('work_id'),
   ],
 ])
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  // Only the chosen expense-type row keeps its amount/description.
+  const rows = Array.from(document.querySelectorAll('.line-check')).map(r => r.closest('tr'));
+  function keepOnly(row) {
+    rows.forEach(r => {
+      if (r === row) return;
+      r.querySelectorAll('input[type=number], input[type=text]').forEach(i => { i.value = ''; });
+    });
+  }
+  rows.forEach(row => {
+    row.querySelector('.line-check').addEventListener('change', () => keepOnly(row));
+    row.querySelector('.line-amount').addEventListener('input', function () {
+      if (parseFloat(this.value) > 0) { row.querySelector('.line-check').checked = true; keepOnly(row); }
+    });
+  });
+});
+</script>
+@endpush
 @endsection
