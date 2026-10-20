@@ -72,31 +72,13 @@ class AdvanceRequestController extends Controller
             'work_id' => ['required', 'exists:erp_work_items,id'],
             'request_by_id' => ['required', 'integer', 'exists:master.users,id'],
             'number_of_site' => ['nullable', 'integer', 'min:1'],
-            'expense_index' => ['required', 'integer', 'min:0', 'max:'.(count(self::EXPENSE_TYPES) - 1)],
             'lines' => ['required', 'array'],
+            'lines.*.checked' => ['nullable', 'boolean'],
             'lines.*.amount' => ['nullable', 'numeric', 'min:0'],
             'lines.*.description' => ['nullable', 'string'],
-        ], [
-            'expense_index.required' => 'Pilih satu Expense Type untuk kasbon ini.',
         ]);
 
-        // One kasbon = one expense type (as in Salesforce); spreading the money
-        // across several types happens later, in its Expense Declarations.
-        $index = (int) $data['expense_index'];
-        foreach ($data['lines'] as $i => $other) {
-            if ((int) $i !== $index && (float) ($other['amount'] ?? 0) > 0) {
-                throw \Illuminate\Validation\ValidationException::withMessages([
-                    'expense_index' => 'Satu kasbon hanya untuk 1 Expense Type. Kosongkan Amount di baris lain.',
-                ]);
-            }
-        }
-        $amount = (float) ($data['lines'][$index]['amount'] ?? 0);
-        if ($amount <= 0) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                "lines.{$index}.amount" => 'Amount untuk '.self::EXPENSE_TYPES[$index].' wajib diisi lebih dari 0.',
-            ]);
-        }
-        $expenseType = self::EXPENSE_TYPES[$index];
+        $lines = self::checkedLines($data['lines'], self::EXPENSE_TYPES);
 
         $work = ErpWorkItem::with('subProject')->findOrFail($data['work_id']);
         if ((int) $work->subProject?->budget_parent_id !== (int) $data['budget_parent_id']) {
@@ -105,29 +87,47 @@ class AdvanceRequestController extends Controller
             ]);
         }
 
+        // Resolve every line's budget first, so one missing line aborts the whole form.
         $monthly = \App\Services\BudgetDetailResolver::monthlyFor(
             $data['budget_parent_id'], $data['area'], $data['work_type'], $data['work_subtype'] ?? null, $data['advance_request_date']
         );
-        $detail = \App\Services\BudgetDetailResolver::detailFor($monthly, $expenseType);
+        foreach ($lines as $type => $line) {
+            $lines[$type]['detail'] = \App\Services\BudgetDetailResolver::detailFor($monthly, $type);
+        }
 
-        $advanceRequest = $this->createWithGeneratedCode([
-            'budget_plan_detail_id' => $detail->id,
-            'work_id' => $data['work_id'],
-            'budget_period' => $data['advance_request_date'],
-            'advance_request_date' => $data['advance_request_date'],
-            'request_by_id' => $data['request_by_id'],
-            'number_of_site' => $data['number_of_site'] ?? null,
-            'amount_per_unit' => $amount,
-            'total_amount_advance' => !empty($data['number_of_site']) ? $amount * $data['number_of_site'] : $amount,
-            'description' => $data['lines'][$index]['description'] ?? null,
-            'status' => 'Draft',
-        ]);
+        $created = DB::transaction(function () use ($data, $lines) {
+            $created = [];
+            foreach ($lines as $line) {
+                $amount = (float) $line['amount'];
+                $created[] = $this->createWithGeneratedCode([
+                    'budget_plan_detail_id' => $line['detail']->id,
+                    'work_id' => $data['work_id'],
+                    'budget_period' => $data['advance_request_date'],
+                    'advance_request_date' => $data['advance_request_date'],
+                    'request_by_id' => $data['request_by_id'],
+                    'number_of_site' => $data['number_of_site'] ?? null,
+                    'amount_per_unit' => $amount,
+                    'total_amount_advance' => !empty($data['number_of_site']) ? $amount * $data['number_of_site'] : $amount,
+                    'description' => $line['description'] ?? null,
+                    'status' => 'Draft',
+                ]);
+            }
+            return $created;
+        });
 
-        NotificationHelper::pushLive('advance_request', $advanceRequest->id, $advanceRequest->status);
+        foreach ($created as $advanceRequest) {
+            NotificationHelper::pushLive('advance_request', $advanceRequest->id, $advanceRequest->status);
+        }
+
+        if (count($created) === 1) {
+            return redirect()
+                ->route('erp.advance-requests.show', $created[0])
+                ->with('success', 'Advance Request berhasil dibuat.');
+        }
 
         return redirect()
-            ->route('erp.advance-requests.show', $advanceRequest)
-            ->with('success', 'Advance Request berhasil dibuat.');
+            ->route('erp.advance-requests.index')
+            ->with('success', count($created).' Advance Request berhasil dibuat (satu per Expense Type): '.collect($created)->pluck('code')->implode(', ').'.');
     }
 
     /**
