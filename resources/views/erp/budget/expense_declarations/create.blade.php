@@ -33,7 +33,7 @@
 
   <form method="POST" action="{{ route('erp.expense-declarations.store') }}" class="card shadow-sm">
     @csrf
-    <div class="card-header bg-label-info py-2"><h6 class="mb-0 fw-bold">Detail</h6></div>
+    <div class="card-header py-2" style="background:#6fb1ad"><h6 class="mb-0 fw-bold text-white">Detail</h6></div>
     <div class="card-body pt-3">
       <div class="row g-3">
         <div class="col-md-6">
@@ -115,7 +115,7 @@
       </div>
     </div>
 
-    <div class="card-header bg-label-info py-2 border-top"><h6 class="mb-0 fw-bold">Expense Type</h6></div>
+    <div class="card-header py-2 border-top" style="background:#6fb1ad"><h6 class="mb-0 fw-bold text-white">Expense Type</h6></div>
     <div class="card-body pt-3">
       <div class="table-responsive">
         <table class="table table-sm align-middle mb-0">

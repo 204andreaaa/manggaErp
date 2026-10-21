@@ -2,8 +2,10 @@
 
 @section('title', 'Annual Budget Plans')
 
+@include('erp.budget.partials.sf-style')
+
 @section('content')
-<div class="container-xxl flex-grow-1 container-p-y">
+<div class="container-xxl flex-grow-1 container-p-y sf-wrap" style="--sf-accent: #1798c1">
 
   @if(session('success'))
     <div class="alert alert-success alert-dismissible" role="alert">{{ session('success') }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
@@ -15,56 +17,58 @@
     <div class="alert alert-danger"><ul class="mb-0">@foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>
   @endif
 
-  <div class="card mb-3">
-    <div class="card-body py-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
-      <div>
-        <h5 class="mb-1 fw-bold">Annual Budget Plans</h5>
-        <div class="text-muted small">Rencana anggaran tahunan per Budget Parent + Area + Work Type</div>
-      </div>
-      <button class="btn btn-primary btn-sm px-3" onclick="openPlanModal('add')">
-        <i class="bx bx-plus me-1"></i> Add Annual Budget Plan
-      </button>
+  <div class="sf-head">
+    <div class="d-flex align-items-center">
+      <span class="sf-icon"><i class="bx bx-calendar"></i></span>
+      <div><div class="sf-object">Budget Plans</div><div class="sf-name">Annual Budget Plans</div></div>
     </div>
   </div>
 
-  <div class="card">
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th class="text-uppercase fw-bold small">Code</th>
-            <th class="text-uppercase fw-bold small">Budget Parent</th>
-            <th class="text-uppercase fw-bold small">Year</th>
-            <th class="text-uppercase fw-bold small">Area</th>
-            <th class="text-uppercase fw-bold small">Work Type / Subtype</th>
-            <th class="text-uppercase fw-bold small text-center">Months</th>
-            <th class="text-uppercase fw-bold small text-end">Total Expense Plan</th>
-            <th class="text-uppercase fw-bold small text-end">Actual Expense</th>
-            <th class="text-uppercase fw-bold small text-center">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          @forelse($plans as $plan)
-            <tr>
-              <td class="fw-bold">{{ $plan->code }}</td>
-              <td>{{ $plan->budgetParent->name ?? '-' }}</td>
-              <td>{{ $plan->year }}</td>
-              <td>{{ $plan->area }}</td>
-              <td>{{ $plan->work_type }}@if($plan->work_subtype) <span class="text-muted small d-block">{{ $plan->work_subtype }}</span>@endif</td>
-              <td class="text-center"><span class="badge bg-label-primary">{{ $plan->monthly_budget_plans_count }}/12</span></td>
-              <td class="text-end">{{ number_format($plan->total_expense_plan, 0, ',', '.') }}</td>
-              <td class="text-end">{{ number_format($plan->total_actual_expense, 0, ',', '.') }}</td>
-              <td class="text-center">
-                <a href="{{ route('erp.annual-budget-plans.show', $plan) }}" class="btn btn-sm btn-primary me-1"><i class="bx bx-show"></i></a>
-                <button type="button" class="btn btn-sm btn-outline-secondary" onclick='openPlanModal("edit", @json($plan))'><i class="bx bx-edit-alt"></i></button>
-              </td>
-            </tr>
-          @empty
-            <tr><td colspan="9" class="text-center text-muted py-4">Belum ada Annual Budget Plan</td></tr>
-          @endforelse
-        </tbody>
-      </table>
+  <div class="sf-card">
+    <div class="sf-card-head">
+      <h6>Annual Budget Plans</h6>
+      <div class="sf-actions">
+        <button class="btn btn-primary btn-sm" onclick="openPlanModal('add')"><i class="bx bx-plus me-1"></i>New Annual Budget Plan</button>
+      </div>
     </div>
+    @if($plans->isEmpty())
+      <div class="sf-empty">No records to display</div>
+    @else
+      <div class="table-responsive">
+        <table class="sf-table">
+          <thead>
+            <tr>
+              <th>Action</th>
+              <th>Anual Budget ID</th>
+              <th>Account</th>
+              <th>Year</th>
+              <th>Area</th>
+              <th>Work Type</th>
+              <th>Work Subtype</th>
+              <th>Currency</th>
+              <th class="text-end">Total Expense Plan</th>
+              <th class="text-end">Total Actual Expense</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach($plans as $plan)
+              <tr>
+                <td><a href="#" class="sf-link" onclick='openPlanModal("edit", @json($plan)); return false;'>Edit</a></td>
+                <td><a class="sf-link" href="{{ route('erp.annual-budget-plans.show', $plan) }}">{{ $plan->code }}</a></td>
+                <td>{{ $plan->budgetParent->name ?? '-' }}</td>
+                <td>{{ $plan->year }}</td>
+                <td>{{ $plan->area }}</td>
+                <td>{{ $plan->work_type }}</td>
+                <td>{{ $plan->work_subtype }}</td>
+                <td>{{ $plan->currency ?: 'IDR' }}</td>
+                <td class="text-end">IDR {{ number_format($plan->total_expense_plan, 0, ',', '.') }}</td>
+                <td class="text-end">IDR {{ number_format($plan->total_actual_expense, 0, ',', '.') }}</td>
+              </tr>
+            @endforeach
+          </tbody>
+        </table>
+      </div>
+    @endif
   </div>
 </div>
 

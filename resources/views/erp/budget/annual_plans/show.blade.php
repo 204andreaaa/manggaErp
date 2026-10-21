@@ -2,8 +2,34 @@
 
 @section('title', 'Annual Budget Plan - ' . $annualBudgetPlan->code)
 
+@include('erp.budget.partials.sf-style')
+
 @section('content')
-<div class="container-xxl flex-grow-1 container-p-y">
+@php
+  $plan = $annualBudgetPlan;
+  $money = fn ($v) => 'IDR '.number_format((float) $v, 0, ',', '.');
+  $totalRevenue = (float) $plan->monthlyBudgetPlans->sum('total_revenue_plan');
+  $expensePct = $totalRevenue > 0 ? round($plan->total_expense_plan / $totalRevenue * 100, 2) : null;
+  $left = [
+    ['Anual Budget ID', '<b>'.e($plan->code).'</b>'],
+    ['Year', e($plan->year)],
+    ['Account', e($plan->budgetParent->name ?? '-')],
+    ['Area', e($plan->area)],
+    ['Work Type', e($plan->work_type)],
+    ['Work Subtype', e($plan->work_subtype ?? '')],
+    ['Total Revenue Plan', e($money($totalRevenue))],
+    ['Total Expense Plan', e($money($plan->total_expense_plan))],
+    ['Expenses %', $expensePct === null ? '-' : '<span class="'.($expensePct > 100 ? 'text-danger fw-bold' : '').'">'.e(number_format($expensePct, 2, ',', '.')).'%</span>'],
+    ['Total Actual Expense', e($money($plan->total_actual_expense))],
+  ];
+  $right = [
+    ['Owner (KAM)', e($plan->budgetParent?->kam?->name ?? '-')],
+    ['Currency', e($plan->currency ?: 'IDR')],
+    ['Created', e($plan->created_at?->format('Y/m/d H:i') ?? '-')],
+    ['Last Modified', e($plan->updated_at?->format('Y/m/d H:i') ?? '-')],
+  ];
+@endphp
+<div class="container-xxl flex-grow-1 container-p-y sf-wrap" style="--sf-accent: #1798c1">
 
   @if(session('success'))
     <div class="alert alert-success alert-dismissible" role="alert">{{ session('success') }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
@@ -12,73 +38,64 @@
     <div class="alert alert-danger alert-dismissible" role="alert">{{ session('error') }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
   @endif
 
-  <div class="d-flex align-items-center justify-content-between mb-4">
-    <div>
-      <h4 class="mb-1 fw-bold"><i class="bx bx-calendar me-2 text-primary"></i>{{ $annualBudgetPlan->code }}</h4>
-      <div class="text-muted small">
-        {{ $annualBudgetPlan->budgetParent->name ?? '-' }} &middot; {{ $annualBudgetPlan->year }} &middot;
-        {{ $annualBudgetPlan->area }} &middot; {{ $annualBudgetPlan->work_type }}
-        @if($annualBudgetPlan->work_subtype) - {{ $annualBudgetPlan->work_subtype }} @endif
-      </div>
+  <div class="sf-head">
+    <div class="d-flex align-items-center">
+      <span class="sf-icon"><i class="bx bx-calendar"></i></span>
+      <div><div class="sf-object">Annual Budget Plan</div><div class="sf-name">{{ $plan->code }}</div></div>
     </div>
-    <a href="{{ route('erp.annual-budget-plans.index') }}" class="btn btn-outline-secondary btn-sm"><i class="bx bx-arrow-back me-1"></i>Back</a>
+    <a href="{{ route('erp.annual-budget-plans.index') }}" class="btn btn-outline-secondary btn-sm"><i class="bx bx-arrow-back me-1"></i>Back to List</a>
   </div>
 
-  <div class="row g-3 mb-4">
-    <div class="col-md-6">
-      <div class="card h-100"><div class="card-body">
-        <div class="text-muted small text-uppercase fw-bold">Total Expense Plan (setahun)</div>
-        <div class="fs-4 fw-bold text-primary">IDR {{ number_format($annualBudgetPlan->total_expense_plan, 0, ',', '.') }}</div>
-      </div></div>
-    </div>
-    <div class="col-md-6">
-      <div class="card h-100"><div class="card-body">
-        <div class="text-muted small text-uppercase fw-bold">Total Actual Expense (setahun)</div>
-        <div class="fs-4 fw-bold text-success">IDR {{ number_format($annualBudgetPlan->total_actual_expense, 0, ',', '.') }}</div>
-      </div></div>
-    </div>
+  <div class="sf-card">
+    <div class="sf-card-head"><h6>Annual Budget Plan Detail</h6></div>
+    @include('erp.budget.partials.sf-fields', ['left' => $left, 'right' => $right])
   </div>
 
-  <div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <h6 class="mb-0 fw-bold">Monthly Budget Plans</h6>
-      <button class="btn btn-primary btn-sm" onclick="openMonthModal('add')"><i class="bx bx-plus me-1"></i>Add Month</button>
+  <div class="sf-card">
+    <div class="sf-card-head">
+      <h6>Monthly Budget Plan</h6>
+      <div class="sf-actions"><button class="btn btn-primary btn-sm" onclick="openMonthModal('add')"><i class="bx bx-plus me-1"></i>New Monthly Budget Plan</button></div>
     </div>
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th class="text-uppercase fw-bold small">Code</th>
-            <th class="text-uppercase fw-bold small text-center">Month</th>
-            <th class="text-uppercase fw-bold small text-end">Qty</th>
-            <th class="text-uppercase fw-bold small text-end">Revenue Plan</th>
-            <th class="text-uppercase fw-bold small text-end">Expense Plan</th>
-            <th class="text-uppercase fw-bold small text-end">Actual Expense</th>
-            <th class="text-uppercase fw-bold small text-center">Status</th>
-            <th class="text-uppercase fw-bold small text-center">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          @forelse($annualBudgetPlan->monthlyBudgetPlans as $m)
+    @if($plan->monthlyBudgetPlans->isEmpty())
+      <div class="sf-empty">No records to display</div>
+    @else
+      <div class="table-responsive">
+        <table class="sf-table">
+          <thead>
             <tr>
-              <td class="fw-bold">{{ $m->code }}</td>
-              <td class="text-center">{{ \Carbon\Carbon::create()->month($m->month)->format('F') }}</td>
-              <td class="text-end">{{ $m->qty }} {{ $m->unit }}</td>
-              <td class="text-end">{{ number_format($m->total_revenue_plan, 0, ',', '.') }}</td>
-              <td class="text-end">{{ number_format($m->total_expense_plan, 0, ',', '.') }}</td>
-              <td class="text-end">{{ number_format($m->total_actual_expense, 0, ',', '.') }}</td>
-              <td class="text-center"><span class="badge bg-label-secondary">{{ $m->approval_status }}</span></td>
-              <td class="text-center">
-                <a href="{{ route('erp.monthly-budget-plans.show', $m) }}" class="btn btn-sm btn-primary me-1"><i class="bx bx-show"></i></a>
-                <button type="button" class="btn btn-sm btn-outline-secondary" onclick='openMonthModal("edit", @json($m))'><i class="bx bx-edit-alt"></i></button>
-              </td>
+              <th>Action</th>
+              <th>Monthly Budget Plan Name</th>
+              <th class="text-end">Month</th>
+              <th class="text-end">Qty</th>
+              <th class="text-end">Revenue Plan</th>
+              <th class="text-end">Total Revenue Plan</th>
+              <th class="text-end">Subtotal Expense Plan</th>
+              <th class="text-end">Total Expense Plan</th>
+              <th class="text-end">Total Direct Expense Plan</th>
+              <th class="text-end">Total Indirect Expense Plan</th>
+              <th class="text-end">Total Actual Expense</th>
             </tr>
-          @empty
-            <tr><td colspan="8" class="text-center text-muted py-4">Belum ada Monthly Budget Plan</td></tr>
-          @endforelse
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            @foreach($plan->monthlyBudgetPlans as $m)
+              <tr>
+                <td><a href="#" class="sf-link" onclick='openMonthModal("edit", @json($m)); return false;'>Edit</a></td>
+                <td><a class="sf-link" href="{{ route('erp.monthly-budget-plans.show', $m) }}">{{ $m->code }}</a></td>
+                <td class="text-end">{{ $m->month }}</td>
+                <td class="text-end">{{ $m->qty }} {{ $m->unit }}</td>
+                <td class="text-end">{{ $money($m->revenue_plan) }}</td>
+                <td class="text-end">{{ $money($m->total_revenue_plan) }}</td>
+                <td class="text-end">{{ $money($m->subtotal_expense_plan) }}</td>
+                <td class="text-end">{{ $money($m->total_expense_plan) }}</td>
+                <td class="text-end">{{ $money($m->total_direct_expense_plan) }}</td>
+                <td class="text-end">{{ $money($m->total_indirect_expense_plan) }}</td>
+                <td class="text-end">{{ $money($m->total_actual_expense) }}</td>
+              </tr>
+            @endforeach
+          </tbody>
+        </table>
+      </div>
+    @endif
   </div>
 </div>
 

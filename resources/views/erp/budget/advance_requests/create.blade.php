@@ -16,7 +16,7 @@
 
   <form method="POST" action="{{ route('erp.advance-requests.store') }}" class="card shadow-sm">
     @csrf
-    <div class="card-header bg-label-primary py-2"><h6 class="mb-0 fw-bold">Detail</h6></div>
+    <div class="card-header py-2" style="background:#d27d5b"><h6 class="mb-0 fw-bold text-white">Detail</h6></div>
     <div class="card-body pt-3">
       <div class="row g-3">
         <div class="col-md-6">
@@ -66,7 +66,7 @@
       <div id="planHint" class="alert alert-warning py-2 mt-3 mb-0 d-none small"></div>
     </div>
 
-    <div class="card-header bg-label-primary py-2 border-top"><h6 class="mb-0 fw-bold">Expense Type</h6></div>
+    <div class="card-header py-2 border-top" style="background:#d27d5b"><h6 class="mb-0 fw-bold text-white">Expense Type</h6></div>
     <div class="card-body pt-3">
       <div class="table-responsive">
         <table class="table table-sm align-middle mb-0">

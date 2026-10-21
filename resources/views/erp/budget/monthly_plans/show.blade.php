@@ -2,8 +2,40 @@
 
 @section('title', 'Monthly Budget Plan - ' . $monthlyBudgetPlan->code)
 
+@include('erp.budget.partials.sf-style')
+
 @section('content')
-<div class="container-xxl flex-grow-1 container-p-y">
+@php
+  $mp = $monthlyBudgetPlan;
+  $annual = $mp->annualBudgetPlan;
+  $money = fn ($v) => 'IDR '.number_format((float) $v, 0, ',', '.');
+  $overBudget = $mp->total_actual_expense > $mp->total_expense_plan;
+  $left = [
+    ['Monthly Budget Plan Name', '<b>'.e($mp->code).'</b>'],
+    ['Anual Budget Plan', '<a class="sf-link" href="'.e(route('erp.annual-budget-plans.show', $annual)).'">'.e($annual->code).'</a>'],
+    ['Year', e($mp->year)],
+    ['Month', e($mp->month)],
+    ['Account Name', e($annual->budgetParent->name ?? '-')],
+    ['Area', e($annual->area)],
+    ['Type', e($annual->work_type)],
+    ['Work Subtype', e($annual->work_subtype ?? '')],
+    ['Revenue Plan', e($money($mp->revenue_plan))],
+    ['Qty', e($mp->qty)],
+    ['Unit', e($mp->unit ?? '')],
+    ['Description', nl2br(e($mp->description ?? ''))],
+  ];
+  $right = [
+    ['Total Actual Expense', e($money($mp->total_actual_expense))],
+    ['Total Direct Expense Plan', e($money($mp->total_direct_expense_plan))],
+    ['Total Indirect Expense Plan', e($money($mp->total_indirect_expense_plan))],
+    ['Subtotal Expense Plan', e($money($mp->subtotal_expense_plan))],
+    ['Total Expense Plan', '<b>'.e($money($mp->total_expense_plan)).'</b>'],
+    ['Total Revenue Plan', '<b>'.e($money($mp->total_revenue_plan)).'</b>'],
+    ['Status Anggaran', '<span class="fw-bold '.($overBudget ? 'text-danger' : 'text-success').'">'.($overBudget ? 'Over Budget' : 'Dalam Batas').'</span>'],
+    ['Created', e($mp->created_at?->format('Y/m/d H:i') ?? '-')],
+  ];
+@endphp
+<div class="container-xxl flex-grow-1 container-p-y sf-wrap" style="--sf-accent: #1798c1">
 
   @if(session('success'))
     <div class="alert alert-success alert-dismissible" role="alert">{{ session('success') }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
@@ -15,92 +47,63 @@
     <div class="alert alert-danger"><ul class="mb-0">@foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>
   @endif
 
-  @php $annual = $monthlyBudgetPlan->annualBudgetPlan; @endphp
-
-  <div class="d-flex align-items-center justify-content-between mb-4">
-    <div>
-      <h4 class="mb-1 fw-bold"><i class="bx bx-calendar-event me-2 text-primary"></i>{{ $monthlyBudgetPlan->code }}</h4>
-      <div class="text-muted small">
-        {{ $annual->budgetParent->name ?? '-' }} &middot; {{ \Carbon\Carbon::create()->month($monthlyBudgetPlan->month)->format('F') }} {{ $monthlyBudgetPlan->year }}
-        &middot; {{ $annual->area }} &middot; {{ $annual->work_type }}
-      </div>
+  <div class="sf-head">
+    <div class="d-flex align-items-center">
+      <span class="sf-icon"><i class="bx bx-calendar-event"></i></span>
+      <div><div class="sf-object">Monthly Budget Plan</div><div class="sf-name">{{ $mp->code }}</div></div>
     </div>
     <a href="{{ route('erp.annual-budget-plans.show', $annual) }}" class="btn btn-outline-secondary btn-sm"><i class="bx bx-arrow-back me-1"></i>Back to {{ $annual->code }}</a>
   </div>
 
-  <div class="row g-3 mb-4">
-    <div class="col-md-3">
-      <div class="card h-100"><div class="card-body">
-        <div class="text-muted small text-uppercase fw-bold">Revenue Plan</div>
-        <div class="fs-5 fw-bold">{{ number_format($monthlyBudgetPlan->total_revenue_plan, 0, ',', '.') }}</div>
-      </div></div>
-    </div>
-    <div class="col-md-3">
-      <div class="card h-100"><div class="card-body">
-        <div class="text-muted small text-uppercase fw-bold">Expense Plan</div>
-        <div class="fs-5 fw-bold text-primary">{{ number_format($monthlyBudgetPlan->total_expense_plan, 0, ',', '.') }}</div>
-      </div></div>
-    </div>
-    <div class="col-md-3">
-      <div class="card h-100"><div class="card-body">
-        <div class="text-muted small text-uppercase fw-bold">Actual Expense</div>
-        <div class="fs-5 fw-bold text-success">{{ number_format($monthlyBudgetPlan->total_actual_expense, 0, ',', '.') }}</div>
-      </div></div>
-    </div>
-    <div class="col-md-3">
-      <div class="card h-100"><div class="card-body">
-        @php $overBudget = $monthlyBudgetPlan->total_actual_expense > $monthlyBudgetPlan->total_expense_plan; @endphp
-        <div class="text-muted small text-uppercase fw-bold">Status Anggaran</div>
-        <div class="fs-5 fw-bold {{ $overBudget ? 'text-danger' : 'text-success' }}">
-          {{ $overBudget ? 'Over Budget' : 'Dalam Batas' }}
-        </div>
-      </div></div>
-    </div>
+  <div class="sf-card">
+    <div class="sf-card-head"><h6>Monthly Budget Plan Detail</h6></div>
+    @include('erp.budget.partials.sf-fields', ['left' => $left, 'right' => $right])
   </div>
 
-  <div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <h6 class="mb-0 fw-bold">Budget Plan Details (per Expense Type)</h6>
-      <button class="btn btn-primary btn-sm" onclick="openDetailModal('add')"><i class="bx bx-plus me-1"></i>Add Expense Type</button>
+  <div class="sf-card">
+    <div class="sf-card-head">
+      <h6>Budget Plan Detail</h6>
+      <div class="sf-actions"><button class="btn btn-primary btn-sm" onclick="openDetailModal('add')"><i class="bx bx-plus me-1"></i>New Budget Plan Detail</button></div>
     </div>
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th class="text-uppercase fw-bold small">Code</th>
-            <th class="text-uppercase fw-bold small">Expense Type</th>
-            <th class="text-uppercase fw-bold small text-center">Direct/Indirect</th>
-            <th class="text-uppercase fw-bold small text-end">Amount/unit</th>
-            <th class="text-uppercase fw-bold small text-end">Total Plan</th>
-            <th class="text-uppercase fw-bold small text-end">Actual Kasbon</th>
-            <th class="text-uppercase fw-bold small text-end">Actual Expense</th>
-            <th class="text-uppercase fw-bold small text-center">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          @forelse($monthlyBudgetPlan->budgetPlanDetails as $d)
-            @php $detailOver = $d->actual_expense_amount > $d->total_expense_plan; @endphp
+    @if($mp->budgetPlanDetails->isEmpty())
+      <div class="sf-empty">No records to display</div>
+    @else
+      <div class="table-responsive">
+        <table class="sf-table">
+          <thead>
             <tr>
-              <td class="fw-bold">{{ $d->code }}</td>
-              <td>{{ $d->expense_type }}</td>
-              <td class="text-center"><span class="badge bg-label-secondary">{{ $d->is_indirect ? 'Indirect' : 'Direct' }}</span></td>
-              <td class="text-end">{{ number_format($d->amount, 0, ',', '.') }}</td>
-              <td class="text-end">{{ number_format($d->total_expense_plan, 0, ',', '.') }}</td>
-              <td class="text-end">{{ number_format($d->actual_advance_request, 0, ',', '.') }}</td>
-              <td class="text-end {{ $detailOver ? 'text-danger fw-bold' : '' }}">
-                {{ number_format($d->actual_expense_amount, 0, ',', '.') }}
-                @if($detailOver) <i class="bx bx-error-circle" title="Over Budget"></i> @endif
-              </td>
-              <td class="text-center">
-                <button type="button" class="btn btn-sm btn-outline-secondary" onclick='openDetailModal("edit", @json($d))'><i class="bx bx-edit-alt"></i></button>
-              </td>
+              <th>Action</th>
+              <th>Budget Plan Detail</th>
+              <th>Expense Type</th>
+              <th class="text-center">Indirect</th>
+              <th class="text-end">Actual Advance Request</th>
+              <th class="text-end">Actual Expense Amount</th>
+              <th class="text-end">Amount</th>
+              <th class="text-end">Total Expense Plan</th>
+              <th class="text-end">Month</th>
+              <th class="text-end">Qty</th>
             </tr>
-          @empty
-            <tr><td colspan="8" class="text-center text-muted py-4">Belum ada Budget Plan Detail</td></tr>
-          @endforelse
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            @foreach($mp->budgetPlanDetails as $d)
+              @php $detailOver = $d->actual_expense_amount > $d->total_expense_plan; @endphp
+              <tr>
+                <td><a href="#" class="sf-link" onclick='openDetailModal("edit", @json($d)); return false;'>Edit</a></td>
+                <td class="fw-semibold">{{ $d->code }}</td>
+                <td>{{ $d->expense_type }}</td>
+                <td class="text-center">@if($d->is_indirect)<i class="bx bx-check"></i>@endif</td>
+                <td class="text-end">{{ $money($d->actual_advance_request) }}</td>
+                <td class="text-end {{ $detailOver ? 'text-danger fw-bold' : '' }}">{{ $money($d->actual_expense_amount) }}@if($detailOver) <i class="bx bx-error-circle" title="Over Budget"></i>@endif</td>
+                <td class="text-end">{{ $money($d->amount) }}</td>
+                <td class="text-end">{{ $money($d->total_expense_plan) }}</td>
+                <td class="text-end">{{ $mp->month }}</td>
+                <td class="text-end">{{ $mp->qty }}</td>
+              </tr>
+            @endforeach
+          </tbody>
+        </table>
+      </div>
+    @endif
   </div>
 </div>
 

@@ -1,9 +1,11 @@
 @extends('layouts.home')
 
-@section('title', 'Expense Declarations (Realisasi)')
+@section('title', 'Expense Declarations')
+
+@include('erp.budget.partials.sf-style')
 
 @section('content')
-<div class="container-xxl flex-grow-1 container-p-y">
+<div class="container-xxl flex-grow-1 container-p-y sf-wrap" style="--sf-accent: #6fb1ad">
 
   @if(session('success'))
     <div class="alert alert-success alert-dismissible" role="alert">{{ session('success') }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
@@ -12,53 +14,60 @@
     <div class="alert alert-danger alert-dismissible" role="alert">{{ session('error') }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
   @endif
 
-  <div class="card mb-3">
-    <div class="card-body py-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
-      <div>
-        <h5 class="mb-1 fw-bold">Expense Declarations (Realisasi)</h5>
-        <div class="text-muted small">Pertanggungjawaban biaya, dengan atau tanpa kasbon</div>
-      </div>
-      <a href="{{ route('erp.expense-declarations.create') }}" class="btn btn-primary btn-sm px-3"><i class="bx bx-plus me-1"></i>Buat Deklarasi Baru</a>
+  <div class="sf-head">
+    <div class="d-flex align-items-center">
+      <span class="sf-icon"><i class="bx bx-receipt"></i></span>
+      <div><div class="sf-object">Expense Declarations</div><div class="sf-name">Deklarasi Pengeluaran</div></div>
     </div>
   </div>
 
-  <div class="card">
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th class="text-uppercase fw-bold small">Code</th>
-            <th class="text-uppercase fw-bold small text-center">Tipe</th>
-            <th class="text-uppercase fw-bold small">Budget Line</th>
-            <th class="text-uppercase fw-bold small">Kasbon</th>
-            <th class="text-uppercase fw-bold small">Requestor</th>
-            <th class="text-uppercase fw-bold small text-end">Amount (IDR)</th>
-            <th class="text-uppercase fw-bold small text-center">Status</th>
-            <th class="text-uppercase fw-bold small text-center">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          @forelse($declarations as $d)
-            <tr>
-              <td class="fw-bold">{{ $d->code }}</td>
-              <td class="text-center"><span class="badge bg-label-{{ $d->record_type === 'with_advance' ? 'info' : 'secondary' }}">{{ $d->record_type === 'with_advance' ? 'With Advance' : 'Without Advance' }}</span></td>
-              <td>{{ $d->budgetPlanDetail?->code }}<div class="text-muted small">{{ $d->budgetPlanDetail?->expense_type }}</div></td>
-              <td>{{ $d->advanceRequest?->code ?? '-' }}</td>
-              <td>{{ $d->requestBy?->name ?? '-' }}</td>
-              <td class="text-end">{{ number_format($d->converted_amount_idr, 0, ',', '.') }}</td>
-              <td class="text-center">
-                @php $statusClass = match($d->status) { 'Approved' => 'success', 'Rejected' => 'danger', 'Submitted' => 'info', default => 'secondary' }; @endphp
-                <span class="badge bg-label-{{ $statusClass }}">{{ $d->status }}</span>
-              </td>
-              <td class="text-center"><a href="{{ route('erp.expense-declarations.show', $d) }}" class="btn btn-sm btn-primary"><i class="bx bx-show"></i></a></td>
-            </tr>
-          @empty
-            <tr><td colspan="8" class="text-center text-muted py-4">Belum ada Expense Declaration</td></tr>
-          @endforelse
-        </tbody>
-      </table>
+  <div class="sf-card">
+    <div class="sf-card-head">
+      <h6>Expense Declaration</h6>
+      <div class="sf-actions">
+        <a href="{{ route('erp.expense-declarations.create') }}" class="btn btn-primary btn-sm"><i class="bx bx-plus me-1"></i>New Expense Declaration</a>
+      </div>
     </div>
-    <div class="card-footer">{{ $declarations->links() }}</div>
+    @if($declarations->isEmpty())
+      <div class="sf-empty">No records to display</div>
+    @else
+      <div class="table-responsive">
+        <table class="sf-table">
+          <thead>
+            <tr>
+              <th>Expense Declaration Detail Id</th>
+              <th>Record Type</th>
+              <th>Advance Request Id</th>
+              <th>Expense Type</th>
+              <th>Description</th>
+              <th>PO Number</th>
+              <th>Work Id</th>
+              <th>Area</th>
+              <th class="text-end">Amount declaration</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach($declarations as $d)
+              @php $statusClass = match($d->status) { 'Approved' => 'success', 'Rejected' => 'danger', 'Submitted' => 'info', default => 'secondary' }; @endphp
+              <tr>
+                <td><a class="sf-link" href="{{ route('erp.expense-declarations.show', $d) }}">{{ $d->code }}</a></td>
+                <td>{{ $d->record_type === 'with_advance' ? 'with advance' : 'without advance' }}</td>
+                <td>@if($d->advanceRequest)<a class="sf-link" href="{{ route('erp.advance-requests.show', $d->advanceRequest) }}">{{ $d->advanceRequest->code }}</a>@endif</td>
+                <td>{{ $d->budgetPlanDetail?->expense_type }}</td>
+                <td class="small">{{ $d->description }}</td>
+                <td>{{ $d->po_number }}</td>
+                <td>{{ $d->work?->wid_code }}</td>
+                <td>{{ $d->budgetPlanDetail?->monthlyBudgetPlan?->area }}</td>
+                <td class="text-end">IDR {{ number_format($d->converted_amount_idr, 0, ',', '.') }}</td>
+                <td><span class="badge bg-label-{{ $statusClass }}">{{ $d->status }}</span></td>
+              </tr>
+            @endforeach
+          </tbody>
+        </table>
+      </div>
+      <div class="px-3 py-2">{{ $declarations->links() }}</div>
+    @endif
   </div>
 </div>
 
