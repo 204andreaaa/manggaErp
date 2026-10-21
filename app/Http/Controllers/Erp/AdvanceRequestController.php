@@ -308,6 +308,8 @@ class AdvanceRequestController extends Controller
                     ]);
 
                     BudgetRollupService::recalculateDetail($advanceRequest->budget_plan_detail_id);
+                    // Outstanding starts at the full kasbon amount until declarations settle it.
+                    BudgetRollupService::recalculateAdvanceRequest($advanceRequest->id);
 
                     NotificationHelper::pushLive('advance_request', $advanceRequest->id, $advanceRequest->status);
 
