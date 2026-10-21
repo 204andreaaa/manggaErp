@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Erp;
 
 use App\Helpers\NotificationHelper;
 use App\Http\Controllers\Controller;
+use App\Models\Erp\ErpBudgetParent;
 use App\Models\Erp\ErpWorkItem;
 use App\Models\Erp\ErpSubProject;
 use Illuminate\Http\Request;
@@ -166,6 +167,7 @@ class ErpWorkItemController extends Controller
 
             $data['remaining_budget'] = $data['allocated_budget'];
             $workItem = ErpWorkItem::create($data);
+            ErpBudgetParent::recalculateRemaining($budgetParent->id);
 
             DB::connection('tenant')->commit();
 
@@ -221,7 +223,9 @@ class ErpWorkItemController extends Controller
                 throw new \Exception('Allocated budget cannot be less than already used budget');
             }
 
+            $oldParentId = $workItem->subProject?->budget_parent_id;
             $workItem->update($data);
+            ErpBudgetParent::recalculateRemaining($oldParentId, $budgetParent->id);
 
             DB::connection('tenant')->commit();
 
@@ -238,7 +242,9 @@ class ErpWorkItemController extends Controller
     {
         abort_unless(auth()->user()->hasPermission('work_items.delete') || auth()->user()->hasPermission('budgets.delete'), 403);
         $workItem = ErpWorkItem::findOrFail($id);
+        $parentId = $workItem->subProject?->budget_parent_id;
         $workItem->delete();
+        ErpBudgetParent::recalculateRemaining($parentId);
 
         NotificationHelper::pushLive('work_item', $workItem->id, 'deleted');
 

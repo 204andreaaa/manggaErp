@@ -103,7 +103,9 @@ class ErpSubProjectController extends Controller
             'name'              => ['required', 'max:255'],
         ]);
 
+        $oldParentId = $project->budget_parent_id;
         $project->update($data);
+        ErpBudgetParent::recalculateRemaining($oldParentId, $project->budget_parent_id);
 
         NotificationHelper::pushLive('sub_project', $project->id, 'updated');
 
@@ -115,6 +117,7 @@ class ErpSubProjectController extends Controller
         abort_unless(auth()->user()->hasPermission('sub_projects.delete') || auth()->user()->hasPermission('budgets.delete'), 403);
         $project = ErpSubProject::findOrFail($id);
         $project->delete();
+        ErpBudgetParent::recalculateRemaining($project->budget_parent_id);
 
         NotificationHelper::pushLive('sub_project', $project->id, 'deleted');
 

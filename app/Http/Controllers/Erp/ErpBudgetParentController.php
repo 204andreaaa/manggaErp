@@ -111,13 +111,11 @@ class ErpBudgetParentController extends Controller
             'status'       => ['required', 'max:50'],
         ]);
 
-        // Recalculate remaining budget if total budget changes (simplified logic for now)
-        // In a real strict system, we might need to check if total_budget < (original_total - original_remaining)
-        $diff = $data['total_budget'] - $budget->total_budget;
-        $data['remaining_budget'] = $budget->remaining_budget + $diff;
+        $allocated = $budget->allocatedToWorkItems();
+        $data['remaining_budget'] = $data['total_budget'] - $allocated;
 
         if ($data['remaining_budget'] < 0) {
-            return response()->json(['message' => 'Total budget cannot be less than already used budget'], 422);
+            return response()->json(['message' => 'Total Budget tidak boleh lebih kecil dari yang sudah dialokasikan ke WID (Rp '.number_format($allocated, 0, ',', '.').').'], 422);
         }
 
         $budget->update($data);

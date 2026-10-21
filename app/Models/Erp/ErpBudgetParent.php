@@ -35,4 +35,19 @@ class ErpBudgetParent extends Model
     {
         return $this->belongsTo(User::class, 'kam_user_id');
     }
+
+    // Sisa pagu = Total Budget dikurangi semua alokasi WID di bawahnya
+    public function allocatedToWorkItems(): float
+    {
+        return (float) ErpWorkItem::whereHas('subProject', fn ($q) => $q->where('budget_parent_id', $this->id))
+            ->sum('allocated_budget');
+    }
+
+    public static function recalculateRemaining(...$ids): void
+    {
+        foreach (static::whereIn('id', array_filter($ids))->get() as $parent) {
+            $parent->update(['remaining_budget' => $parent->total_budget - $parent->allocatedToWorkItems()]);
+            \App\Helpers\NotificationHelper::pushLive('budget_parent', $parent->id, 'updated');
+        }
+    }
 }
