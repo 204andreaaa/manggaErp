@@ -35,6 +35,9 @@ class ExpenseDeclarationController extends Controller
         'Office', 'Utilities', 'Other Expense',
     ];
 
+    // Kasbon of this expense type may be declared under any expense type.
+    public const OPEN_KASBON_TYPE = 'Other Expense';
+
     public function create(Request $request)
     {
         abort_unless(auth()->user()->hasPermission('expense_declarations.create'), 403);
@@ -103,6 +106,18 @@ class ExpenseDeclarationController extends Controller
             $advanceRequest = AdvanceRequest::with('budgetPlanDetail.monthlyBudgetPlan')->findOrFail($data['advance_request_id']);
             $workId = $advanceRequest->work_id;
             $monthly = $advanceRequest->budgetPlanDetail->monthlyBudgetPlan;
+
+            // A kasbon for a specific expense type is declared under that same type;
+            // only an "Other Expense" kasbon may be split across any types.
+            $kasbonType = $advanceRequest->budgetPlanDetail->expense_type;
+            if ($kasbonType !== self::OPEN_KASBON_TYPE) {
+                $wrong = array_diff(array_keys($lines), [$kasbonType]);
+                if ($wrong) {
+                    throw ValidationException::withMessages([
+                        'lines' => "Kasbon {$advanceRequest->code} untuk {$kasbonType}, jadi deklarasinya hanya boleh {$kasbonType}. Hapus: ".implode(', ', $wrong).'.',
+                    ]);
+                }
+            }
         }
 
         foreach ($lines as $type => $line) {

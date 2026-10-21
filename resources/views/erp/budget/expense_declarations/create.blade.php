@@ -21,7 +21,6 @@
   $selectedAdvance = old('advance_request_id', $preselectedAdvance);
   // Opened from a kasbon page: the declaration is for that kasbon, full stop.
   $locked = (bool) $preselectedAdvance;
-  $kasbonExpenseType = $locked ? $advanceRequests->firstWhere('id', $preselectedAdvance)?->budgetPlanDetail?->expense_type : null;
 @endphp
 <div class="container-xxl flex-grow-1 container-p-y">
 
@@ -139,10 +138,9 @@
           </thead>
           <tbody>
             @foreach($expenseTypes as $i => $type)
-              @php $isKasbonType = $kasbonExpenseType === $type; @endphp
-              <tr @class(['table-info' => $isKasbonType])>
-                <td class="fw-semibold">{{ $type }}@if($isKasbonType) <span class="badge bg-label-info ms-1">Expense Type kasbon</span>@endif</td>
-                <td class="text-center"><input type="checkbox" class="form-check-input line-check" name="lines[{{ $i }}][checked]" value="1" @checked($errors->any() ? old("lines.$i.checked") : $isKasbonType)></td>
+              <tr class="expense-row" data-type="{{ $type }}">
+                <td class="fw-semibold">{{ $type }} <span class="badge bg-label-info ms-1 kasbon-badge d-none">Expense Type kasbon</span></td>
+                <td class="text-center"><input type="checkbox" class="form-check-input line-check" name="lines[{{ $i }}][checked]" value="1" @checked(old("lines.$i.checked"))></td>
                 <td><span class="badge bg-label-secondary">IDR</span></td>
                 <td><input type="number" step="0.01" min="0" class="form-control form-control-sm line-amount" name="lines[{{ $i }}][amount]" value="{{ old("lines.$i.amount") }}"></td>
                 <td><input type="text" class="form-control form-control-sm" name="lines[{{ $i }}][description]" value="{{ old("lines.$i.description") }}"></td>
@@ -170,6 +168,13 @@
   ],
 ])
 
+@push('styles')
+<style>
+  tr.row-locked td { opacity: .4; background: #f5f5f9; }
+  tr.row-locked td:first-child::after { content: ' (tidak sesuai kasbon)'; font-weight: 400; font-size: .75rem; }
+</style>
+@endpush
+
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
@@ -187,8 +192,33 @@ document.addEventListener('DOMContentLoaded', function () {
     summary.innerHTML = '<b>' + a.code + '</b> &middot; Total kasbon Rp ' + a.total +
       '<br>Account: <b>' + a.account + '</b> &middot; Area: <b>' + a.area + '</b> &middot; Work Type: <b>' + a.type + '</b> / ' + a.subtype +
       '<br>WID: <b>' + a.wid + '</b> &middot; Budget bulan: <b>' + a.month + '</b> &middot; Expense Type kasbon: <b>' + a.expense + '</b>' +
-      '<br><span class="text-muted">Account, Area, Work Type, WID, dan bulan budget otomatis mengikuti kasbon ini.</span>';
+      '<br><span class="text-muted">Account, Area, Work Type, WID, dan bulan budget otomatis mengikuti kasbon ini.</span>' +
+      '<br><b>' + (a.expense === OPEN_TYPE
+        ? 'Kasbon Other Expense: boleh dipecah ke Expense Type mana saja, tiap baris memotong budget jenis biayanya sendiri.'
+        : 'Deklarasi untuk kasbon ini hanya untuk Expense Type ' + a.expense + '.') + '</b>';
     summary.classList.remove('d-none');
+  }
+
+  // Specific-type kasbon -> only that row is usable; "Other Expense" kasbon -> all rows.
+  const OPEN_TYPE = @json(\App\Http\Controllers\Erp\ExpenseDeclarationController::OPEN_KASBON_TYPE);
+  const hadErrors = {{ $errors->any() ? 'true' : 'false' }};
+  const rows = Array.from(document.querySelectorAll('.expense-row'));
+  function restrictRows(prefill) {
+    const a = recordType.value === 'with_advance' ? info[advanceSel.value] : null;
+    const only = a && a.expense !== OPEN_TYPE ? a.expense : null;
+    rows.forEach(row => {
+      const type = row.dataset.type;
+      const isKasbon = !!a && type === a.expense;
+      const lockedOut = !!only && type !== only;
+      row.classList.toggle('table-info', isKasbon);
+      row.classList.toggle('row-locked', lockedOut);
+      row.querySelector('.kasbon-badge').classList.toggle('d-none', !isKasbon);
+      row.querySelectorAll('input').forEach(input => {
+        input.disabled = lockedOut;
+        if (lockedOut) { if (input.type === 'checkbox') input.checked = false; else input.value = ''; }
+      });
+      if (prefill && !hadErrors && only && type === only) row.querySelector('.line-check').checked = true;
+    });
   }
 
   function toggle() {
@@ -198,10 +228,11 @@ document.addEventListener('DOMContentLoaded', function () {
     manual.style.display = withAdvance ? 'none' : '';
     manualRequired.forEach(x => { x.required = !withAdvance; });
     if (withAdvance) showSummary(); else summary.classList.add('d-none');
+    restrictRows(true);
   }
 
   recordType.addEventListener('change', toggle);
-  advanceSel.addEventListener('change', showSummary);
+  advanceSel.addEventListener('change', () => { showSummary(); restrictRows(true); });
   toggle();
 });
 </script>
