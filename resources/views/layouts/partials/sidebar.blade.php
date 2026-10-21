@@ -15,12 +15,12 @@ $dashboardRoute = 'dashboard';
 
 // Role checks
 $isSuperAdmin   = $u?->hasRole(['superadmin', 'admin']);
-$isAdminProject = $isSuperAdmin || $u?->canSeeMenu('work_items') || $u?->canSeeMenu('budget_parents') || $u?->canSeeMenu('sub_projects');
-$isGA           = $isSuperAdmin || $u?->canSeeMenu('goods_receipts');
-$isProcurement  = $isSuperAdmin || $u?->hasRole('procurement') || $u?->hasPermission('purchase_orders.create') || $u?->canSeeMenu('suppliers') || $u?->canSeeMenu('payment_terms');
-$isFinance      = $isSuperAdmin || $u?->canSeeMenu('payment_advices') || $u?->canSeeMenu('payment_advice_details')
+$isAdminProject = $isSuperAdmin || $u?->canSeeMenu('work_items') || $u?->canSeeMenu('budget_parents') || $u?->canSeeMenu('sub_projects')
     || $u?->canSeeMenu('annual_budget_plans') || $u?->canSeeMenu('advance_requests')
     || $u?->canSeeMenu('expense_declarations');
+$isGA           = $isSuperAdmin || $u?->canSeeMenu('goods_receipts');
+$isProcurement  = $isSuperAdmin || $u?->hasRole('procurement') || $u?->hasPermission('purchase_orders.create') || $u?->canSeeMenu('suppliers') || $u?->canSeeMenu('payment_terms');
+$isFinance      = $isSuperAdmin || $u?->canSeeMenu('payment_advices') || $u?->canSeeMenu('payment_advice_details');
 $isLogistik     = $isSuperAdmin || $u?->canSeeMenu('stocks') || $u?->canSeeMenu('warehouses');
 $isHRIS         = $isSuperAdmin || $u?->canSeeMenu('departments') || $u?->canSeeMenu('employees') || $u?->canSeeMenu('hr_attendances') || $u?->canSeeMenu('hr_payroll');
 $isCEO          = $isSuperAdmin || $u?->hasRole('ceo');
@@ -84,7 +84,11 @@ $hasAnyDepartment = $isAdminProject || $isGA || $isProcurement || $isFinance || 
 $isHrOpen = request()->routeIs('erp.hr.*') || request()->routeIs('erp.departments.*');
 $isProjectOpen = request()->routeIs('erp.budget-parents.*')
     || request()->routeIs('erp.sub-projects.*')
-    || request()->routeIs('erp.work-items.*');
+    || request()->routeIs('erp.work-items.*')
+    || request()->routeIs('erp.annual-budget-plans.*')
+    || request()->routeIs('erp.monthly-budget-plans.*')
+    || request()->routeIs('erp.advance-requests.*')
+    || request()->routeIs('erp.expense-declarations.*');
 
 $isGaOpen = request()->routeIs('erp.goods-receipts.*');
 
@@ -94,11 +98,7 @@ $isProcurementOpen = request()->routeIs('erp.procurement.dashboard')
     || request()->routeIs('erp.payment-terms.*');
 
 $isFinanceOpen = request()->routeIs('erp.payment-advices.*')
-    || request()->routeIs('erp.payment-advice-details.*')
-    || request()->routeIs('erp.annual-budget-plans.*')
-    || request()->routeIs('erp.monthly-budget-plans.*')
-    || request()->routeIs('erp.advance-requests.*')
-    || request()->routeIs('erp.expense-declarations.*');
+    || request()->routeIs('erp.payment-advice-details.*');
 
 $isLogistikOpen = request()->routeIs('erp.stocks.*')
     || request()->routeIs('erp.warehouses.*');
@@ -276,6 +276,30 @@ $isSystemOpen = request()->routeIs('erp.users.*')
                     </a>
                 </li>
                 @endif
+                @if($isSuperAdmin || $u?->canSeeMenu('annual_budget_plans'))
+                <li class="menu-item {{ request()->routeIs('erp.annual-budget-plans.*') || request()->routeIs('erp.monthly-budget-plans.*') ? 'active' : '' }}">
+                    <a href="{{ $rl('erp.annual-budget-plans.index') }}" class="menu-link">
+                        <i class="bx bx-calendar me-2"></i>
+                        <div class="text-truncate">Budget Plans</div>
+                    </a>
+                </li>
+                @endif
+                @if($isSuperAdmin || $u?->canSeeMenu('advance_requests'))
+                <li class="menu-item {{ request()->routeIs('erp.advance-requests.*') ? 'active' : '' }}">
+                    <a href="{{ $rl('erp.advance-requests.index') }}" class="menu-link">
+                        <i class="bx bx-wallet me-2"></i>
+                        <div class="text-truncate">Advance Requests (Kasbon)</div>
+                    </a>
+                </li>
+                @endif
+                @if($isSuperAdmin || $u?->canSeeMenu('expense_declarations'))
+                <li class="menu-item {{ request()->routeIs('erp.expense-declarations.*') ? 'active' : '' }}">
+                    <a href="{{ $rl('erp.expense-declarations.index') }}" class="menu-link">
+                        <i class="bx bx-receipt me-2"></i>
+                        <div class="text-truncate">Expense Declarations</div>
+                    </a>
+                </li>
+                @endif
             </ul>
         </li>
         @endif
@@ -392,30 +416,6 @@ $isSystemOpen = request()->routeIs('erp.users.*')
                     <a href="{{ $rl('erp.purchase-orders.index') }}" class="menu-link">
                         <i class="bx bx-check-shield me-2"></i>
                         <div class="text-truncate">PO Verification / List</div>
-                    </a>
-                </li>
-                @endif
-                @if($isSuperAdmin || $u?->canSeeMenu('annual_budget_plans'))
-                <li class="menu-item {{ request()->routeIs('erp.annual-budget-plans.*') || request()->routeIs('erp.monthly-budget-plans.*') ? 'active' : '' }}">
-                    <a href="{{ $rl('erp.annual-budget-plans.index') }}" class="menu-link">
-                        <i class="bx bx-calendar me-2"></i>
-                        <div class="text-truncate">Budget Plans</div>
-                    </a>
-                </li>
-                @endif
-                @if($isSuperAdmin || $u?->canSeeMenu('advance_requests'))
-                <li class="menu-item {{ request()->routeIs('erp.advance-requests.*') ? 'active' : '' }}">
-                    <a href="{{ $rl('erp.advance-requests.index') }}" class="menu-link">
-                        <i class="bx bx-wallet me-2"></i>
-                        <div class="text-truncate">Advance Requests (Kasbon)</div>
-                    </a>
-                </li>
-                @endif
-                @if($isSuperAdmin || $u?->canSeeMenu('expense_declarations'))
-                <li class="menu-item {{ request()->routeIs('erp.expense-declarations.*') ? 'active' : '' }}">
-                    <a href="{{ $rl('erp.expense-declarations.index') }}" class="menu-link">
-                        <i class="bx bx-receipt me-2"></i>
-                        <div class="text-truncate">Expense Declarations</div>
                     </a>
                 </li>
                 @endif
