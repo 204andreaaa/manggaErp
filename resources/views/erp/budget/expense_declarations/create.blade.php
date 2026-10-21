@@ -19,6 +19,9 @@
   ]]);
   $recordType = old('record_type', 'with_advance');
   $selectedAdvance = old('advance_request_id', $preselectedAdvance);
+  // Opened from a kasbon page: the declaration is for that kasbon, full stop.
+  $locked = (bool) $preselectedAdvance;
+  $kasbonExpenseType = $locked ? $advanceRequests->firstWhere('id', $preselectedAdvance)?->budgetPlanDetail?->expense_type : null;
 @endphp
 <div class="container-xxl flex-grow-1 container-p-y">
 
@@ -35,6 +38,11 @@
     @csrf
     <div class="card-header py-2" style="background:#6fb1ad"><h6 class="mb-0 fw-bold text-white">Detail</h6></div>
     <div class="card-body pt-3">
+      @if($locked)
+        <input type="hidden" name="record_type" id="recordType" value="with_advance">
+        <input type="hidden" name="advance_request_id" id="advanceRequestId" value="{{ $preselectedAdvance }}">
+        <div class="small text-muted mb-1">Record Type: <b>with advance</b> (pertanggungjawaban kasbon)</div>
+      @else
       <div class="row g-3">
         <div class="col-md-6">
           <label class="form-label fw-semibold">Record Type <span class="text-danger">*</span></label>
@@ -53,6 +61,7 @@
           </select>
         </div>
       </div>
+      @endif
 
       {{-- with advance: everything below comes from the kasbon and can't be changed --}}
       <div id="advanceSummary" class="alert alert-info py-2 mt-3 mb-0 small d-none"></div>
@@ -130,9 +139,10 @@
           </thead>
           <tbody>
             @foreach($expenseTypes as $i => $type)
-              <tr>
-                <td class="fw-semibold">{{ $type }}</td>
-                <td class="text-center"><input type="checkbox" class="form-check-input line-check" name="lines[{{ $i }}][checked]" value="1" @checked(old("lines.$i.checked"))></td>
+              @php $isKasbonType = $kasbonExpenseType === $type; @endphp
+              <tr @class(['table-info' => $isKasbonType])>
+                <td class="fw-semibold">{{ $type }}@if($isKasbonType) <span class="badge bg-label-info ms-1">Expense Type kasbon</span>@endif</td>
+                <td class="text-center"><input type="checkbox" class="form-check-input line-check" name="lines[{{ $i }}][checked]" value="1" @checked($errors->any() ? old("lines.$i.checked") : $isKasbonType)></td>
                 <td><span class="badge bg-label-secondary">IDR</span></td>
                 <td><input type="number" step="0.01" min="0" class="form-control form-control-sm line-amount" name="lines[{{ $i }}][amount]" value="{{ old("lines.$i.amount") }}"></td>
                 <td><input type="text" class="form-control form-control-sm" name="lines[{{ $i }}][description]" value="{{ old("lines.$i.description") }}"></td>
@@ -183,7 +193,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function toggle() {
     const withAdvance = recordType.value === 'with_advance';
-    advanceCol.style.display = withAdvance ? '' : 'none';
+    if (advanceCol) advanceCol.style.display = withAdvance ? '' : 'none';
     advanceSel.required = withAdvance;
     manual.style.display = withAdvance ? 'none' : '';
     manualRequired.forEach(x => { x.required = !withAdvance; });
