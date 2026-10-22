@@ -69,17 +69,9 @@
       {{-- without advance: pick the budget the same way as a kasbon --}}
       <div id="manualBudget" class="row g-3 mt-0">
         <div class="col-md-6">
-          <label class="form-label fw-semibold">Account (Budget Parent) <span class="text-danger">*</span></label>
-          <select name="budget_parent_id" id="budgetParent" class="form-select">
-            <option value="">-- Pilih Account --</option>
-            @foreach($budgetParents as $bp)
-              <option value="{{ $bp->id }}" @selected(old('budget_parent_id') == $bp->id)>{{ $bp->name }} ({{ $bp->budget_code }})</option>
-            @endforeach
-          </select>
-        </div>
-        <div class="col-md-6">
           <label class="form-label fw-semibold">Work ID (WID) <span class="text-danger">*</span></label>
           <select name="work_id" id="workId" class="form-select"></select>
+          <div class="form-text">Account: <b id="accountName">-</b></div>
         </div>
         <div class="col-md-4">
           <label class="form-label fw-semibold">Area <span class="text-danger">*</span></label>
@@ -150,7 +142,7 @@
           </tbody>
         </table>
       </div>
-      <div class="form-text mt-2">Tiap Expense Type yang diisi disimpan sebagai satu Expense Declaration tersendiri, masing-masing tercatat sebagai pengeluaran di Budget Plan Detail jenis biaya itu.</div>
+      <div class="form-text mt-2">Tiap Expense Type yang diisi disimpan sebagai satu Expense Declaration tersendiri, Deklarasi dari kasbon selalu tercatat di Budget Plan Detail kasbonnya (yang sudah dipotong waktu kasbon di-approve); deklarasi without advance memotong Budget Plan Detail jenis biaya itu.</div>
     </div>
 
     <div class="card-footer d-flex justify-content-end gap-2">
@@ -185,7 +177,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const advanceSel = document.getElementById('advanceRequestId');
   const summary = document.getElementById('advanceSummary');
   const manual = document.getElementById('manualBudget');
-  const manualRequired = ['budgetParent', 'workId', 'area', 'workType'].map(id => document.getElementById(id));
+  const manualRequired = ['workId', 'area', 'workType'].map(id => document.getElementById(id));
 
   function showSummary() {
     const a = info[advanceSel.value];
@@ -196,7 +188,7 @@ document.addEventListener('DOMContentLoaded', function () {
       '<br>WID: <b>' + a.wid + '</b> &middot; Budget bulan: <b>' + a.month + '</b> &middot; Expense Type kasbon: <b>' + a.expense + '</b>' +
       '<br><span class="text-muted">Account, Area, Work Type, WID, dan bulan budget otomatis mengikuti kasbon ini. Deklarasi dari kasbon langsung Approved, tanpa approval lagi.</span>' +
       '<br><b>' + (a.expense === OPEN_TYPE
-        ? 'Kasbon Other Expense: boleh dipecah ke Expense Type mana saja, tiap baris memotong budget jenis biayanya sendiri.'
+        ? 'Kasbon Other Expense: boleh dipecah ke Expense Type mana saja, tapi tetap memakai budget Other Expense kasbon ini (jenis biayanya dicatat untuk laporan).'
         : 'Deklarasi untuk kasbon ini hanya untuk Expense Type ' + a.expense + '.') + '</b>';
     summary.classList.remove('d-none');
   }

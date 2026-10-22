@@ -41,11 +41,14 @@
               <th>Action</th>
               <th>Anual Budget ID</th>
               <th>Account</th>
+              <th>WID</th>
               <th>Year</th>
               <th>Area</th>
               <th>Work Type</th>
               <th>Work Subtype</th>
               <th>Currency</th>
+              <th class="text-end">Budget Amount</th>
+              <th class="text-end">Belum Dibagi ke Bulan</th>
               <th class="text-end">Total Expense Plan</th>
               <th class="text-end">Total Actual Expense</th>
             </tr>
@@ -56,11 +59,14 @@
                 <td><a href="#" class="sf-link" onclick='openPlanModal("edit", @json($plan)); return false;'>Edit</a></td>
                 <td><a class="sf-link" href="{{ route('erp.annual-budget-plans.show', $plan) }}">{{ $plan->code }}</a></td>
                 <td>{{ $plan->budgetParent->name ?? '-' }}</td>
+                <td>{!! $plan->workItem ? e($plan->workItem->wid_code) : '<span class="badge bg-label-warning">Belum ada WID</span>' !!}</td>
                 <td>{{ $plan->year }}</td>
                 <td>{{ $plan->area }}</td>
                 <td>{{ $plan->work_type }}</td>
                 <td>{{ $plan->work_subtype }}</td>
                 <td>{{ $plan->currency ?: 'IDR' }}</td>
+                <td class="text-end">IDR {{ number_format($plan->budget_amount, 0, ',', '.') }}</td>
+                <td class="text-end">IDR {{ number_format($plan->remaining_budget, 0, ',', '.') }}</td>
                 <td class="text-end">IDR {{ number_format($plan->total_expense_plan, 0, ',', '.') }}</td>
                 <td class="text-end">IDR {{ number_format($plan->total_actual_expense, 0, ',', '.') }}</td>
               </tr>
@@ -82,15 +88,7 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <div class="mb-3">
-          <label class="form-label fw-semibold">Budget Parent <span class="text-danger">*</span></label>
-          <select name="budget_parent_id" class="form-select" required>
-            <option value="">-- Select Budget Parent --</option>
-            @foreach($budgetParents as $bp)
-              <option value="{{ $bp->id }}">{{ $bp->budget_code }} - {{ $bp->name }}</option>
-            @endforeach
-          </select>
-        </div>
+        @include('erp.budget.partials.annual-wid-fields')
         <div class="row g-3">
           <div class="col-md-6">
             <label class="form-label fw-semibold">Year <span class="text-danger">*</span></label>
@@ -141,7 +139,8 @@
             methodField.value = 'PUT';
             title.innerHTML = '<i class="bx bx-edit-alt me-2 text-warning"></i>Edit Annual Budget Plan';
             submitBtn.textContent = 'Update';
-            form.querySelector('[name="budget_parent_id"]').value = plan.budget_parent_id;
+            form.querySelector('[name="work_item_id"]').value = plan.work_item_id || '';
+            form.querySelector('[name="budget_amount"]').value = plan.budget_amount;
             form.querySelector('[name="year"]').value = plan.year;
             form.querySelector('[name="currency"]').value = plan.currency || 'IDR';
             form.querySelector('[name="area"]').value = plan.area;
@@ -161,7 +160,7 @@
     // Live refresh: this table is rendered server-side (no ajax DataTable),
     // so another user's annual budget plan create/update just reloads the page.
     window.addEventListener('erp-live-update', function (e) {
-        if (e.detail.record_type === 'annual_budget_plan') {
+        if (e.detail.record_type === 'annual_budget_plan' || e.detail.record_type === 'work_item') {
             location.reload();
         }
     });

@@ -6,6 +6,7 @@ use App\Helpers\NotificationHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Erp\AnnualBudgetPlan;
 use App\Models\Erp\MonthlyBudgetPlan;
+use App\Services\BudgetGuard;
 use App\Services\BudgetRollupService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -21,12 +22,19 @@ class MonthlyBudgetPlanController extends Controller
             'unit' => ['nullable', 'string', 'max:50'],
             'qty' => ['required', 'integer', 'min:0'],
             'revenue_plan' => ['required', 'numeric', 'min:0'],
+            'budget_amount' => ['required', 'numeric', 'min:0', 'max:999999999999'],
             'description' => ['nullable', 'string'],
         ]);
 
         $exists = $annualBudgetPlan->monthlyBudgetPlans()->where('month', $data['month'])->exists();
         if ($exists) {
             return redirect()->back()->with('error', 'Bulan ini sudah ada Monthly Budget Plan-nya.');
+        }
+
+        // The month's allocation comes out of what the Annual plan hasn't handed out yet.
+        $annualLeft = (float) $annualBudgetPlan->budget_amount - (float) $annualBudgetPlan->monthlyBudgetPlans()->sum('budget_amount');
+        if ((float) $data['budget_amount'] > $annualLeft + 0.005) {
+            return redirect()->back()->withInput()->with('error', "Sisa Annual Budget Plan {$annualBudgetPlan->code} tidak cukup: sisa Rp ".BudgetGuard::money($annualLeft).', diminta Rp '.BudgetGuard::money($data['budget_amount']).'.');
         }
 
         $data['year'] = $annualBudgetPlan->year;
@@ -45,7 +53,7 @@ class MonthlyBudgetPlanController extends Controller
     {
         abort_unless(auth()->user()->hasPermission('annual_budget_plans.view'), 403);
 
-        $monthlyBudgetPlan->load(['annualBudgetPlan.budgetParent', 'budgetPlanDetails']);
+        $monthlyBudgetPlan->load(['annualBudgetPlan.budgetParent', 'annualBudgetPlan.workItem', 'budgetPlanDetails']);
 
         return view('erp.budget.monthly_plans.show', compact('monthlyBudgetPlan'));
     }
@@ -59,10 +67,12 @@ class MonthlyBudgetPlanController extends Controller
             'unit' => ['nullable', 'string', 'max:50'],
             'qty' => ['required', 'integer', 'min:0'],
             'revenue_plan' => ['required', 'numeric', 'min:0'],
+            'budget_amount' => ['required', 'numeric', 'min:0', 'max:999999999999'],
             'description' => ['nullable', 'string'],
         ]);
 
-        $exists = $monthlyBudgetPlan->annualBudgetPlan->monthlyBudgetPlans()
+        $annual = $monthlyBudgetPlan->annualBudgetPlan;
+        $exists = $annual->monthlyBudgetPlans()
             ->where('id', '!=', $monthlyBudgetPlan->id)
             ->where('month', $data['month'])
             ->exists();
@@ -71,7 +81,29 @@ class MonthlyBudgetPlanController extends Controller
             return redirect()->back()->with('error', 'Bulan ini sudah ada Monthly Budget Plan-nya.');
         }
 
+        $annualLeft = (float) $annual->budget_amount
+            - (float) $annual->monthlyBudgetPlans()->where('id', '!=', $monthlyBudgetPlan->id)->sum('budget_amount');
+        if ((float) $data['budget_amount'] > $annualLeft + 0.005) {
+            return redirect()->back()->withInput()->with('error', "Sisa Annual Budget Plan {$annual->code} tidak cukup: sisa Rp ".BudgetGuard::money($annualLeft).', diminta Rp '.BudgetGuard::money($data['budget_amount']).'.');
+        }
+
+        // Detail plans are Amount x the month's Qty, so a new Qty re-sizes every detail.
+        $details = $monthlyBudgetPlan->budgetPlanDetails()->get();
+        $newDetailTotal = (float) $details->sum('amount') * (int) $data['qty'];
+        if ($newDetailTotal > (float) $data['budget_amount'] + 0.005) {
+            return redirect()->back()->withInput()->with('error', 'Budget Plan Detail bulan ini (Rp '.BudgetGuard::money($newDetailTotal).') melebihi Budget Amount yang diisi (Rp '.BudgetGuard::money($data['budget_amount']).').');
+        }
+        foreach ($details as $d) {
+            $used = (float) $d->total_expense_plan - (float) $d->remaining_budget;
+            if ((float) $d->amount * (int) $data['qty'] + 0.005 < $used) {
+                return redirect()->back()->withInput()->with('error', "Qty ini membuat plan {$d->expense_type} ({$d->code}) lebih kecil dari yang sudah terpakai (Rp ".BudgetGuard::money($used).').');
+            }
+        }
+
         $monthlyBudgetPlan->update($data);
+        foreach ($details as $d) {
+            BudgetRollupService::recalculateDetail($d->id);
+        }
         BudgetRollupService::recalculateMonthly($monthlyBudgetPlan->id);
 
         NotificationHelper::pushLive('monthly_budget_plan', $monthlyBudgetPlan->id, 'updated');

@@ -26,7 +26,8 @@
     ['Vehicle', e($expenseDeclaration->vehicle_info ?? '')],
   ];
   $right = [
-    ['Expense Type', '<b>'.e($detail?->expense_type ?? '-').'</b>'],
+    ['Expense Type', '<b>'.e($expenseDeclaration->expense_type ?? $detail?->expense_type ?? '-').'</b>'],
+    ['Budget yang Dipakai', e(($detail?->code ?? '-').' ('.($detail?->expense_type ?? '-').')')],
     ['Is InDirect', $expenseDeclaration->is_indirect ? '<i class="bx bx-check fs-5"></i>' : ''],
     ['Amount declaration', e($expenseDeclaration->currency.' '.number_format((float) $expenseDeclaration->amount_declaration, 0, ',', '.'))],
     ['Converted Amount (IDR)', '<b>'.e($money($expenseDeclaration->converted_amount_idr)).'</b>'],

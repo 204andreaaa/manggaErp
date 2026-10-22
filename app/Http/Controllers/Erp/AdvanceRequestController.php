@@ -44,17 +44,16 @@ class AdvanceRequestController extends Controller
     }
 
     /**
-     * Dropdown data shared by the kasbon and declaration forms: Budget Parents,
-     * the Area/Work Type/Subtype combos that actually have an Annual Budget Plan,
-     * WIDs tagged with their Budget Parent, and users for "Request By".
+     * Dropdown data shared by the kasbon and declaration forms: WIDs (with their
+     * Account), the Area/Work Type/Subtype combos each WID has an Annual Budget
+     * Plan for, and users for "Request By".
      */
     public static function budgetFormOptions(): array
     {
         return [
-            'budgetParents' => \App\Models\Erp\ErpBudgetParent::orderBy('name')->get(['id', 'budget_code', 'name']),
-            'annualPlans' => \App\Models\Erp\AnnualBudgetPlan::orderBy('year')
-                ->get(['id', 'budget_parent_id', 'year', 'area', 'work_type', 'work_subtype']),
-            'workItems' => ErpWorkItem::with('subProject:id,budget_parent_id')->orderBy('wid_code')->get(),
+            'annualPlans' => \App\Models\Erp\AnnualBudgetPlan::whereNotNull('work_item_id')->orderBy('year')
+                ->get(['id', 'work_item_id', 'year', 'area', 'work_type', 'work_subtype']),
+            'workItems' => ErpWorkItem::with('subProject.budgetParent')->orderBy('wid_code')->get(),
             'users' => \App\Models\User::orderBy('name')->get(['id', 'name']),
         ];
     }
@@ -65,7 +64,6 @@ class AdvanceRequestController extends Controller
 
         $data = $request->validate([
             'advance_request_date' => ['required', 'date'],
-            'budget_parent_id' => ['required', 'exists:erp_budget_parents,id'],
             'area' => ['required', 'string', 'max:150'],
             'work_type' => ['required', 'string', 'max:80'],
             'work_subtype' => ['nullable', 'string', 'max:150'],
@@ -80,16 +78,9 @@ class AdvanceRequestController extends Controller
 
         $lines = self::checkedLines($data['lines'], self::EXPENSE_TYPES);
 
-        $work = ErpWorkItem::with('subProject')->findOrFail($data['work_id']);
-        if ((int) $work->subProject?->budget_parent_id !== (int) $data['budget_parent_id']) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                'work_id' => "WID {$work->wid_code} bukan milik Account (Budget Parent) yang dipilih.",
-            ]);
-        }
-
         // Resolve every line's budget first, so one missing line aborts the whole form.
         $monthly = \App\Services\BudgetDetailResolver::monthlyFor(
-            $data['budget_parent_id'], $data['area'], $data['work_type'], $data['work_subtype'] ?? null, $data['advance_request_date']
+            $data['work_id'], $data['area'], $data['work_type'], $data['work_subtype'] ?? null, $data['advance_request_date']
         );
         foreach ($lines as $type => $line) {
             $lines[$type]['detail'] = \App\Services\BudgetDetailResolver::detailFor($monthly, $type);
@@ -99,7 +90,7 @@ class AdvanceRequestController extends Controller
         \App\Services\BudgetGuard::assertFits(array_map(fn ($l) => [
             'detail' => $l['detail'],
             'amount' => !empty($data['number_of_site']) ? $l['amount'] * $data['number_of_site'] : $l['amount'],
-        ], $lines), $work);
+        ], $lines));
 
         $created = DB::transaction(function () use ($data, $lines) {
             $created = [];
@@ -282,15 +273,9 @@ class AdvanceRequestController extends Controller
             $isFinalApproval = $advanceRequest
                 && !$advanceRequest->approvals()->where('status', 'Waiting')->where('id', '!=', $approval->id)->exists();
             if ($isFinalApproval) {
-                $work = ErpWorkItem::where('id', $advanceRequest->work_id)->lockForUpdate()->firstOrFail();
                 $detail = \App\Models\Erp\BudgetPlanDetail::where('id', $advanceRequest->budget_plan_detail_id)->lockForUpdate()->firstOrFail();
-                $amount = (float) $advanceRequest->total_amount_advance;
-                $shortfall = array_filter([
-                    \App\Services\BudgetGuard::detailShortfall($detail, $amount),
-                    \App\Services\BudgetGuard::widShortfall($work, $amount),
-                ]);
-                if ($shortfall) {
-                    return redirect()->back()->with('error', "Advance Request {$advanceRequest->code} tidak bisa di-approve. ".implode(' ', $shortfall));
+                if ($shortfall = \App\Services\BudgetGuard::detailShortfall($detail, (float) $advanceRequest->total_amount_advance)) {
+                    return redirect()->back()->with('error', "Advance Request {$advanceRequest->code} tidak bisa di-approve. {$shortfall}");
                 }
             }
 
@@ -329,14 +314,13 @@ class AdvanceRequestController extends Controller
                         'actual_amount' => $advanceRequest->total_amount_advance,
                     ]);
 
-                    // Budget is cut here: the WID right away, the plan detail through
-                    // the outstanding (full kasbon amount until declarations settle it).
-                    $work->update(['remaining_budget' => (float) $work->remaining_budget - (float) $advanceRequest->total_amount_advance]);
+                    // Budget is cut here, through the outstanding (full kasbon amount
+                    // until declarations settle it). The WID isn't touched: this money
+                    // already left the WID when the Annual Budget Plan was allocated.
                     BudgetRollupService::recalculateAdvanceRequest($advanceRequest->id);
                     BudgetRollupService::recalculateDetail($advanceRequest->budget_plan_detail_id);
 
                     NotificationHelper::pushLive('advance_request', $advanceRequest->id, $advanceRequest->status);
-                    NotificationHelper::pushLive('work_item', $work->id, 'updated');
 
                     if ($advanceRequest->request_by_id) {
                         NotificationHelper::send(

@@ -20,6 +20,8 @@ class MonthlyBudgetPlan extends Model
         'unit',
         'qty',
         'revenue_plan',
+        'budget_amount',
+        'remaining_budget',
         'total_revenue_plan',
         'total_direct_expense_plan',
         'total_indirect_expense_plan',
@@ -32,6 +34,8 @@ class MonthlyBudgetPlan extends Model
 
     protected $casts = [
         'revenue_plan' => 'decimal:2',
+        'budget_amount' => 'decimal:2',
+        'remaining_budget' => 'decimal:2',
         'total_revenue_plan' => 'decimal:2',
         'total_direct_expense_plan' => 'decimal:2',
         'total_indirect_expense_plan' => 'decimal:2',

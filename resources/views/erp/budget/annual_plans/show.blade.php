@@ -14,6 +14,7 @@
     ['Anual Budget ID', '<b>'.e($plan->code).'</b>'],
     ['Year', e($plan->year)],
     ['Account', e($plan->budgetParent->name ?? '-')],
+    ['WID', $plan->workItem ? e($plan->workItem->wid_code.' - '.$plan->workItem->name) : '<span class="badge bg-label-warning">Belum ada WID</span>'],
     ['Area', e($plan->area)],
     ['Work Type', e($plan->work_type)],
     ['Work Subtype', e($plan->work_subtype ?? '')],
@@ -23,6 +24,9 @@
     ['Total Actual Expense', e($money($plan->total_actual_expense))],
   ];
   $right = [
+    ['Budget Amount (dari WID)', '<b>'.e($money($plan->budget_amount)).'</b>'],
+    ['Sudah Dibagi ke Bulan', e($money((float) $plan->budget_amount - (float) $plan->remaining_budget))],
+    ['Belum Dibagi ke Bulan', '<b class="'.((float) $plan->remaining_budget <= 0 ? 'text-danger' : 'text-success').'">'.e($money($plan->remaining_budget)).'</b>'],
     ['Owner (KAM)', e($plan->budgetParent?->kam?->name ?? '-')],
     ['Currency', e($plan->currency ?: 'IDR')],
     ['Created', e($plan->created_at?->format('Y/m/d H:i') ?? '-')],
@@ -67,6 +71,8 @@
               <th>Monthly Budget Plan Name</th>
               <th class="text-end">Month</th>
               <th class="text-end">Qty</th>
+              <th class="text-end">Budget Amount</th>
+              <th class="text-end">Belum Dibagi ke Detail</th>
               <th class="text-end">Revenue Plan</th>
               <th class="text-end">Total Revenue Plan</th>
               <th class="text-end">Subtotal Expense Plan</th>
@@ -83,6 +89,8 @@
                 <td><a class="sf-link" href="{{ route('erp.monthly-budget-plans.show', $m) }}">{{ $m->code }}</a></td>
                 <td class="text-end">{{ $m->month }}</td>
                 <td class="text-end">{{ $m->qty }} {{ $m->unit }}</td>
+                <td class="text-end">{{ $money($m->budget_amount) }}</td>
+                <td class="text-end {{ (float) $m->remaining_budget < 0 ? 'text-danger fw-bold' : '' }}">{{ $money($m->remaining_budget) }}</td>
                 <td class="text-end">{{ $money($m->revenue_plan) }}</td>
                 <td class="text-end">{{ $money($m->total_revenue_plan) }}</td>
                 <td class="text-end">{{ $money($m->subtotal_expense_plan) }}</td>
@@ -132,6 +140,11 @@
           <input type="number" step="0.01" name="revenue_plan" class="form-control" required min="0" value="0">
         </div>
         <div class="mb-3">
+          <label class="form-label fw-semibold">Budget Amount <span class="text-danger">*</span></label>
+          <input type="number" step="0.01" name="budget_amount" class="form-control" required min="0">
+          <div class="form-text">Jatah bulan ini, diambil dari sisa Annual: <b>IDR {{ number_format($plan->remaining_budget, 0, ',', '.') }}</b>.</div>
+        </div>
+        <div class="mb-3">
           <label class="form-label fw-semibold">Description</label>
           <textarea name="description" class="form-control" rows="2"></textarea>
         </div>
@@ -165,6 +178,7 @@
             form.querySelector('[name="unit"]').value = month.unit || '';
             form.querySelector('[name="qty"]').value = month.qty;
             form.querySelector('[name="revenue_plan"]').value = month.revenue_plan;
+            form.querySelector('[name="budget_amount"]').value = month.budget_amount;
             form.querySelector('[name="description"]').value = month.description || '';
         } else {
             form.action = storeUrl;

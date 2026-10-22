@@ -16,6 +16,7 @@
     ['Year', e($mp->year)],
     ['Month', e($mp->month)],
     ['Account Name', e($annual->budgetParent->name ?? '-')],
+    ['WID', e($annual->workItem?->wid_code ?? '-')],
     ['Area', e($annual->area)],
     ['Type', e($annual->work_type)],
     ['Work Subtype', e($annual->work_subtype ?? '')],
@@ -25,6 +26,8 @@
     ['Description', nl2br(e($mp->description ?? ''))],
   ];
   $right = [
+    ['Budget Amount (dari Annual)', '<b>'.e($money($mp->budget_amount)).'</b>'],
+    ['Belum Dibagi ke Detail', '<b class="'.((float) $mp->remaining_budget <= 0 ? 'text-danger' : 'text-success').'">'.e($money($mp->remaining_budget)).'</b>'],
     ['Total Actual Expense', e($money($mp->total_actual_expense))],
     ['Total Direct Expense Plan', e($money($mp->total_direct_expense_plan))],
     ['Total Indirect Expense Plan', e($money($mp->total_indirect_expense_plan))],
@@ -138,7 +141,7 @@
         <div class="mb-3">
           <label class="form-label fw-semibold">Amount per unit <span class="text-danger">*</span></label>
           <input type="number" step="0.01" name="amount" class="form-control" required min="0" value="0">
-          <div class="form-text text-muted">Dikalikan Qty ({{ $monthlyBudgetPlan->qty }} {{ $monthlyBudgetPlan->unit }}) untuk dapat Total Plan.</div>
+          <div class="form-text text-muted">Dikalikan Qty ({{ $monthlyBudgetPlan->qty }} {{ $monthlyBudgetPlan->unit }}) untuk dapat Total Plan. Sisa bulan ini yang belum dibagi: <b>IDR {{ number_format($monthlyBudgetPlan->remaining_budget, 0, ',', '.') }}</b>.</div>
         </div>
         <div class="mb-3">
           <label class="form-label fw-semibold">Description</label>

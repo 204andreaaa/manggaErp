@@ -17,6 +17,7 @@ class ExpenseDeclaration extends Model
         'code',
         'record_type',
         'budget_plan_detail_id',
+        'expense_type',
         'advance_request_id',
         'work_id',
         'site_name',
@@ -74,8 +75,10 @@ class ExpenseDeclaration extends Model
         return $this->budgetPlanDetail?->monthlyBudgetPlan?->budgetParent;
     }
 
-    public function getExpenseTypeAttribute()
+    // The declaration's own type; a kasbon declaration may differ from the
+    // detail it draws on (Other Expense kasbon split into Office, etc.).
+    public function getExpenseTypeAttribute($value)
     {
-        return $this->budgetPlanDetail?->expense_type;
+        return $value ?? $this->budgetPlanDetail?->expense_type;
     }
 }

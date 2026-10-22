@@ -54,7 +54,7 @@
                 <td><a class="sf-link" href="{{ route('erp.expense-declarations.show', $d) }}">{{ $d->code }}</a></td>
                 <td>{{ $d->record_type === 'with_advance' ? 'with advance' : 'without advance' }}</td>
                 <td>@if($d->advanceRequest)<a class="sf-link" href="{{ route('erp.advance-requests.show', $d->advanceRequest) }}">{{ $d->advanceRequest->code }}</a>@endif</td>
-                <td>{{ $d->budgetPlanDetail?->expense_type }}</td>
+                <td>{{ $d->expense_type ?? $d->budgetPlanDetail?->expense_type }}</td>
                 <td class="small">{{ $d->description }}</td>
                 <td>{{ $d->po_number }}</td>
                 <td>{{ $d->work?->wid_code }}</td>

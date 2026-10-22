@@ -25,13 +25,9 @@
           <div class="form-text">Bulan dari tanggal ini menentukan Monthly Budget Plan yang dipotong.</div>
         </div>
         <div class="col-md-6">
-          <label class="form-label fw-semibold">Account (Budget Parent) <span class="text-danger">*</span></label>
-          <select name="budget_parent_id" id="budgetParent" class="form-select" required>
-            <option value="">-- Pilih Account --</option>
-            @foreach($budgetParents as $bp)
-              <option value="{{ $bp->id }}" @selected(old('budget_parent_id') == $bp->id)>{{ $bp->name }} ({{ $bp->budget_code }})</option>
-            @endforeach
-          </select>
+          <label class="form-label fw-semibold">Work ID (WID) <span class="text-danger">*</span></label>
+          <select name="work_id" id="workId" class="form-select" required></select>
+          <div class="form-text">Account: <b id="accountName">-</b></div>
         </div>
         <div class="col-md-4">
           <label class="form-label fw-semibold">Area <span class="text-danger">*</span></label>
@@ -44,10 +40,6 @@
         <div class="col-md-4">
           <label class="form-label fw-semibold">Work SubType</label>
           <select name="work_subtype" id="workSubtype" class="form-select"></select>
-        </div>
-        <div class="col-md-6">
-          <label class="form-label fw-semibold">Work ID (WID) <span class="text-danger">*</span></label>
-          <select name="work_id" id="workId" class="form-select" required></select>
         </div>
         <div class="col-md-6">
           <label class="form-label fw-semibold">Request By <span class="text-danger">*</span></label>
@@ -92,7 +84,7 @@
           </tbody>
         </table>
       </div>
-      <div class="form-text mt-2">Tiap Expense Type yang diisi disimpan sebagai satu Advance Request tersendiri, masing-masing memotong Budget Plan Detail jenis biaya itu.</div>
+      <div class="form-text mt-2">Tiap Expense Type yang diisi disimpan sebagai satu Advance Request tersendiri. Begitu approval terakhir selesai, masing-masing memotong Budget Plan Detail jenis biaya itu &mdash; termasuk kalau nanti dideklarasikan ke jenis biaya lain (kasbon Other Expense).</div>
     </div>
 
     <div class="card-footer d-flex justify-content-end gap-2">

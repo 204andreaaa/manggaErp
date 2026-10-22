@@ -100,7 +100,7 @@
                 <td><a class="sf-link" href="{{ route('erp.expense-declarations.show', $decl) }}">{{ $decl->code }}</a></td>
                 <td>{{ $budgetParent->name ?? '-' }}</td>
                 <td>{{ $decl->work?->wid_code }}</td>
-                <td>{{ $decl->budgetPlanDetail?->expense_type }}</td>
+                <td>{{ $decl->expense_type ?? $decl->budgetPlanDetail?->expense_type }}</td>
                 <td>{{ $monthly?->area }}</td>
                 <td class="text-center">@if($decl->is_indirect)<i class="bx bx-check"></i>@endif</td>
                 <td>{{ $monthly?->work_subtype }}</td>

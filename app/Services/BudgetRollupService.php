@@ -85,6 +85,8 @@ class BudgetRollupService
             $monthly->total_expense_plan = $subtotal * $monthly->qty;
             $monthly->total_revenue_plan = $monthly->revenue_plan * $monthly->qty;
             $monthly->total_actual_expense = $details->sum('actual_expense_amount');
+            // Jatah bulan ini yang belum dibagi ke Budget Plan Detail.
+            $monthly->remaining_budget = (float) $monthly->budget_amount - (float) $details->sum('total_expense_plan');
             $monthly->save();
 
             self::recalculateAnnual($monthly->annual_budget_plan_id);
@@ -119,6 +121,8 @@ class BudgetRollupService
 
             $annual->total_expense_plan = $monthlies->sum('total_expense_plan');
             $annual->total_actual_expense = $monthlies->sum('total_actual_expense');
+            // Jatah tahunan yang belum dibagi ke Monthly Budget Plan.
+            $annual->remaining_budget = (float) $annual->budget_amount - (float) $monthlies->sum('budget_amount');
             $annual->save();
         });
     }

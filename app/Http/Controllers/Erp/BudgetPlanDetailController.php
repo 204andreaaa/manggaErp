@@ -6,6 +6,7 @@ use App\Helpers\NotificationHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Erp\BudgetPlanDetail;
 use App\Models\Erp\MonthlyBudgetPlan;
+use App\Services\BudgetGuard;
 use App\Services\BudgetRollupService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -38,6 +39,10 @@ class BudgetPlanDetailController extends Controller
 
         if ($exists) {
             return redirect()->back()->with('error', 'Expense type (dengan direct/indirect yang sama) sudah ada di bulan ini.');
+        }
+
+        if ($error = $this->monthlyShortfall($monthlyBudgetPlan, (float) $data['amount'] * $monthlyBudgetPlan->qty)) {
+            return redirect()->back()->withInput()->with('error', $error);
         }
 
         $data['monthly_budget_plan_id'] = $monthlyBudgetPlan->id;
@@ -75,6 +80,17 @@ class BudgetPlanDetailController extends Controller
             return redirect()->back()->with('error', 'Expense type (dengan direct/indirect yang sama) sudah ada di bulan ini.');
         }
 
+        $monthly = $budgetPlanDetail->monthlyBudgetPlan;
+        $newTotal = (float) $data['amount'] * $monthly->qty;
+        $used = (float) $budgetPlanDetail->total_expense_plan - (float) $budgetPlanDetail->remaining_budget;
+        $error = $this->monthlyShortfall($monthly, $newTotal, $budgetPlanDetail->id)
+            ?? ($newTotal + 0.005 < $used
+                ? "Plan {$budgetPlanDetail->expense_type} tidak boleh lebih kecil dari yang sudah terpakai kasbon/deklarasi (Rp ".BudgetGuard::money($used).').'
+                : null);
+        if ($error) {
+            return redirect()->back()->withInput()->with('error', $error);
+        }
+
         $budgetPlanDetail->update($data);
         BudgetRollupService::recalculateDetail($budgetPlanDetail->id);
 
@@ -83,6 +99,24 @@ class BudgetPlanDetailController extends Controller
         return redirect()
             ->route('erp.monthly-budget-plans.show', $budgetPlanDetail->monthly_budget_plan_id)
             ->with('success', 'Budget Plan Detail berhasil diperbarui.');
+    }
+
+    /**
+     * A detail's plan (Amount x the month's Qty) comes out of what the Monthly
+     * plan hasn't handed out to its other details yet.
+     */
+    private function monthlyShortfall(MonthlyBudgetPlan $monthly, float $total, ?int $ignoreDetailId = null): ?string
+    {
+        $left = (float) $monthly->budget_amount - (float) $monthly->budgetPlanDetails()
+            ->when($ignoreDetailId, fn ($q) => $q->where('id', '!=', $ignoreDetailId))
+            ->sum('total_expense_plan');
+
+        if ($total <= $left + 0.005) {
+            return null;
+        }
+
+        return "Sisa Monthly Budget Plan {$monthly->code} tidak cukup: sisa Rp ".BudgetGuard::money($left)
+            .', diminta Rp '.BudgetGuard::money($total).' (Amount x Qty '.$monthly->qty.').';
     }
 
     private function createWithGeneratedCode(array $data): BudgetPlanDetail

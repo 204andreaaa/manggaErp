@@ -9,18 +9,19 @@ use Carbon\Carbon;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Finds the Budget Plan Detail a kasbon / declaration line should draw from,
- * the way Salesforce does it: the user never picks a budget line directly,
- * they pick Account (Budget Parent) + Area + Work Type + Subtype + a date,
- * and the expense type of each line picks the detail inside that month.
+ * Finds the Budget Plan Detail a kasbon / declaration line should draw from:
+ * the user picks a WID + Area + Work Type + Subtype + a date, that finds the
+ * WID's Annual Budget Plan and its month, and the expense type of each line
+ * picks the detail inside that month.
  */
 class BudgetDetailResolver
 {
-    public static function monthlyFor(int $budgetParentId, string $area, string $workType, ?string $workSubtype, string $date): MonthlyBudgetPlan
+    public static function monthlyFor(int $workItemId, string $area, string $workType, ?string $workSubtype, string $date): MonthlyBudgetPlan
     {
         $when = Carbon::parse($date);
 
-        $annual = AnnualBudgetPlan::where('budget_parent_id', $budgetParentId)
+        $annual = AnnualBudgetPlan::with('workItem')
+            ->where('work_item_id', $workItemId)
             ->where('year', $when->year)
             ->where('area', $area)
             ->where('work_type', $workType)
@@ -33,7 +34,7 @@ class BudgetDetailResolver
 
         if (!$annual) {
             throw ValidationException::withMessages([
-                'area' => "Annual Budget Plan tahun {$when->year} untuk {$area} / {$workType}".($workSubtype ? " / {$workSubtype}" : '').' belum dibuat.',
+                'area' => "Annual Budget Plan tahun {$when->year} untuk WID ini dengan {$area} / {$workType}".($workSubtype ? " / {$workSubtype}" : '').' belum dibuat.',
             ]);
         }
 
