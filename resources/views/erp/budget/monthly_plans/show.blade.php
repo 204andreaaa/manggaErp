@@ -80,6 +80,7 @@
               <th class="text-end">Actual Expense Amount</th>
               <th class="text-end">Amount</th>
               <th class="text-end">Total Expense Plan</th>
+              <th class="text-end">Remaining Budget</th>
               <th class="text-end">Month</th>
               <th class="text-end">Qty</th>
             </tr>
@@ -96,6 +97,7 @@
                 <td class="text-end {{ $detailOver ? 'text-danger fw-bold' : '' }}">{{ $money($d->actual_expense_amount) }}@if($detailOver) <i class="bx bx-error-circle" title="Over Budget"></i>@endif</td>
                 <td class="text-end">{{ $money($d->amount) }}</td>
                 <td class="text-end">{{ $money($d->total_expense_plan) }}</td>
+                <td class="text-end fw-semibold {{ $d->remaining_budget <= 0 ? 'text-danger' : 'text-success' }}">{{ $money($d->remaining_budget) }}</td>
                 <td class="text-end">{{ $mp->month }}</td>
                 <td class="text-end">{{ $mp->qty }}</td>
               </tr>

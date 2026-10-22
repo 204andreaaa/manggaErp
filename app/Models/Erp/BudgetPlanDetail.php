@@ -23,6 +23,7 @@ class BudgetPlanDetail extends Model
         'actual_expense_with_advance',
         'actual_expense_without_advance',
         'actual_expense_amount',
+        'remaining_budget',
         'description',
     ];
 
@@ -34,6 +35,7 @@ class BudgetPlanDetail extends Model
         'actual_expense_with_advance' => 'decimal:2',
         'actual_expense_without_advance' => 'decimal:2',
         'actual_expense_amount' => 'decimal:2',
+        'remaining_budget' => 'decimal:2',
     ];
 
     public function monthlyBudgetPlan()

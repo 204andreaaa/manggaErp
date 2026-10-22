@@ -10,6 +10,7 @@ use App\Models\Erp\ErpApprovalConfig;
 use App\Models\Erp\ErpWorkItem;
 use App\Models\Erp\ExpenseDeclaration;
 use App\Helpers\NotificationHelper;
+use App\Services\BudgetGuard;
 use App\Services\BudgetRollupService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -42,7 +43,7 @@ class ExpenseDeclarationController extends Controller
     {
         abort_unless(auth()->user()->hasPermission('expense_declarations.create'), 403);
 
-        $advanceRequests = AdvanceRequest::with(['budgetPlanDetail.monthlyBudgetPlan.annualBudgetPlan', 'work'])
+        $advanceRequests = AdvanceRequest::with(['budgetPlanDetail.monthlyBudgetPlan.annualBudgetPlan', 'work', 'expenseDeclarations'])
             ->where('status', 'Approved')
             ->where('payment_status', 'Paid')
             ->latest()
@@ -124,7 +125,19 @@ class ExpenseDeclarationController extends Controller
             $lines[$type]['detail'] = \App\Services\BudgetDetailResolver::detailFor($monthly, $type);
         }
 
+        if ($withoutAdvance) {
+            // Early check; the final approval checks again against the live numbers.
+            BudgetGuard::assertFits(array_values($lines), $work);
+        }
+
         $created = DB::transaction(function () use ($data, $lines, $workId, $withoutAdvance) {
+            if (!$withoutAdvance) {
+                $this->assertFitsKasbon(
+                    AdvanceRequest::with('budgetPlanDetail')->where('id', $data['advance_request_id'])->lockForUpdate()->firstOrFail(),
+                    $lines
+                );
+            }
+
             $created = [];
             foreach ($lines as $line) {
                 $created[] = $this->createWithGeneratedCode([
@@ -143,9 +156,21 @@ class ExpenseDeclarationController extends Controller
                     'currency' => 'IDR',
                     'exchange_rate' => 1,
                     'converted_amount_idr' => $line['amount'],
-                    'status' => 'Draft',
+                    // The kasbon was already approved (and its budget cut), so declaring
+                    // against it needs no second approval; without advance still does.
+                    'status' => $withoutAdvance ? 'Draft' : 'Approved',
                 ]);
             }
+
+            if (!$withoutAdvance) {
+                $advanceRequest = AdvanceRequest::find($data['advance_request_id']);
+                BudgetRollupService::recalculateAdvanceRequest($advanceRequest->id);
+                $detailIds = collect($created)->pluck('budget_plan_detail_id')->push($advanceRequest->budget_plan_detail_id)->unique();
+                foreach ($detailIds as $detailId) {
+                    BudgetRollupService::recalculateDetail($detailId);
+                }
+            }
+
             return $created;
         });
 
@@ -277,6 +302,24 @@ class ExpenseDeclarationController extends Controller
                 return redirect()->back()->with('error', 'Anda tidak dapat menyetujui Expense Declaration yang Anda ajukan sendiri.');
             }
 
+            // A without-advance declaration cuts the budget on its last approval,
+            // so it must still fit right now.
+            $work = null;
+            $isFinalApproval = $declaration
+                && !$declaration->approvals()->where('status', 'Waiting')->where('id', '!=', $approval->id)->exists();
+            if ($isFinalApproval && $declaration->record_type === 'without_advance') {
+                $work = ErpWorkItem::where('id', $declaration->work_id)->lockForUpdate()->firstOrFail();
+                $detail = BudgetPlanDetail::where('id', $declaration->budget_plan_detail_id)->lockForUpdate()->firstOrFail();
+                $amount = (float) $declaration->converted_amount_idr;
+                $shortfall = array_filter([
+                    BudgetGuard::detailShortfall($detail, $amount),
+                    BudgetGuard::widShortfall($work, $amount),
+                ]);
+                if ($shortfall) {
+                    return redirect()->back()->with('error', "Expense Declaration {$declaration->code} tidak bisa di-approve. ".implode(' ', $shortfall));
+                }
+            }
+
             $approval->update([
                 'status' => 'Approved',
                 'comments' => $request->input('comments'),
@@ -307,11 +350,20 @@ class ExpenseDeclarationController extends Controller
                 } else {
                     $declaration->update(['status' => 'Approved']);
 
-                    BudgetRollupService::recalculateDetail($declaration->budget_plan_detail_id);
+                    if ($work) {
+                        $work->update(['remaining_budget' => (float) $work->remaining_budget - (float) $declaration->converted_amount_idr]);
+                        NotificationHelper::pushLive('work_item', $work->id, 'updated');
+                    }
 
                     if ($declaration->record_type === 'with_advance' && $declaration->advance_request_id) {
                         BudgetRollupService::recalculateAdvanceRequest($declaration->advance_request_id);
+                        $kasbonDetailId = AdvanceRequest::whereKey($declaration->advance_request_id)->value('budget_plan_detail_id');
+                        if ($kasbonDetailId && $kasbonDetailId != $declaration->budget_plan_detail_id) {
+                            BudgetRollupService::recalculateDetail($kasbonDetailId);
+                        }
                     }
+
+                    BudgetRollupService::recalculateDetail($declaration->budget_plan_detail_id);
 
                     NotificationHelper::pushLive('expense_declaration', $declaration->id, $declaration->status);
 
@@ -395,6 +447,37 @@ class ExpenseDeclarationController extends Controller
 
             return redirect()->back()->with('success', 'Expense Declaration berhasil ditolak.');
         });
+    }
+
+    /**
+     * A declaration may never exceed what is left of its kasbon. Lines under the
+     * kasbon's own expense type are already covered by the kasbon's budget cut;
+     * lines moved to another type (Other Expense kasbon) must fit that type's plan.
+     */
+    private function assertFitsKasbon(AdvanceRequest $advanceRequest, array $lines): void
+    {
+        $alreadyDeclared = (float) $advanceRequest->expenseDeclarations()
+            ->where('record_type', 'with_advance')
+            ->where('status', '!=', 'Rejected')
+            ->sum('converted_amount_idr');
+        $left = (float) $advanceRequest->actual_amount - $alreadyDeclared;
+        $total = array_sum(array_map(fn ($l) => (float) $l['amount'], $lines));
+
+        $errors = [];
+        if ($total > $left + 0.005) {
+            $errors[] = "Total deklarasi Rp ".BudgetGuard::money($total)." melebihi sisa kasbon {$advanceRequest->code} Rp ".BudgetGuard::money($left).'.';
+        }
+
+        $kasbonType = $advanceRequest->budgetPlanDetail->expense_type;
+        foreach ($lines as $type => $line) {
+            if ($type !== $kasbonType && ($msg = BudgetGuard::detailShortfall($line['detail'], (float) $line['amount']))) {
+                $errors[] = $msg;
+            }
+        }
+
+        if ($errors) {
+            throw ValidationException::withMessages(['lines' => implode(' ', $errors)]);
+        }
     }
 
     private function assertRecordTypeRules(array $data): void

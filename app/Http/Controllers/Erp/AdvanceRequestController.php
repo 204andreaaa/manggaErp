@@ -95,6 +95,12 @@ class AdvanceRequestController extends Controller
             $lines[$type]['detail'] = \App\Services\BudgetDetailResolver::detailFor($monthly, $type);
         }
 
+        // Early check; the final approval checks again against the live numbers.
+        \App\Services\BudgetGuard::assertFits(array_map(fn ($l) => [
+            'detail' => $l['detail'],
+            'amount' => !empty($data['number_of_site']) ? $l['amount'] * $data['number_of_site'] : $l['amount'],
+        ], $lines), $work);
+
         $created = DB::transaction(function () use ($data, $lines) {
             $created = [];
             foreach ($lines as $line) {
@@ -272,6 +278,22 @@ class AdvanceRequestController extends Controller
                 return redirect()->back()->with('error', 'Anda tidak dapat menyetujui Advance Request yang Anda ajukan sendiri.');
             }
 
+            // The last approval is what cuts the budget, so it must still fit right now.
+            $isFinalApproval = $advanceRequest
+                && !$advanceRequest->approvals()->where('status', 'Waiting')->where('id', '!=', $approval->id)->exists();
+            if ($isFinalApproval) {
+                $work = ErpWorkItem::where('id', $advanceRequest->work_id)->lockForUpdate()->firstOrFail();
+                $detail = \App\Models\Erp\BudgetPlanDetail::where('id', $advanceRequest->budget_plan_detail_id)->lockForUpdate()->firstOrFail();
+                $amount = (float) $advanceRequest->total_amount_advance;
+                $shortfall = array_filter([
+                    \App\Services\BudgetGuard::detailShortfall($detail, $amount),
+                    \App\Services\BudgetGuard::widShortfall($work, $amount),
+                ]);
+                if ($shortfall) {
+                    return redirect()->back()->with('error', "Advance Request {$advanceRequest->code} tidak bisa di-approve. ".implode(' ', $shortfall));
+                }
+            }
+
             $approval->update([
                 'status' => 'Approved',
                 'comments' => $request->input('comments'),
@@ -307,11 +329,14 @@ class AdvanceRequestController extends Controller
                         'actual_amount' => $advanceRequest->total_amount_advance,
                     ]);
 
-                    BudgetRollupService::recalculateDetail($advanceRequest->budget_plan_detail_id);
-                    // Outstanding starts at the full kasbon amount until declarations settle it.
+                    // Budget is cut here: the WID right away, the plan detail through
+                    // the outstanding (full kasbon amount until declarations settle it).
+                    $work->update(['remaining_budget' => (float) $work->remaining_budget - (float) $advanceRequest->total_amount_advance]);
                     BudgetRollupService::recalculateAdvanceRequest($advanceRequest->id);
+                    BudgetRollupService::recalculateDetail($advanceRequest->budget_plan_detail_id);
 
                     NotificationHelper::pushLive('advance_request', $advanceRequest->id, $advanceRequest->status);
+                    NotificationHelper::pushLive('work_item', $work->id, 'updated');
 
                     if ($advanceRequest->request_by_id) {
                         NotificationHelper::send(

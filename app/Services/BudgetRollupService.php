@@ -44,11 +44,29 @@ class BudgetRollupService
                 ->sum('converted_amount_idr');
 
             $detail->actual_expense_amount = $detail->actual_expense_with_advance + $detail->actual_expense_without_advance;
+            $detail->remaining_budget = self::detailRemaining($detail);
 
             $detail->save();
 
             self::recalculateMonthly($monthly->id);
         });
+    }
+
+    /**
+     * Budget terpotong begitu kasbon Approved: sisa = plan − expense yang sudah
+     * Approved − kasbon Approved yang belum dideklarasikan (outstanding). Saat
+     * deklarasinya masuk, potongan hanya pindah dari outstanding ke expense.
+     * Butuh advance_outstanding yang sudah dihitung ulang lebih dulu.
+     */
+    public static function detailRemaining(BudgetPlanDetail $detail): float
+    {
+        $actualExpense = $detail->expenseDeclarations()->where('status', 'Approved')->sum('converted_amount_idr');
+        $outstanding = $detail->advanceRequests()
+            ->where('status', 'Approved')
+            ->where('advance_outstanding', '>', 0)
+            ->sum('advance_outstanding');
+
+        return (float) $detail->total_expense_plan - (float) $actualExpense - (float) $outstanding;
     }
 
     public static function recalculateMonthly(int $monthlyId): void

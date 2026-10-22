@@ -7,6 +7,7 @@
   $advanceInfo = $advanceRequests->mapWithKeys(fn ($a) => [$a->id => [
       'code' => $a->code,
       'total' => number_format($a->total_amount_advance, 0, ',', '.'),
+      'left' => number_format($a->actual_amount - $a->expenseDeclarations->where('record_type', 'with_advance')->where('status', '!=', 'Rejected')->sum('converted_amount_idr'), 0, ',', '.'),
       'account' => $a->budgetPlanDetail?->monthlyBudgetPlan?->annualBudgetPlan?->budgetParent?->name ?? '-',
       'area' => $a->budgetPlanDetail?->monthlyBudgetPlan?->area ?? '-',
       'type' => $a->budgetPlanDetail?->monthlyBudgetPlan?->work_type ?? '-',
@@ -190,9 +191,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const a = info[advanceSel.value];
     if (!a) { summary.classList.add('d-none'); return; }
     summary.innerHTML = '<b>' + a.code + '</b> &middot; Total kasbon Rp ' + a.total +
+      ' &middot; <b>Sisa yang bisa dideklarasikan: Rp ' + a.left + '</b>' +
       '<br>Account: <b>' + a.account + '</b> &middot; Area: <b>' + a.area + '</b> &middot; Work Type: <b>' + a.type + '</b> / ' + a.subtype +
       '<br>WID: <b>' + a.wid + '</b> &middot; Budget bulan: <b>' + a.month + '</b> &middot; Expense Type kasbon: <b>' + a.expense + '</b>' +
-      '<br><span class="text-muted">Account, Area, Work Type, WID, dan bulan budget otomatis mengikuti kasbon ini.</span>' +
+      '<br><span class="text-muted">Account, Area, Work Type, WID, dan bulan budget otomatis mengikuti kasbon ini. Deklarasi dari kasbon langsung Approved, tanpa approval lagi.</span>' +
       '<br><b>' + (a.expense === OPEN_TYPE
         ? 'Kasbon Other Expense: boleh dipecah ke Expense Type mana saja, tiap baris memotong budget jenis biayanya sendiri.'
         : 'Deklarasi untuk kasbon ini hanya untuk Expense Type ' + a.expense + '.') + '</b>';
