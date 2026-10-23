@@ -16,3 +16,6 @@ yarn-error.log
 /.fleet
 /.idea
 /.vscode
+
+# Database dumps (contain real data)
+/backup_*.sql
