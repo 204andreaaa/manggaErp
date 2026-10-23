@@ -330,7 +330,7 @@ $(function () {
     window.deleteItem = async function (id) {
         const ask = await Swal.fire({
             icon: 'warning', title: 'Delete Work Item?',
-            text: 'This action cannot be undone.',
+            text: 'Allocated budget WID ini akan kembali ke Budget Parent. WID yang masih dipakai Annual Budget Plan, kasbon, deklarasi, atau Request Form tidak bisa dihapus.',
             showCancelButton: true, confirmButtonColor: '#d33',
             confirmButtonText: 'Yes, delete', cancelButtonText: 'Cancel'
         });
@@ -339,12 +339,15 @@ $(function () {
             const fd = new FormData();
             fd.append('_token', CSRF);
             fd.append('_method', 'DELETE');
-            const res = await fetch("{{ route('erp.work-items.destroy', ':id') }}".replace(':id', id), { method: 'POST', body: fd });
-            if (!res.ok) throw new Error('Delete failed');
+            const res = await fetch("{{ route('erp.work-items.destroy', ':id') }}".replace(':id', id), {
+                method: 'POST', body: fd, headers: { 'Accept': 'application/json' }
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(body.message || 'Delete failed');
             DT.ajax.reload(null, false);
-            toast('Work Item deleted', 'success');
+            toast(body.success || 'Work Item deleted', 'success');
         } catch (err) {
-            Swal.fire({ icon:'error', title:'Error', text: err.message });
+            Swal.fire({ icon:'error', title:'Gagal Hapus', text: err.message, customClass: { htmlContainer: 'text-start' } });
         }
     };
 

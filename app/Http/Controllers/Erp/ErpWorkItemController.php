@@ -242,13 +242,39 @@ class ErpWorkItemController extends Controller
     {
         abort_unless(auth()->user()->hasPermission('work_items.delete') || auth()->user()->hasPermission('budgets.delete'), 403);
         $workItem = ErpWorkItem::findOrFail($id);
+
+        if ($blockers = $this->deleteBlockers($workItem)) {
+            return response()->json([
+                'message' => "WID {$workItem->wid_code} tidak bisa dihapus karena masih dipakai:\n• ".implode("\n• ", $blockers)
+                    ."\n\nHapus atau pindahkan data tersebut dulu.",
+            ], 422);
+        }
+
         $parentId = $workItem->subProject?->budget_parent_id;
         $workItem->delete();
+        // The WID's allocation goes back to its Budget Parent.
         ErpBudgetParent::recalculateRemaining($parentId);
 
         NotificationHelper::pushLive('work_item', $workItem->id, 'deleted');
 
-        return response()->json(['success' => 'Work Item deleted successfully']);
+        return response()->json(['success' => 'Work Item deleted. Rp '.number_format($workItem->allocated_budget, 0, ',', '.').' kembali ke Budget Parent.']);
+    }
+
+    /**
+     * Everything that still draws on this WID's budget. A WID with any of these
+     * can't be deleted, or those records would point at a budget that's gone.
+     */
+    private function deleteBlockers(ErpWorkItem $workItem): array
+    {
+        $count = fn (string $label, int $n) => $n > 0 ? "{$n} {$label}" : null;
+
+        return array_values(array_filter([
+            $count('Annual Budget Plan', \App\Models\Erp\AnnualBudgetPlan::where('work_item_id', $workItem->id)->count()),
+            $count('Advance Request (kasbon)', \App\Models\Erp\AdvanceRequest::where('work_id', $workItem->id)->count()),
+            $count('Expense Declaration', \App\Models\Erp\ExpenseDeclaration::where('work_id', $workItem->id)->count()),
+            $count('Request Form', \App\Models\Erp\RequestForm::where('work_item_id', $workItem->id)
+                ->orWhereHas('items', fn ($q) => $q->where('wid', $workItem->wid_code))->count()),
+        ]));
     }
 
     // Ajax helper for Request Form to load WIDs
