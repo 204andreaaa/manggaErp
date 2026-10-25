@@ -4,7 +4,10 @@ namespace App\Http\Controllers\Erp;
 
 use App\Helpers\NotificationHelper;
 use App\Http\Controllers\Controller;
+use App\Models\Erp\AdvanceRequest;
 use App\Models\Erp\ErpBudgetParent;
+use App\Models\Erp\ErpWorkItem;
+use App\Models\Erp\ExpenseDeclaration;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -58,7 +61,7 @@ class ErpBudgetParentController extends Controller
 
                 return [
                     'rownum'           => $start + $i + 1,
-                    'budget_code'      => e($c->budget_code),
+                    'budget_code'      => '<a href="'.e(route('erp.budget-parents.show', $c)).'">'.e($c->budget_code).'</a>',
                     'name'             => e($c->name),
                     'kam'              => e($c->kam->name ?? '-'),
                     'total_budget'     => number_format($c->total_budget, 2),
@@ -74,6 +77,35 @@ class ErpBudgetParentController extends Controller
             'recordsFiltered' => $recordsFiltered,
             'data'            => $rows,
         ]);
+    }
+
+    /**
+     * Salesforce "Account" style page: the Budget Parent's fields plus related
+     * lists for everything hanging off it (plans, sub projects, WIDs, kasbon,
+     * declarations). Display only — no budget rule lives here.
+     */
+    public function show(ErpBudgetParent $budgetParent)
+    {
+        abort_unless(auth()->user()->hasPermission('budget_parents.view') || auth()->user()->hasPermission('budgets.view'), 403);
+
+        $budgetParent->load([
+            'kam',
+            'subProjects' => fn ($q) => $q->withCount('workItems')->orderBy('sub_project_code'),
+            'annualBudgetPlans' => fn ($q) => $q->with('workItem')->orderByDesc('year')->orderBy('area'),
+        ]);
+
+        $workItems = ErpWorkItem::with('subProject')
+            ->whereHas('subProject', fn ($q) => $q->where('budget_parent_id', $budgetParent->id))
+            ->orderBy('wid_code')
+            ->get();
+        $workIds = $workItems->pluck('id');
+
+        $advanceRequests = AdvanceRequest::with(['budgetPlanDetail', 'work'])
+            ->whereIn('work_id', $workIds)->latest()->get();
+        $declarations = ExpenseDeclaration::with(['advanceRequest', 'work'])
+            ->whereIn('work_id', $workIds)->latest()->get();
+
+        return view('erp.budget_parents.show', compact('budgetParent', 'workItems', 'advanceRequests', 'declarations'));
     }
 
     public function store(Request $r)
