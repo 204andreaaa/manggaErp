@@ -115,7 +115,6 @@ class RequestFormCrudTest extends ErpTestCase
 
     public function test_project_rf_item_without_wid_is_rejected(): void
     {
-        $this->markTestSkipped('BUG: WID is only required client-side; store() accepts project RF items with no wid');
 
         $this->actingInProject($this->makeUser('staff'))
             ->post(route('erp.request-form.store'), $this->rfPayload('project', [$this->itemPayload(['wid' => null])]))
@@ -152,7 +151,6 @@ class RequestFormCrudTest extends ErpTestCase
 
     public function test_new_line_after_removing_one_gets_a_unique_detail_number(): void
     {
-        $this->markTestSkipped('BUG: update() numbers new lines by items()->count()+1, duplicating an existing rf_detail_no after a removal');
 
         $user = $this->makeUser('staff');
         $rf = $this->createRfViaHttp($user, 'non_project', [

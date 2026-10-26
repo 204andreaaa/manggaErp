@@ -11,6 +11,8 @@ class HrEmployeeController extends Controller
 {
     public function index(Request $request)
     {
+        abort_unless(auth()->user()?->hasPermission('employees.view'), 403);
+
         $employees = Employee::on('master')->with('user')->orderBy('id')->get();
         $totalEmployees = $employees->count();
         $activeEmployees = $employees->where('status', 'active')->count();

@@ -202,7 +202,6 @@ class PurchaseOrderApprovalTest extends PurchaseOrderTestCase
 
     public function test_rejected_or_draft_pos_cannot_be_approved(): void
     {
-        $this->markTestSkipped('BUG: approve() has no status check; with no Pending step it falls to the amount fallback and approves Draft/Rejected POs (and cuts budget)');
 
         $this->twoLevels();
         $rejected = $this->draftPo();
@@ -217,6 +216,18 @@ class PurchaseOrderApprovalTest extends PurchaseOrderTestCase
         $this->assertSame('Rejected', $rejected->fresh()->status);
         $this->assertSame('Draft', $draft->fresh()->status);
         $this->assertEquals(10_000_000, $this->wid->fresh()->remaining_budget);
+    }
+
+    public function test_only_submitted_pos_can_be_rejected(): void
+    {
+        $this->twoLevels();
+        $draft = $this->draftPo();
+
+        $this->actingInProject($this->ceo)
+            ->post(route('erp.purchase-orders.reject', $draft), ['comments' => 'no'])
+            ->assertSessionHas('error');
+
+        $this->assertSame('Draft', $draft->fresh()->status);
     }
 
     public function test_resubmitting_after_rejection_keeps_levels_already_approved(): void

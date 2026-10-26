@@ -356,7 +356,7 @@
                         </div>
                       </div>
                       <div class="d-flex align-items-center gap-1">
-                        <button type="button" class="btn btn-sm btn-icon btn-label-primary rounded-circle" onclick="showAttachmentModal('{{ $url }}', '{{ addslashes($att->file_name) }}')" title="Preview File">
+                        <button type="button" class="btn btn-sm btn-icon btn-label-primary rounded-circle" onclick="showAttachmentModal({!! js_attr($url) !!}, {!! js_attr($att->file_name) !!})" title="Preview File">
                           <i class="bx bx-show"></i>
                         </button>
                         <a href="{{ $url }}" download="{{ $att->file_name }}" class="btn btn-sm btn-icon btn-label-secondary rounded-circle" title="Download File">

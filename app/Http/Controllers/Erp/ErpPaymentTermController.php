@@ -11,14 +11,14 @@ class ErpPaymentTermController extends Controller
 {
     public function index()
     {
-        abort_unless(auth()->user()->hasRole(['procurement', 'finance', 'superadmin', 'ceo', 'admin_project']) || auth()->user()->hasPermission('supplier.view'), 403);
+        abort_unless(auth()->user()->hasRole(['procurement', 'finance', 'superadmin', 'ceo', 'admin_project']) || auth()->user()->hasPermission('payment_terms.view'), 403);
         $terms = ErpPaymentTerm::orderBy('name')->get();
         return view('erp.payment_terms.index', compact('terms'));
     }
 
     public function store(Request $request)
     {
-        abort_unless(auth()->user()->hasRole(['procurement', 'finance', 'superadmin']) || auth()->user()->hasPermission('supplier.create'), 403);
+        abort_unless(auth()->user()->hasRole(['procurement', 'finance', 'superadmin']) || auth()->user()->hasPermission('payment_terms.create'), 403);
         
         $data = $request->validate([
             'name' => 'required|string|max:150|unique:erp_payment_terms,name',
@@ -56,7 +56,7 @@ class ErpPaymentTermController extends Controller
 
     public function update(Request $request, ErpPaymentTerm $paymentTerm)
     {
-        abort_unless(auth()->user()->hasRole(['procurement', 'finance', 'superadmin']) || auth()->user()->hasPermission('supplier.create'), 403);
+        abort_unless(auth()->user()->hasRole(['procurement', 'finance', 'superadmin']) || auth()->user()->hasPermission('payment_terms.update'), 403);
         
         $data = $request->validate([
             'name' => 'required|string|max:150|unique:erp_payment_terms,name,' . $paymentTerm->id,
@@ -94,7 +94,7 @@ class ErpPaymentTermController extends Controller
     
     public function destroy(ErpPaymentTerm $paymentTerm)
     {
-        abort_unless(auth()->user()->hasRole(['procurement', 'finance', 'superadmin']) || auth()->user()->hasPermission('supplier.create'), 403);
+        abort_unless(auth()->user()->hasRole(['procurement', 'finance', 'superadmin']) || auth()->user()->hasPermission('payment_terms.delete'), 403);
         $paymentTerm->delete();
         NotificationHelper::pushLive('payment_term', $paymentTerm->id, 'deleted');
         return redirect()->back()->with('success', 'Payment Term deleted successfully.');

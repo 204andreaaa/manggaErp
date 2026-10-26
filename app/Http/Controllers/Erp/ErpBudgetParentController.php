@@ -52,7 +52,7 @@ class ErpBudgetParentController extends Controller
             ->skip($start)->take($length)->get()
             ->map(function ($c, $i) use ($start) {
                 $editBtn = (auth()->user()->hasPermission('budget_parents.update') || auth()->user()->hasPermission('budgets.update'))
-                    ? '<button class="btn btn-sm btn-warning text-white me-1" onclick="openEdit('.$c->id.',\''.addslashes(e($c->budget_code)).'\',\''.addslashes(e($c->name)).'\','.($c->kam_user_id ?: 'null').',\''.$c->total_budget.'\',\''.addslashes(e($c->status)).'\')"><i class="bx bx-edit-alt"></i></button>'
+                    ? '<button class="btn btn-sm btn-warning text-white me-1" onclick="openEdit('.$c->id.','.js_attr($c->budget_code).','.js_attr($c->name).','.($c->kam_user_id ?: 'null').',\''.$c->total_budget.'\','.js_attr($c->status).')"><i class="bx bx-edit-alt"></i></button>'
                     : '';
 
                 $deleteBtn = (auth()->user()->hasPermission('budget_parents.delete') || auth()->user()->hasPermission('budgets.delete'))

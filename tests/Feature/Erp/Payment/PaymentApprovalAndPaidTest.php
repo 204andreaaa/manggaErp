@@ -194,7 +194,6 @@ class PaymentApprovalAndPaidTest extends ErpTestCase
 
     public function test_without_approval_config_a_finance_user_approves_the_single_level(): void
     {
-        $this->markTestSkipped('BUG: with no payment_advice config, submitDetail creates an unassigned Pending approval, so approveDetail refuses everyone but superadmin (the intended 1-level Finance/CEO fallback never applies).');
 
         $owner = $this->finance();
         $po = $this->makeApprovedPo();
@@ -262,7 +261,6 @@ class PaymentApprovalAndPaidTest extends ErpTestCase
 
     public function test_an_unapproved_termin_cannot_be_marked_paid(): void
     {
-        $this->markTestSkipped('BUG: markPaidDetail does not check approval_status — a Draft/Submitted/Rejected termin can be marked paid.');
 
         $po = $this->makeApprovedPo();
         $pa = $this->makePaymentAdvice($po, 1_000_000, [1_000_000]);

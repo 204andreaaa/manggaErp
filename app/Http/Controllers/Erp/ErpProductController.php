@@ -92,12 +92,12 @@ class ErpProductController extends Controller
 
                 $editBtn = auth()->user()->hasPermission('products.update')
                     ? sprintf(
-                        '<button class="action-btn-custom action-btn-edit me-1" title="Edit" onclick="openEdit(%d,\'%s\',\'%s\',\'%s\',\'%s\',%s,%s,%s,%s,%s,%s,%s,%d,%d,\'%s\')"><i class="bx bx-edit-alt"></i></button>',
+                        '<button class="action-btn-custom action-btn-edit me-1" title="Edit" onclick="openEdit(%d,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%d,%d,%s)"><i class="bx bx-edit-alt"></i></button>',
                         $p->id,
-                        addslashes(e($p->product_code)),
-                        addslashes(e($p->part_number ?? '')),
-                        addslashes(e($p->name)),
-                        addslashes(e($p->description ?? '')),
+                        js_attr($p->product_code),
+                        js_attr($p->part_number ?? ''),
+                        js_attr($p->name),
+                        js_attr($p->description ?? ''),
                         $p->uom_id ?? 'null',
                         $p->buying_price,
                         $p->product_family_id ?? 'null',
@@ -107,7 +107,7 @@ class ErpProductController extends Controller
                         $p->currency_id ?? 'null',
                         $p->is_active ? 1 : 0,
                         $p->is_physical ? 1 : 0,
-                        addslashes($imageUrl)
+                        js_attr($imageUrl)
                     )
                     : '';
 
@@ -133,11 +133,11 @@ class ErpProductController extends Controller
                 // Image & Product Title Cell
                 if ($imageUrl) {
                     $imgHtml = sprintf(
-                        '<img src="%s" alt="%s" class="prod-img-box me-3 clickable-img" onclick="openImagePreview(\'%s\', \'%s\')" title="Klik untuk memperbesar">',
+                        '<img src="%s" alt="%s" class="prod-img-box me-3 clickable-img" onclick="openImagePreview(%s, %s)" title="Klik untuk memperbesar">',
                         e($imageUrl),
                         e($p->name),
-                        addslashes(e($imageUrl)),
-                        addslashes(e($p->name))
+                        js_attr($imageUrl),
+                        js_attr($p->name)
                     );
                 } else {
                     $imgHtml = '<div class="prod-img-placeholder me-3"><i class="bx bx-package fs-3"></i></div>';

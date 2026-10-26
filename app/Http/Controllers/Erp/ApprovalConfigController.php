@@ -117,9 +117,18 @@ class ApprovalConfigController extends Controller
             'user_id' => 'required_if:assign_type,user|nullable|exists:master.users,id',
             'role_id' => 'required_if:assign_type,role|nullable|exists:master.roles,id',
             'min_amount' => 'nullable|numeric|min:0',
-            'max_amount' => 'nullable|numeric|min:0|gte:min_amount',
+            // Min kosong = 0, jadi 'gte:min_amount' tidak dipakai (selalu gagal kalau Min kosong).
+            'max_amount' => ['nullable', 'numeric', 'min:0', function ($attribute, $value, $fail) use ($request) {
+                $min = $request->input('min_amount');
+                if (is_numeric($min) && is_numeric($value) && (float) $value < (float) $min) {
+                    $fail('Nilai maksimum harus lebih besar atau sama dengan nilai minimum.');
+                }
+            }],
             'is_project' => 'nullable|in:1,0,',
         ]);
+
+        $data['min_amount'] = $data['min_amount'] ?? null;
+        $data['max_amount'] = $data['max_amount'] ?? null;
 
         if (in_array($data['record_type'], self::SINGLE_STEP_TYPES, true)) {
             $data['level'] = 1;
@@ -163,9 +172,9 @@ class ApprovalConfigController extends Controller
             return;
         }
 
-        $newMin = $data['min_amount'] !== null ? (float) $data['min_amount'] : 0.0;
-        $newMax = $data['max_amount'] !== null ? (float) $data['max_amount'] : INF;
-        $newIsProject = $data['is_project'];
+        $newMin = ($data['min_amount'] ?? null) !== null ? (float) $data['min_amount'] : 0.0;
+        $newMax = ($data['max_amount'] ?? null) !== null ? (float) $data['max_amount'] : INF;
+        $newIsProject = $data['is_project'] ?? null;
 
         $candidates = ErpApprovalConfig::where('record_type', $recordType)
             ->where('level', $data['level'])

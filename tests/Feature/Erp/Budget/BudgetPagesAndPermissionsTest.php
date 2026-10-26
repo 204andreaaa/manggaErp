@@ -135,11 +135,16 @@ class BudgetPagesAndPermissionsTest extends ErpTestCase
 
     public function test_granular_work_item_permission_does_not_grant_budget_parent_create(): void
     {
-        $this->markTestSkipped('BUG: User::hasPermission (app/Models/User.php:108-125) treats budgets.create as held when the role has ANY of budget_parents/sub_projects/work_items.create, and controllers accept budgets.create, so work_items.create alone lets a user create Budget Parents (ErpBudgetParentController.php:113).');
-
         $this->loginAsBudgetAdmin();
         $this->actingInProject($this->makeUser('planner', ['work_items.create']));
 
         $this->postJson(route('erp.budget-parents.store'), ['budget_code' => 'X', 'name' => 'X', 'total_budget' => 1, 'status' => 'A'])->assertForbidden();
+    }
+
+    public function test_legacy_budgets_permission_still_grants_every_budget_screen(): void
+    {
+        $this->actingInProject($this->makeUser('budget_legacy', ['budgets.create']));
+
+        $this->postJson(route('erp.budget-parents.store'), ['budget_code' => 'LEGACY', 'name' => 'Legacy', 'total_budget' => 1000, 'status' => 'Active'])->assertOk();
     }
 }

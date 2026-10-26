@@ -30,7 +30,7 @@
 <div class="container-xxl flex-grow-1 container-p-y">
     <div class="d-flex align-items-center justify-content-between mb-3">
         <h4 class="mb-0 fw-bold">ERP Suppliers</h4>
-        @if(auth()->user()->hasPermission('supplier.create'))
+        @if(auth()->user()->hasPermission('suppliers.create'))
             <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#glassSupplier" id="btnShowAdd">
                 <i class="bx bx-plus"></i> Add ERP Supplier
             </button>

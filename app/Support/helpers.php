@@ -153,3 +153,15 @@ if (! function_exists('fm_relativedate')) {
         }
     }
 }
+
+if (! function_exists('js_attr')) {
+    /**
+     * Encode nilai jadi literal JS (string/angka/null) yang aman ditaruh
+     * di dalam atribut HTML ber-kutip ganda, mis. onclick="openEdit(1, {!! js_attr($name) !!})".
+     * Jangan dibungkus kutip lagi — hasilnya sudah termasuk kutipnya.
+     */
+    function js_attr($value): string
+    {
+        return e(json_encode($value, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE));
+    }
+}

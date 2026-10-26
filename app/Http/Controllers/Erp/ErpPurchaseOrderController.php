@@ -42,14 +42,17 @@ class ErpPurchaseOrderController extends Controller
             'Hanya divisi Procurement atau Super Admin yang dapat membuat Purchase Order (PO).'
         );
 
-        // Cek dulu apakah ada item yang belum di-PO
-        $outstandingItemsCount = $requestForm->items()->whereDoesntHave('purchaseOrderItems')->count();
+        // Cek dulu apakah ada item yang belum di-PO (PO yang sudah Cancelled tidak dihitung)
+        $activePoItem = function ($q) {
+            $q->whereHas('purchaseOrder', fn ($po) => $po->where('status', '!=', 'Cancelled'));
+        };
+        $outstandingItemsCount = $requestForm->items()->whereDoesntHave('purchaseOrderItems', $activePoItem)->count();
         if ($outstandingItemsCount === 0) {
             return redirect()->back()->with('error', 'Semua barang di Request Form ini sudah dibuatkan PO.');
         }
 
-        $requestForm->load(['items' => function($query) {
-            $query->whereDoesntHave('purchaseOrderItems')->with('erpProduct.uom');
+        $requestForm->load(['items' => function($query) use ($activePoItem) {
+            $query->whereDoesntHave('purchaseOrderItems', $activePoItem)->with('erpProduct.uom');
         }, 'purchaseRequests.items']);
         
         $suppliers = ErpSupplier::with(['paymentTerm', 'contacts'])->get();
@@ -138,6 +141,17 @@ class ErpPurchaseOrderController extends Controller
         ]);
 
         $rf = RequestForm::findOrFail($data['request_form_id']);
+
+        // Tolak item RF yang sudah ada di PO lain yang masih aktif (belum Cancelled)
+        $requestedItemIds = collect($data['items'])->where('qty', '>', 0)->pluck('request_form_item_id')->unique();
+        $alreadyOrdered = \App\Models\Erp\RequestFormItem::whereIn('id', $requestedItemIds)
+            ->whereHas('purchaseOrderItems', function ($q) {
+                $q->whereHas('purchaseOrder', fn ($po) => $po->where('status', '!=', 'Cancelled'));
+            })
+            ->exists();
+        if ($alreadyOrdered) {
+            return redirect()->back()->with('error', 'Sebagian barang sudah dibuatkan PO lain yang masih aktif. Silakan muat ulang halaman dan pilih barang yang belum di-PO.')->withInput();
+        }
 
         DB::beginTransaction();
         try {
@@ -593,6 +607,12 @@ class ErpPurchaseOrderController extends Controller
             // request can't process the same step twice before either commits.
             $purchaseOrder = ErpPurchaseOrder::where('id', $purchaseOrder->id)->lockForUpdate()->firstOrFail();
 
+            // Hanya PO yang sedang menunggu approval (Submitted) yang boleh disetujui.
+            if ($purchaseOrder->status !== 'Submitted') {
+                DB::rollBack();
+                return redirect()->back()->with('error', 'Hanya PO berstatus Submitted (menunggu approval) yang dapat disetujui.');
+            }
+
             // Check if there are dynamic approvals
             $activeApproval = $purchaseOrder->approvals()->where('status', 'Pending')->lockForUpdate()->first();
 
@@ -781,6 +801,12 @@ class ErpPurchaseOrderController extends Controller
         DB::beginTransaction();
         try {
             $purchaseOrder = ErpPurchaseOrder::where('id', $purchaseOrder->id)->lockForUpdate()->firstOrFail();
+
+            // Hanya PO yang sedang menunggu approval (Submitted) yang boleh ditolak.
+            if ($purchaseOrder->status !== 'Submitted') {
+                DB::rollBack();
+                return redirect()->back()->with('error', 'Hanya PO berstatus Submitted (menunggu approval) yang dapat ditolak.');
+            }
 
             // Check if there are dynamic approvals
             $activeApproval = $purchaseOrder->approvals()->where('status', 'Pending')->lockForUpdate()->first();
@@ -975,7 +1001,7 @@ class ErpPurchaseOrderController extends Controller
         } elseif ($poVerifConfig) {
             if ($poVerifConfig->user_id && $user->id == $poVerifConfig->user_id) {
                 $isAuthorized = true;
-            } elseif ($poVerifConfig->role_id && $user->hasRole($poVerifConfig->role?->name)) {
+            } elseif ($poVerifConfig->role_id && $poVerifConfig->role && $user->hasRole($poVerifConfig->role->slug)) {
                 $isAuthorized = true;
             }
         } else {
@@ -1107,8 +1133,8 @@ class ErpPurchaseOrderController extends Controller
         // Also cancel any pending approvals
         $purchaseOrder->approvals()->whereIn('status', ['Pending', 'Waiting'])->update(['status' => 'Cancelled']);
 
-        // Release the request form items back to Pending so they can be re-ordered
-        \App\Models\Erp\RequestFormItem::whereIn('id', $purchaseOrder->items->pluck('request_form_item_id'))->update(['status' => 'Pending']);
+        // Release the request form items back to Requested so they can be re-ordered
+        \App\Models\Erp\RequestFormItem::whereIn('id', $purchaseOrder->items->pluck('request_form_item_id'))->update(['status' => 'Requested']);
 
         $purchaseOrder->update([
             'status' => 'Cancelled',

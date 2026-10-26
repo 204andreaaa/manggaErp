@@ -46,7 +46,7 @@ class UomController extends Controller
             ->skip($start)->take($length)->get()
             ->map(function ($c, $i) use ($start) {
                 $editBtn = auth()->user()->hasPermission('products.update')
-                    ? '<button class="btn btn-sm btn-warning text-white me-1" onclick="openEdit('.$c->id.',\''.addslashes(e($c->uom_name)).'\',\''.addslashes(e($c->description ?? '')).'\')"><i class="bx bx-edit-alt"></i></button>'
+                    ? '<button class="btn btn-sm btn-warning text-white me-1" onclick="openEdit('.$c->id.','.js_attr($c->uom_name).','.js_attr($c->description ?? '').')"><i class="bx bx-edit-alt"></i></button>'
                     : '';
 
                 $deleteBtn = auth()->user()->hasPermission('products.delete')

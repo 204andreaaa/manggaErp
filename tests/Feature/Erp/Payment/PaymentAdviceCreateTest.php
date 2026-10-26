@@ -144,7 +144,6 @@ class PaymentAdviceCreateTest extends ErpTestCase
 
     public function test_user_without_payment_permission_cannot_create_a_payment_advice(): void
     {
-        $this->markTestSkipped('BUG: ErpPaymentAdviceController::store has no permission/role check — any logged-in user can create a PA.');
 
         $po = $this->makeApprovedPo();
         $this->actingInProject($this->makeUser('staff'));
@@ -157,7 +156,6 @@ class PaymentAdviceCreateTest extends ErpTestCase
 
     public function test_initial_termin_cannot_exceed_the_invoice_total(): void
     {
-        $this->markTestSkipped('BUG: store does not cap initial_payment_amount at total_invoice_amount (storeDetail does cap at the unallocated amount).');
 
         $po = $this->makeApprovedPo();
         $this->actingInProject($this->finance());

@@ -66,7 +66,7 @@ class ErpWorkItemController extends Controller
             ->skip($start)->take($length)->get()
             ->map(function ($c, $i) use ($start) {
                 $editBtn = (auth()->user()->hasPermission('work_items.update') || auth()->user()->hasPermission('budgets.update'))
-                    ? '<button class="btn btn-sm btn-warning text-white me-1" onclick="openEdit('.$c->id.',\''.$c->sub_project_id.'\',\''.addslashes(e($c->wid_code)).'\',\''.addslashes(e($c->name)).'\',\''.$c->allocated_budget.'\')"><i class="bx bx-edit-alt"></i></button>'
+                    ? '<button class="btn btn-sm btn-warning text-white me-1" onclick="openEdit('.$c->id.',\''.$c->sub_project_id.'\','.js_attr($c->wid_code).','.js_attr($c->name).',\''.$c->allocated_budget.'\')"><i class="bx bx-edit-alt"></i></button>'
                     : '';
 
                 $deleteBtn = (auth()->user()->hasPermission('work_items.delete') || auth()->user()->hasPermission('budgets.delete'))

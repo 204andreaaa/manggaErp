@@ -100,7 +100,6 @@ class PurchaseRequestTest extends ErpTestCase
 
     public function test_pr_cannot_be_created_from_an_rf_that_is_not_approved(): void
     {
-        $this->markTestSkipped('BUG: PurchaseRequestController::store never checks the RF is Approved (only the view hides the button)');
 
         $logistik = $this->makeUser('logistik');
         $rf = $this->createRfViaHttp($this->makeUser('staff'));
@@ -111,7 +110,6 @@ class PurchaseRequestTest extends ErpTestCase
 
     public function test_pr_cannot_include_items_from_another_rf(): void
     {
-        $this->markTestSkipped('BUG: PurchaseRequestController::store accepts request_form_item_id values that belong to a different RF');
 
         $logistik = $this->makeUser('logistik');
         $requester = $this->makeUser('staff');

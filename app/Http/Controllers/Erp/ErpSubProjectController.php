@@ -51,7 +51,7 @@ class ErpSubProjectController extends Controller
             ->skip($start)->take($length)->get()
             ->map(function ($c, $i) use ($start) {
                 $editBtn = (auth()->user()->hasPermission('sub_projects.update') || auth()->user()->hasPermission('budgets.update'))
-                    ? '<button class="btn btn-sm btn-warning text-white me-1" onclick="openEdit('.$c->id.',\''.$c->budget_parent_id.'\',\''.addslashes(e($c->sub_project_code)).'\',\''.addslashes(e($c->name)).'\')"><i class="bx bx-edit-alt"></i></button>'
+                    ? '<button class="btn btn-sm btn-warning text-white me-1" onclick="openEdit('.$c->id.',\''.$c->budget_parent_id.'\','.js_attr($c->sub_project_code).','.js_attr($c->name).')"><i class="bx bx-edit-alt"></i></button>'
                     : '';
 
                 $deleteBtn = (auth()->user()->hasPermission('sub_projects.delete') || auth()->user()->hasPermission('budgets.delete'))

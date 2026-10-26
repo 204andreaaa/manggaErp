@@ -80,7 +80,7 @@ class WarehouseTest extends ErpTestCase
     {
         $wh = $this->warehouse(['name' => 'Keep']);
 
-        $this->actingInProject($this->makeUser('viewer', ['warehouse.view']));
+        $this->actingInProject($this->makeUser('viewer', ['warehouses.view']));
         $this->get(route('erp.warehouses.index'))->assertOk();
         $row = $this->datatable('erp.warehouses.datatable', '', 0, 'asc', 'get')->json('data.0.actions');
         $this->assertStringNotContainsString('js-edit', $row);
@@ -98,7 +98,6 @@ class WarehouseTest extends ErpTestCase
 
     public function test_permission_keys_granted_by_the_roles_screen_work(): void
     {
-        $this->skipKnownBug("ErpWarehouseController checks 'warehouse.view/create/update/delete' (lines 15,118,155,162,207) but the Roles screen (config/menu.php:130) and RoleSeeder (logistik) grant 'warehouses.*', so logistik cannot open or manage warehouses.");
 
         $this->actingInProject($this->makeUser('logistik', ['warehouses.view', 'warehouses.create']));
         $this->get(route('erp.warehouses.index'))->assertOk();
@@ -107,7 +106,6 @@ class WarehouseTest extends ErpTestCase
 
     public function test_datatable_requires_warehouse_permission(): void
     {
-        $this->skipKnownBug('ErpWarehouseController::datatable (line 22) and nextCode (line 220) have no permission check: any logged-in user can list warehouses.');
 
         $this->warehouse();
         $this->actingInProject($this->makeUser('staff'));

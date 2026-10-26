@@ -205,7 +205,6 @@ class GoodsReceiptTest extends PurchaseOrderTestCase
 
     public function test_role_based_gr_verifier_can_receive(): void
     {
-        $this->markTestSkipped('BUG: receive() checks hasRole($config->role->name) but hasRole() matches slugs, so a role-assigned GR verifier is always refused');
 
         $verifier = $this->makeUser('warehouse_head'); // role name "Warehouse Head", slug "warehouse_head"
         ErpApprovalConfig::create(['record_type' => 'gr_verification', 'level' => 1, 'name' => 'Verifikasi GR', 'role_id' => $this->role('warehouse_head')->id]);
@@ -213,6 +212,18 @@ class GoodsReceiptTest extends PurchaseOrderTestCase
 
         $this->actingInProject($verifier)->post(route('erp.goods-receipts.receive', $gr))->assertSessionHas('success');
         $this->assertSame('Received', $gr->fresh()->status);
+    }
+
+    public function test_receive_ignores_verified_by_id_from_the_request(): void
+    {
+        $gr = $this->recordGr([[0, 10]]);
+        $someoneElse = $this->makeUser('warehouse_head');
+
+        $this->actingInProject($this->logistik)
+            ->post(route('erp.goods-receipts.receive', $gr), ['verified_by_id' => $someoneElse->id])
+            ->assertSessionHas('success');
+
+        $this->assertSame($this->logistik->id, $gr->fresh()->verified_by_id);
     }
 
     public function test_superadmin_deletes_a_received_gr_and_stock_is_reversed(): void

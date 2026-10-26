@@ -98,7 +98,6 @@ class DepartmentAndEmployeeTest extends ErpTestCase
 
     public function test_hr_employee_list_requires_employees_permission(): void
     {
-        $this->skipKnownBug("HrEmployeeController::index (app/Http/Controllers/Erp/HrEmployeeController.php:11) has no permission check although config/menu.php:238 defines 'employees.view': any logged-in user sees every employee's HR record.");
 
         $this->employee('Finance', 'Sari Wulandari');
         $this->actingInProject($this->makeUser('staff'));

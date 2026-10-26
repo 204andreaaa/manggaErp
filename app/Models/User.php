@@ -104,13 +104,15 @@ class User extends Authenticatable
             return true;
         }
 
-        // Handle permission aliases / backwards-compatibility
-        $aliases = [
-            'budgets.view'   => ['budget_parents.view', 'sub_projects.view', 'work_items.view'],
-            'budgets.create' => ['budget_parents.create', 'sub_projects.create', 'work_items.create'],
-            'budgets.update' => ['budget_parents.update', 'sub_projects.update', 'work_items.update'],
-            'budgets.delete' => ['budget_parents.delete', 'sub_projects.delete', 'work_items.delete'],
-        ];
+        // Backwards-compatibility: the old all-in-one "budgets.*" permission still
+        // grants each budget screen. Not the other way round — holding one screen's
+        // permission (e.g. work_items.create) must not count as "budgets.create".
+        $aliases = [];
+        foreach (['view', 'create', 'update', 'delete'] as $action) {
+            foreach (['budget_parents', 'sub_projects', 'work_items'] as $screen) {
+                $aliases["{$screen}.{$action}"] = ["budgets.{$action}"];
+            }
+        }
 
         foreach ($this->roles as $role) {
             $perms = $role->permissions ?? [];

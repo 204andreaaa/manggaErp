@@ -16,7 +16,7 @@ class ErpSupplierController extends Controller
 {
     public function index()
     {
-        abort_unless(auth()->user()->hasRole(['procurement', 'finance', 'superadmin', 'ceo', 'admin_project', 'logistik']) || auth()->user()->hasPermission('supplier.view'), 403);
+        abort_unless(auth()->user()->hasRole(['procurement', 'finance', 'superadmin', 'ceo', 'admin_project', 'logistik']) || auth()->user()->hasPermission('suppliers.view'), 403);
 
         $nextSupplierCode = $this->generateNextCode();
         $paymentTerms = ErpPaymentTerm::where('is_active', true)->get();
@@ -26,6 +26,8 @@ class ErpSupplierController extends Controller
 
     public function datatable(Request $request)
     {
+        abort_unless(auth()->user()->hasRole(['procurement', 'finance', 'superadmin', 'ceo', 'admin_project', 'logistik']) || auth()->user()->hasPermission('suppliers.view'), 403);
+
         $orderable = [
             'id',
             'supplier_code',
@@ -71,7 +73,7 @@ class ErpSupplierController extends Controller
             ->get()
             ->map(function ($s, $idx) use ($start) {
 
-                $editBtn = auth()->user()->hasPermission('supplier.update')
+                $editBtn = auth()->user()->hasPermission('suppliers.update')
                     ? '<button class="btn btn-sm btn-icon btn-outline-secondary js-edit"
                         data-id="'.$s->id.'"
                         data-supplier_code="'.e($s->supplier_code).'"
@@ -95,7 +97,7 @@ class ErpSupplierController extends Controller
                     </button>'
                     : '';
 
-                $deleteBtn = auth()->user()->hasPermission('supplier.delete')
+                $deleteBtn = auth()->user()->hasPermission('suppliers.delete')
                     ? '<button class="btn btn-sm btn-icon btn-outline-danger js-del"
                         data-id="'.$s->id.'">
                         <i class="bx bx-trash"></i>
@@ -127,7 +129,7 @@ class ErpSupplierController extends Controller
 
     public function store(Request $request)
     {
-        abort_unless(auth()->user()->hasRole(['procurement', 'superadmin']) || auth()->user()->hasPermission('supplier.create'), 403);
+        abort_unless(auth()->user()->hasRole(['procurement', 'superadmin']) || auth()->user()->hasPermission('suppliers.create'), 403);
 
         $code = strtoupper(trim((string) $request->input('supplier_code', '')));
         if ($code === '') $code = $this->generateNextCode();
@@ -165,7 +167,7 @@ class ErpSupplierController extends Controller
 
     public function show(ErpSupplier $supplier)
     {
-        abort_unless(auth()->user()->hasRole(['procurement', 'finance', 'superadmin', 'ceo', 'admin_project', 'logistik']) || auth()->user()->hasPermission('supplier.view'), 403);
+        abort_unless(auth()->user()->hasRole(['procurement', 'finance', 'superadmin', 'ceo', 'admin_project', 'logistik']) || auth()->user()->hasPermission('suppliers.view'), 403);
 
         $supplier->load(['contacts', 'attachments', 'paymentTerm']);
         $paymentTerms = ErpPaymentTerm::where('is_active', true)->get();
@@ -176,7 +178,7 @@ class ErpSupplierController extends Controller
 
     public function update(Request $request, ErpSupplier $supplier)
     {
-        abort_unless(auth()->user()->hasRole(['procurement', 'superadmin']) || auth()->user()->hasPermission('supplier.update'), 403);
+        abort_unless(auth()->user()->hasRole(['procurement', 'superadmin']) || auth()->user()->hasPermission('suppliers.update'), 403);
 
         $code = strtoupper(trim((string) $request->input('supplier_code', '')));
         if ($code === '') $code = $supplier->supplier_code;
@@ -222,7 +224,7 @@ class ErpSupplierController extends Controller
 
     public function destroy(ErpSupplier $supplier)
     {
-        abort_unless(auth()->user()->hasRole(['procurement', 'superadmin']) || auth()->user()->hasPermission('supplier.delete'), 403);
+        abort_unless(auth()->user()->hasRole(['procurement', 'superadmin']) || auth()->user()->hasPermission('suppliers.delete'), 403);
 
         $supplier->delete();
 
@@ -235,6 +237,8 @@ class ErpSupplierController extends Controller
 
     public function storeContact(Request $request, ErpSupplier $supplier)
     {
+        abort_unless(auth()->user()->hasRole(['procurement', 'superadmin']) || auth()->user()->hasPermission('suppliers.update'), 403);
+
         $data = $request->validate([
             'contact_name' => 'required|string|max:150',
             'title' => 'nullable|string|max:100',
@@ -249,6 +253,8 @@ class ErpSupplierController extends Controller
 
     public function destroyContact(ErpSupplierContact $contact)
     {
+        abort_unless(auth()->user()->hasRole(['procurement', 'superadmin']) || auth()->user()->hasPermission('suppliers.update'), 403);
+
         $contact->delete();
 
         return redirect()->back()->with('success', 'Contact deleted successfully.');
@@ -256,6 +262,8 @@ class ErpSupplierController extends Controller
 
     public function storeAttachment(Request $request, ErpSupplier $supplier)
     {
+        abort_unless(auth()->user()->hasRole(['procurement', 'superadmin']) || auth()->user()->hasPermission('suppliers.update'), 403);
+
         $request->validate([
             'title' => 'required|string|max:255',
             'file' => 'required|file|mimes:jpg,jpeg,png,pdf|max:10240', // Max 10MB
@@ -280,6 +288,8 @@ class ErpSupplierController extends Controller
 
     public function destroyAttachment(ErpSupplierAttachment $attachment)
     {
+        abort_unless(auth()->user()->hasRole(['procurement', 'superadmin']) || auth()->user()->hasPermission('suppliers.update'), 403);
+
         // Delete physical file
         if ($attachment->file_path) {
             Storage::disk('public')->delete($attachment->file_path);
@@ -292,6 +302,8 @@ class ErpSupplierController extends Controller
 
     public function nextCode()
     {
+        abort_unless(auth()->user()->hasRole(['procurement', 'finance', 'superadmin', 'ceo', 'admin_project', 'logistik']) || auth()->user()->hasPermission('suppliers.view'), 403);
+
         return response()->json([
             'next_code' => $this->generateNextCode()
         ]);

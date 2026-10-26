@@ -120,7 +120,6 @@ class ApprovalConfigTest extends ErpTestCase
 
     public function test_a_step_with_only_a_maximum_amount_can_be_saved(): void
     {
-        $this->skipKnownBug("ApprovalConfigController::validateConfigData (line 111) 'max_amount' => 'gte:min_amount' fails when Min is left blank (placeholder 0, treated as 0 by assertNoConflict), so a step 'up to 5,000,000' with blank Min is rejected.");
 
         $this->actingInProject($this->makeUser('superadmin'));
         $approver = $this->makeUser('staff');
@@ -134,7 +133,6 @@ class ApprovalConfigTest extends ErpTestCase
 
     public function test_omitted_amount_fields_do_not_crash(): void
     {
-        $this->skipKnownBug("ApprovalConfigController::assertNoConflict (lines 166-167) reads \$data['min_amount']/['max_amount'] without ?? null: a multi-level config posted without those keys gives 'Undefined array key' -> HTTP 500.");
 
         $this->actingInProject($this->makeUser('superadmin'));
         $approver = $this->makeUser('staff');

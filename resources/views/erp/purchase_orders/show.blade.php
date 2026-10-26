@@ -147,7 +147,7 @@
             </button>
           </form>
         @else
-          <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3 opacity-75" onclick="Swal.fire({icon: 'warning', title: 'Verifikasi Dibutuhkan', text: 'PO harus diverifikasi terlebih dahulu oleh {{ addslashes($verifierName) }} sebelum dapat diajukan untuk approval.', confirmButtonColor: '#696cff'})">
+          <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3 opacity-75" onclick="Swal.fire({icon: 'warning', title: 'Verifikasi Dibutuhkan', text: {!! js_attr('PO harus diverifikasi terlebih dahulu oleh '.$verifierName.' sebelum dapat diajukan untuk approval.') !!}, confirmButtonColor: '#696cff'})">
             <i class="bx bx-lock-alt me-1"></i>Submit for Approval
           </button>
         @endif
@@ -732,7 +732,7 @@
                     </div>
                   </div>
                   <div class="d-flex align-items-center gap-1">
-                    <button type="button" class="btn btn-sm btn-icon btn-label-primary rounded-circle" onclick="showAttachmentModal('{{ $url }}', '{{ addslashes($att->file_name) }}')" title="Preview">
+                    <button type="button" class="btn btn-sm btn-icon btn-label-primary rounded-circle" onclick="showAttachmentModal({!! js_attr($url) !!}, {!! js_attr($att->file_name) !!})" title="Preview">
                       <i class="bx bx-show"></i>
                     </button>
                     <a href="{{ $url }}" download="{{ $att->file_name }}" class="btn btn-sm btn-icon btn-label-secondary rounded-circle" title="Download">
@@ -764,7 +764,7 @@
                       </div>
                     </div>
                     <div class="d-flex align-items-center gap-1">
-                      <button type="button" class="btn btn-sm btn-icon btn-label-primary rounded-circle" onclick="showAttachmentModal('{{ $url }}', '{{ addslashes($filename) }}')" title="Preview">
+                      <button type="button" class="btn btn-sm btn-icon btn-label-primary rounded-circle" onclick="showAttachmentModal({!! js_attr($url) !!}, {!! js_attr($filename) !!})" title="Preview">
                         <i class="bx bx-show"></i>
                       </button>
                       <a href="{{ $url }}" download="{{ $filename }}" class="btn btn-sm btn-icon btn-label-secondary rounded-circle" title="Download">

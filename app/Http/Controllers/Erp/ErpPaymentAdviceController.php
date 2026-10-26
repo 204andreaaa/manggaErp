@@ -102,6 +102,8 @@ class ErpPaymentAdviceController extends Controller
 
     public function store(Request $request)
     {
+        abort_unless(auth()->user()->hasRole(['finance', 'superadmin']) || auth()->user()->hasPermission('payment_advices.update'), 403, 'Hanya tim Finance yang berhak membuat Payment Advice.');
+
         $data = $request->validate([
             'erp_purchase_order_id' => 'required|exists:erp_purchase_orders,id',
             'erp_goods_receipt_id' => 'nullable|exists:erp_goods_receipts,id',
@@ -109,7 +111,7 @@ class ErpPaymentAdviceController extends Controller
             'contact_person' => 'nullable|string|max:150',
             'due_date' => 'nullable|date',
             'total_invoice_amount' => 'required|numeric|min:0',
-            'initial_payment_amount' => 'required|numeric|min:0',
+            'initial_payment_amount' => 'required|numeric|min:0|lte:total_invoice_amount',
             'payment_method' => 'required|string|max:100',
             'payment_type' => 'required|string|max:100',
             'remark' => 'nullable|string',
@@ -168,6 +170,8 @@ class ErpPaymentAdviceController extends Controller
 
     public function storeDetail(Request $request, ErpPaymentAdvice $paymentAdvice)
     {
+        abort_unless(auth()->user()->hasRole(['finance', 'superadmin']) || auth()->user()->hasPermission('payment_advices.update'), 403, 'Hanya tim Finance yang berhak menambah termin pembayaran.');
+
         if ($paymentAdvice->payment_closed || $paymentAdvice->outstanding <= 0) {
             return redirect()->back()->with('error', 'Payment Advice ini sudah Lunas, tidak dapat menambah rincian termin lagi.');
         }
@@ -466,6 +470,9 @@ class ErpPaymentAdviceController extends Controller
                         ->where('user_id', $user->id)
                         ->where('role_id', $activeApproval->assigned_to_role_id)
                         ->exists();
+                } else {
+                    // Tanpa approval config: fallback 1-level Finance / CEO
+                    $isDesignatedApprover = $user->hasRole(['finance', 'ceo']);
                 }
 
                 if (!$isSuperadmin && !$isDesignatedApprover) {
@@ -597,6 +604,9 @@ class ErpPaymentAdviceController extends Controller
                     if ($hasRole) {
                         $isAuthorized = true;
                     }
+                } elseif ($user->hasRole(['finance', 'ceo'])) {
+                    // Tanpa approval config: fallback 1-level Finance / CEO
+                    $isAuthorized = true;
                 }
 
                 if (!$isAuthorized) {
@@ -673,6 +683,10 @@ class ErpPaymentAdviceController extends Controller
         $user = auth()->user();
         if (!$user->hasRole('superadmin') && !$user->hasRole('finance')) {
             return redirect()->back()->with('error', 'Hanya Tim Finance / Superadmin yang berhak memproses pembayaran termin.');
+        }
+
+        if ($paymentAdviceDetail->approval_status !== 'Approved') {
+            return redirect()->back()->with('error', 'Hanya termin yang sudah di-Approve yang dapat ditandai sudah dibayar.');
         }
 
         $request->validate([

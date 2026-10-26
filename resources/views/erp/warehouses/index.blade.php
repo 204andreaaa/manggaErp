@@ -30,7 +30,7 @@
 <div class="container-xxl flex-grow-1 container-p-y">
     <div class="d-flex align-items-center justify-content-between mb-3">
         <h4 class="mb-0 fw-bold">ERP Warehouses (Destinations)</h4>
-        @if(auth()->user()->hasPermission('warehouse.create'))
+        @if(auth()->user()->hasPermission('warehouses.create'))
             <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#glassWarehouse" id="btnShowAdd">
                 <i class="bx bx-plus"></i> Add ERP Warehouse
             </button>

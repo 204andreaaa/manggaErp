@@ -175,7 +175,7 @@ class ErpGoodsReceiptController extends Controller
         } elseif ($grVerifConfig) {
             if ($grVerifConfig->user_id && $user->id == $grVerifConfig->user_id) {
                 $isAuthorized = true;
-            } elseif ($grVerifConfig->role_id && $user->hasRole($grVerifConfig->role?->name)) {
+            } elseif ($grVerifConfig->role_id && $grVerifConfig->role && $user->hasRole($grVerifConfig->role->slug)) {
                 $isAuthorized = true;
             }
         } else {
@@ -188,7 +188,8 @@ class ErpGoodsReceiptController extends Controller
             return redirect()->back()->with('error', 'Goods Receipt is already received.');
         }
 
-        $verifiedById = $request->input('verified_by_id', auth()->id());
+        // Verifikator selalu user yang sedang login (tidak boleh diisi dari request)
+        $verifiedById = $user->id;
 
         $goodsReceipt->update([
             'status' => 'Received',

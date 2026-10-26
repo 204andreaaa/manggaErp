@@ -125,7 +125,6 @@ class PaymentTermTest extends ErpTestCase
 
     public function test_user_without_payment_permission_cannot_add_a_termin(): void
     {
-        $this->markTestSkipped('BUG: ErpPaymentAdviceController::storeDetail has no permission/role check — any logged-in user can add a termin.');
 
         $po = $this->makeApprovedPo(10_000_000);
         $pa = $this->makePaymentAdvice($po, 10_000_000, [3_000_000]);

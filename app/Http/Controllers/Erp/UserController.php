@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use App\Exports\UsersExport;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -27,6 +28,31 @@ class UserController extends Controller
         }
 
         return $me;
+    }
+
+    /**
+     * Hanya superadmin yang boleh memberi/mencabut role superadmin.
+     */
+    protected function ensureCanAssignRoles(User $me, $roleSlugs, ?User $target = null): void
+    {
+        if ($me->hasRole('superadmin')) {
+            return;
+        }
+
+        $hadSuperadmin = $target ? $target->hasRole('superadmin') : false;
+        if (collect($roleSlugs)->contains('superadmin') !== $hadSuperadmin) {
+            throw ValidationException::withMessages([
+                'roles' => 'Hanya superadmin yang boleh memberikan atau mencabut role superadmin.',
+            ]);
+        }
+    }
+
+    /**
+     * Akun superadmin hanya boleh diubah/dihapus oleh superadmin.
+     */
+    protected function canTouchUser(User $me, User $target): bool
+    {
+        return $me->hasRole('superadmin') || !$target->hasRole('superadmin');
     }
 
     public function index()
@@ -79,6 +105,8 @@ class UserController extends Controller
             }
         }
 
+        $this->ensureCanAssignRoles($me, $roleSlugs);
+
         $roleIds = Role::whereIn('slug', $roleSlugs)->pluck('id')->all();
 
         $signaturePath = replace_uploaded_file(
@@ -125,6 +153,10 @@ class UserController extends Controller
         $me = $this->ensureCanManageUsers('users.update');
         $isWarehouse = $me->hasRole('warehouse');
 
+        if (!$this->canTouchUser($me, $user)) {
+            abort(403);
+        }
+
         if ($isWarehouse) {
             $canManage = ($user->id === $me->id) || ($user->warehouse_id === $me->warehouse_id && $user->hasRole('sales'));
 
@@ -169,6 +201,8 @@ class UserController extends Controller
                 $data['warehouse_id'] = null;
             }
         }
+
+        $this->ensureCanAssignRoles($me, $roleSlugs, $user);
 
         $roleIds = Role::whereIn('slug', $roleSlugs)->pluck('id')->all();
 
@@ -234,7 +268,9 @@ class UserController extends Controller
                 'department'        => $dept,
                 'signature_path'    => $user->signature_path,
                 'employment_status' => 'permanent',
-                'status'            => $user->status ?? 'active',
+                // users.status (active/inactive) = akses login, bukan status kepegawaian
+                // (enum employees: active/resigned/terminated). Akun non-aktif tidak
+                // otomatis dianggap resign, jadi status karyawan tidak ditimpa.
                 'join_date'         => now()->toDateString(),
             ]
         );
@@ -247,6 +283,10 @@ class UserController extends Controller
 
         if ($me->id === $user->id) {
             return response()->json(['error' => "You can't delete yourself."], 422);
+        }
+
+        if (!$this->canTouchUser($me, $user)) {
+            return response()->json(['error' => 'Hanya superadmin yang boleh menghapus akun superadmin.'], 422);
         }
 
         if ($isWarehouse) {
@@ -277,6 +317,15 @@ class UserController extends Controller
         ])['ids'];
 
         $ids = array_values(array_filter($ids, fn ($id) => $id !== $me->id));
+
+        if (!$me->hasRole('superadmin')) {
+            // Akun superadmin hanya boleh dihapus oleh superadmin
+            $ids = User::whereIn('id', $ids)->get()
+                ->reject(fn ($u) => $u->hasRole('superadmin'))
+                ->pluck('id')
+                ->values()
+                ->all();
+        }
 
         if ($isWarehouse) {
             $ids = User::whereIn('id', $ids)
@@ -311,6 +360,10 @@ class UserController extends Controller
 
         if ($me->id === $user->id) {
             return response()->json(['error' => "You can't change your own status."], 422);
+        }
+
+        if (!$this->canTouchUser($me, $user)) {
+            return response()->json(['error' => 'Hanya superadmin yang boleh mengubah status akun superadmin.'], 422);
         }
 
         if ($isWarehouse) {

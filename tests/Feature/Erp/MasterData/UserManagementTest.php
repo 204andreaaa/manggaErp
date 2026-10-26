@@ -114,7 +114,6 @@ class UserManagementTest extends ErpTestCase
 
     public function test_deactivating_a_user_from_the_edit_form(): void
     {
-        $this->skipKnownBug("UserController::syncEmployeeProfile (line 237) copies users.status into employees.status, whose enum is active/resigned/terminated (database/migrations/master/2026_09_04_000001_create_employees_table.php:54): saving a user as 'inactive' (create or update) throws 'Data truncated' -> HTTP 500, so users cannot be deactivated.");
 
         $target = $this->makeUser('staff', [], ['username' => 'joko', 'email' => 'joko@test.local']);
         $this->actingInProject($this->makeUser('superadmin'))
@@ -170,7 +169,6 @@ class UserManagementTest extends ErpTestCase
 
     public function test_non_superadmin_cannot_grant_the_superadmin_role(): void
     {
-        $this->skipKnownBug("UserController::store/update (lines 59-60 / 145-146) only check 'roles.*' => exists:master.roles,slug, so a user manager who is not superadmin can create a superadmin or promote themselves.");
 
         Role::firstOrCreate(['slug' => 'superadmin'], ['name' => 'Superadmin']);
         $manager = $this->makeUser('user_manager', ['users.view', 'users.create', 'users.update']);

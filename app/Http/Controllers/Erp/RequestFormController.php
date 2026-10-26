@@ -193,7 +193,7 @@ class RequestFormController extends Controller
             'items' => ['nullable', 'array'],
             'items.*.product_name' => ['required', 'max:180'],
             'items.*.product_id_text' => ['nullable', 'max:80'],
-            'items.*.wid' => ['nullable', 'max:80'],
+            'items.*.wid' => ['nullable', 'required_if:record_type,project', 'max:80'],
             'items.*.currency' => ['required', 'max:10'],
             'items.*.original_total_cost' => ['nullable', 'numeric', 'min:0'],
             'items.*.actual_cost' => ['nullable', 'numeric', 'min:0'],
@@ -209,6 +209,8 @@ class RequestFormController extends Controller
             'notes.*' => ['nullable', 'string'],
             'attachments' => ['nullable', 'array'],
             'attachments.*' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:10240'],
+        ], [
+            'items.*.wid.required_if' => 'WID wajib dipilih untuk setiap item pada RF Project.',
         ]);
 
         $rf = DB::transaction(function () use ($request, $data) {
@@ -354,7 +356,7 @@ class RequestFormController extends Controller
             'items.*.id' => ['nullable', 'exists:request_form_items,id'],
             'items.*.product_name' => ['required', 'max:180'],
             'items.*.product_id_text' => ['nullable', 'max:80'],
-            'items.*.wid' => ['nullable', 'max:80'],
+            'items.*.wid' => ['nullable', 'required_if:record_type,project', 'max:80'],
             'items.*.currency' => ['required', 'max:10'],
             'items.*.original_total_cost' => ['nullable', 'numeric', 'min:0'],
             'items.*.actual_cost' => ['nullable', 'numeric', 'min:0'],
@@ -368,6 +370,8 @@ class RequestFormController extends Controller
             'items.*.remark' => ['nullable', 'string'],
             'notes' => ['nullable', 'array'],
             'notes.*' => ['nullable', 'string'],
+        ], [
+            'items.*.wid.required_if' => 'WID wajib dipilih untuk setiap item pada RF Project.',
         ]);
 
         DB::transaction(function () use ($request, $data, $requestForm) {
@@ -412,6 +416,11 @@ class RequestFormController extends Controller
                 'expense_utilities' => $request->boolean('expense_utilities'),
             ]);
 
+            // Nomor baris baru melanjutkan nomor tertinggi yang ada (count+1 bisa bentrok setelah ada baris dihapus)
+            $lastSequence = (int) $requestForm->items()->pluck('rf_detail_no')
+                ->map(fn ($no) => (int) substr((string) $no, strrpos((string) $no, '-') + 1))
+                ->max();
+
             // Delete removed items
             $existingItemIds = $requestForm->items()->pluck('id')->toArray();
             $submittedItemIds = $itemsData->pluck('id')->filter()->toArray();
@@ -422,11 +431,11 @@ class RequestFormController extends Controller
             }
 
             // Update or Create items
-            $itemsData->values()->each(function (array $item, int $index) use ($requestForm) {
+            $itemsData->values()->each(function (array $item, int $index) use ($requestForm, &$lastSequence) {
                 $itemData = collect($item)->except('id')->toArray();
                 if (empty($item['id'])) {
                     $requestForm->items()->create(array_merge($itemData, [
-                        'rf_detail_no' => $this->generateItemCode($requestForm->rf_no, $requestForm->items()->count() + 1),
+                        'rf_detail_no' => $this->generateItemCode($requestForm->rf_no, ++$lastSequence),
                     ]));
                 } else {
                     $requestForm->items()->where('id', $item['id'])->update($itemData);

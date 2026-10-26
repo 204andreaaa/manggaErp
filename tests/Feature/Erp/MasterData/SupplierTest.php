@@ -141,7 +141,6 @@ class SupplierTest extends ErpTestCase
 
     public function test_contact_and_attachment_endpoints_require_supplier_permission(): void
     {
-        $this->skipKnownBug('ErpSupplierController::storeContact/destroyContact/storeAttachment/destroyAttachment (lines 236-281) have no permission check: any logged-in user can add/delete supplier contacts and files.');
 
         Storage::fake('public');
         $supplier = $this->supplier();
@@ -162,7 +161,6 @@ class SupplierTest extends ErpTestCase
 
     public function test_datatable_and_next_code_require_supplier_permission(): void
     {
-        $this->skipKnownBug('ErpSupplierController::datatable (line 27) and nextCode (line 283) have no permission check: any logged-in user can list every supplier incl. bank accounts.');
 
         $this->supplier();
         $this->actingInProject($this->makeUser('staff'));
@@ -173,7 +171,6 @@ class SupplierTest extends ErpTestCase
 
     public function test_permission_keys_granted_by_the_roles_screen_work(): void
     {
-        $this->skipKnownBug("ErpSupplierController checks 'supplier.view/create/update/delete' (lines 19,130,168,179,225) but the Roles screen (config/menu.php:62) and RoleSeeder grant 'suppliers.*', so a custom role given supplier rights is still refused.");
 
         $this->actingInProject($this->makeUser('vendor_admin', ['suppliers.view', 'suppliers.create']));
         $this->get(route('erp.suppliers.index'))->assertOk();

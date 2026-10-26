@@ -47,7 +47,7 @@ class CurrencyController extends Controller
             ->skip($start)->take($length)->get()
             ->map(function ($c, $i) use ($start) {
                 $editBtn = auth()->user()->hasPermission('products.update')
-                    ? '<button class="btn btn-sm btn-warning text-white me-1" onclick="openEdit('.$c->id.',\''.addslashes(e($c->code)).'\',\''.addslashes(e($c->name)).'\',\''.addslashes(e($c->symbol ?? '')).'\')"><i class="bx bx-edit-alt"></i></button>'
+                    ? '<button class="btn btn-sm btn-warning text-white me-1" onclick="openEdit('.$c->id.','.js_attr($c->code).','.js_attr($c->name).','.js_attr($c->symbol ?? '').')"><i class="bx bx-edit-alt"></i></button>'
                     : '';
 
                 $deleteBtn = auth()->user()->hasPermission('products.delete')

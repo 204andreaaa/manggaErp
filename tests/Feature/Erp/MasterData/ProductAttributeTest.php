@@ -121,7 +121,6 @@ class ProductAttributeTest extends ErpTestCase
     /** @dataProvider screens */
     public function test_datatable_edit_button_does_not_allow_stored_xss(string $prefix, string $table, string $field, array $extra): void
     {
-        $this->skipKnownBug("Erp\\*Controller::datatable builds onclick=\"openEdit(...,'\".addslashes(e(\$name)).\"')\": e() turns ' into &#039; before addslashes, the browser decodes it back and the name breaks out of the JS string (stored XSS).");
 
         $this->actingInProject($this->makeUser('superadmin'));
         $payload = "');alert(1)//";

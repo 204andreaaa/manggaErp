@@ -143,7 +143,6 @@ class PurchaseOrderCreateTest extends PurchaseOrderTestCase
 
     public function test_store_refuses_an_rf_item_that_is_already_on_another_po(): void
     {
-        $this->markTestSkipped('BUG: store() accepts RF items that already have a PO, so the same item can be ordered (and budgeted) twice');
 
         $rf = $this->makeApprovedRf([['qty' => 1]]);
         $buyer = $this->makeUser('procurement');

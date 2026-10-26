@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\Erp\RequestForm;
 use App\Models\Erp\PurchaseRequest;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class PurchaseRequestController extends Controller
 {
@@ -18,6 +19,7 @@ class PurchaseRequestController extends Controller
             403,
             'Hanya Logistik atau Super Admin yang dapat membuat PR.'
         );
+        abort_unless($requestForm->status === 'Approved', 403, 'PR hanya dapat dibuat dari Request Form yang sudah Approved.');
 
         $data = $request->validate([
             'expense_material_equipment' => 'nullable|boolean',
@@ -28,7 +30,10 @@ class PurchaseRequestController extends Controller
             'expense_other' => 'nullable|boolean',
             'expense_utilities' => 'nullable|boolean',
             'items' => 'required|array|min:1',
-            'items.*.request_form_item_id' => 'required|exists:request_form_items,id',
+            'items.*.request_form_item_id' => [
+                'required',
+                Rule::exists('request_form_items', 'id')->where('request_form_id', $requestForm->id),
+            ],
             'items.*.pr_requested_qty' => 'required|numeric|min:0.01',
             'items.*.required_qty' => 'required|numeric',
         ]);

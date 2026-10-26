@@ -170,7 +170,6 @@ class PurchaseOrderLifecycleTest extends PurchaseOrderTestCase
 
     public function test_cancel_releases_rf_items_back_to_requested(): void
     {
-        $this->markTestSkipped("BUG: cancel() sets RF items to 'Pending', which is not a valid RF item status (Requested/Ordered/Completed/Cancelled); destroy() uses 'Requested'");
 
         $po = $this->approvedPo();
         $this->actingInProject($this->admin)->post(route('erp.purchase-orders.cancel', $po));
@@ -182,7 +181,6 @@ class PurchaseOrderLifecycleTest extends PurchaseOrderTestCase
 
     public function test_items_of_a_cancelled_po_can_be_ordered_again(): void
     {
-        $this->markTestSkipped('BUG: create() only offers RF items without any PO item, so items released by cancelling a PO can never be re-ordered');
 
         $po = $this->approvedPo();
         $this->actingInProject($this->admin)->post(route('erp.purchase-orders.cancel', $po));
@@ -289,7 +287,6 @@ class PurchaseOrderLifecycleTest extends PurchaseOrderTestCase
 
     public function test_role_based_po_verifier_can_verify(): void
     {
-        $this->markTestSkipped('BUG: verify() checks hasRole($config->role->name) but hasRole() matches slugs, so a role-assigned PO verifier is always refused');
 
         $verifier = $this->makeUser('head_procurement'); // role name "Head Procurement", slug "head_procurement"
         ErpApprovalConfig::create(['record_type' => 'po_verification', 'level' => 1, 'name' => 'Verifikasi PO', 'role_id' => $this->role('head_procurement')->id]);

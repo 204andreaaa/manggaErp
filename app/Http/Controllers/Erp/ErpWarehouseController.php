@@ -12,7 +12,7 @@ class ErpWarehouseController extends Controller
 {
     public function index()
     {
-        abort_unless(auth()->user()->hasPermission('warehouse.view'), 403);
+        abort_unless(auth()->user()->hasPermission('warehouses.view'), 403);
 
         $nextCode = $this->generateNextCode();
 
@@ -21,6 +21,8 @@ class ErpWarehouseController extends Controller
 
     public function datatable(Request $request)
     {
+        abort_unless(auth()->user()->hasPermission('warehouses.view'), 403);
+
         $orderable = [
             'id',
             'warehouse_code',
@@ -62,7 +64,7 @@ class ErpWarehouseController extends Controller
             ->get()
             ->map(function ($w, $idx) use ($start) {
 
-                $editBtn = auth()->user()->hasPermission('warehouse.update')
+                $editBtn = auth()->user()->hasPermission('warehouses.update')
                     ? '<button class="btn btn-sm btn-icon btn-outline-secondary js-edit"
                         data-id="'.$w->id.'"
                         data-warehouse_code="'.e($w->warehouse_code).'"
@@ -83,7 +85,7 @@ class ErpWarehouseController extends Controller
                     </button>'
                     : '';
 
-                $deleteBtn = auth()->user()->hasPermission('warehouse.delete')
+                $deleteBtn = auth()->user()->hasPermission('warehouses.delete')
                     ? '<button class="btn btn-sm btn-icon btn-outline-danger js-del"
                         data-id="'.$w->id.'">
                         <i class="bx bx-trash"></i>
@@ -115,7 +117,7 @@ class ErpWarehouseController extends Controller
 
     public function store(Request $request)
     {
-        abort_unless(auth()->user()->hasPermission('warehouse.create'), 403);
+        abort_unless(auth()->user()->hasPermission('warehouses.create'), 403);
 
         $code = strtoupper(trim((string) $request->input('warehouse_code', '')));
         if ($code === '') $code = $this->generateNextCode();
@@ -152,14 +154,14 @@ class ErpWarehouseController extends Controller
 
     public function show(ErpWarehouse $warehouse)
     {
-        abort_unless(auth()->user()->hasPermission('warehouse.view'), 403);
+        abort_unless(auth()->user()->hasPermission('warehouses.view'), 403);
 
         return view('erp.warehouses.show', compact('warehouse'));
     }
 
     public function update(Request $request, ErpWarehouse $warehouse)
     {
-        abort_unless(auth()->user()->hasPermission('warehouse.update'), 403);
+        abort_unless(auth()->user()->hasPermission('warehouses.update'), 403);
 
         $code = strtoupper(trim((string) $request->input('warehouse_code', '')));
         if ($code === '') $code = $warehouse->warehouse_code;
@@ -204,7 +206,7 @@ class ErpWarehouseController extends Controller
 
     public function destroy(ErpWarehouse $warehouse)
     {
-        abort_unless(auth()->user()->hasPermission('warehouse.delete'), 403);
+        abort_unless(auth()->user()->hasPermission('warehouses.delete'), 403);
 
         $warehouse->delete();
 
@@ -217,6 +219,8 @@ class ErpWarehouseController extends Controller
 
     public function nextCode()
     {
+        abort_unless(auth()->user()->hasPermission('warehouses.view'), 403);
+
         return response()->json([
             'next_code' => $this->generateNextCode()
         ]);
