@@ -3,6 +3,7 @@
 namespace Tests\Feature\Erp\MasterData;
 
 use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\ErpTestCase;
 
 /**
@@ -35,7 +36,7 @@ class ProductAttributeTest extends ErpTestCase
         ]));
     }
 
-    /** @dataProvider screens */
+    #[DataProvider('screens')]
     public function test_list_page_opens_and_datatable_lists_searches_and_orders(string $prefix, string $table, string $field, array $extra): void
     {
         $this->actingInProject($this->makeUser('superadmin'));
@@ -58,7 +59,7 @@ class ProductAttributeTest extends ErpTestCase
         $this->assertStringContainsString('deleteItem(', $found->json('data.0.actions'));
     }
 
-    /** @dataProvider screens */
+    #[DataProvider('screens')]
     public function test_create_persists_and_duplicate_or_missing_name_is_rejected(string $prefix, string $table, string $field, array $extra): void
     {
         $this->actingInProject($this->makeUser('superadmin'));
@@ -74,7 +75,7 @@ class ProductAttributeTest extends ErpTestCase
         $this->assertSame(1, DB::connection('tenant')->table($table)->count());
     }
 
-    /** @dataProvider screens */
+    #[DataProvider('screens')]
     public function test_update_and_delete(string $prefix, string $table, string $field, array $extra): void
     {
         $this->actingInProject($this->makeUser('superadmin'));
@@ -93,7 +94,7 @@ class ProductAttributeTest extends ErpTestCase
         $this->assertDatabaseMissing($table, ['id' => $id], 'tenant');
     }
 
-    /** @dataProvider screens */
+    #[DataProvider('screens')]
     public function test_user_without_products_permission_is_refused(string $prefix, string $table, string $field, array $extra): void
     {
         $id = $this->insertRow($table, $field, 'KEEP', $extra);
@@ -118,7 +119,7 @@ class ProductAttributeTest extends ErpTestCase
         $this->assertSame(1, DB::connection('tenant')->table($table)->count());
     }
 
-    /** @dataProvider screens */
+    #[DataProvider('screens')]
     public function test_datatable_edit_button_does_not_allow_stored_xss(string $prefix, string $table, string $field, array $extra): void
     {
 
