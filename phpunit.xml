@@ -18,11 +18,17 @@
         </include>
     </source>
     <php>
-        <env name="APP_ENV" value="testing"/>
+        <env name="APP_ENV" value="testing" force="true"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="CACHE_DRIVER" value="array"/>
-        <!-- <env name="DB_CONNECTION" value="sqlite"/> -->
-        <!-- <env name="DB_DATABASE" value=":memory:"/> -->
+        <!-- Tests run on their own throwaway databases, never the real ones
+             (tests/TestCase.php refuses to start otherwise). -->
+        <env name="DB_CONNECTION" value="tenant" force="true"/>
+        <env name="DB_DATABASE" value="mangga_test_master" force="true"/>
+        <env name="MASTER_DB_DATABASE" value="mangga_test_master" force="true"/>
+        <env name="TENANT_DB_DATABASE" value="mangga_test_tenant" force="true"/>
+        <env name="BROADCAST_DRIVER" value="null" force="true"/>
+        <env name="FILESYSTEM_DISK" value="local" force="true"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="QUEUE_CONNECTION" value="sync"/>

@@ -10,6 +10,17 @@ class ErpTenantManager
 {
     public static function switchToProject(Project $project)
     {
+        // Already on this project's database: keep the open connection (and any
+        // transaction on it) instead of tearing it down and reconnecting.
+        $current = Config::get('database.connections.tenant', []);
+        if (($current['database'] ?? null) === $project->db_name
+            && (string) ($current['host'] ?? '') === (string) $project->db_host
+            && (string) ($current['port'] ?? '') === (string) $project->db_port
+            && ($current['username'] ?? null) === $project->db_username) {
+            Config::set('database.default', 'tenant');
+            return;
+        }
+
         // Setup the tenant database connection dynamically
         Config::set('database.connections.tenant', [
             'driver' => 'mysql',
