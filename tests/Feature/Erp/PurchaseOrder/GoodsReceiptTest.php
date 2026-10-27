@@ -4,6 +4,7 @@ namespace Tests\Feature\Erp\PurchaseOrder;
 
 use App\Models\Erp\ErpApprovalConfig;
 use App\Models\Erp\ErpGoodsReceipt;
+use App\Models\Erp\ErpGoodsReceiptItem;
 use App\Models\Erp\ErpPurchaseOrder;
 use App\Models\Erp\ErpStock;
 use App\Models\Erp\RequestForm;
@@ -130,6 +131,37 @@ class GoodsReceiptTest extends PurchaseOrderTestCase
         $this->assertEquals(10, ErpStock::sole()->qty_on_hand);
     }
 
+    public function test_second_gr_posting_zero_for_already_received_lines_completes_the_po(): void
+    {
+        // the create form posts every PO line, with 0/0 for lines that have nothing left
+        $first = $this->recordGr([[0, 4], [1, 1]]);
+        $this->post(route('erp.goods-receipts.receive', $first));
+
+        $second = $this->recordGr([[0, 6], [1, 0]]);
+        $this->assertCount(1, $second->items, 'a 0/0 line is skipped, not turned into the full PO qty');
+        $this->assertEquals(6, $second->total_received_qty);
+        $this->post(route('erp.goods-receipts.receive', $second))->assertSessionHas('success');
+
+        $this->assertTrue($this->po->fresh()->gr);
+        $this->assertEquals(0, $this->poItem(0)->fresh()->remaining_qty);
+        $this->assertEquals(0, $this->poItem(1)->fresh()->remaining_qty);
+        foreach ($this->rf->items as $rfItem) {
+            $this->assertSame('Completed', $rfItem->fresh()->status);
+        }
+        $this->assertEquals(10, ErpStock::sole()->qty_on_hand);
+    }
+
+    public function test_gr_with_every_line_zero_is_refused(): void
+    {
+        $this->actingInProject($this->logistik)
+            ->post(route('erp.goods-receipts.store', $this->po), $this->grPayload([[0, 0], [1, 0]]))
+            ->assertSessionHas('error');
+
+        $this->assertSame(0, ErpGoodsReceipt::count());
+        $this->assertSame(0, ErpGoodsReceiptItem::count());
+        $this->assertEquals(10, $this->poItem(0)->fresh()->remaining_qty);
+    }
+
     public function test_over_receipt_is_refused(): void
     {
         $this->actingInProject($this->logistik)
@@ -245,5 +277,27 @@ class GoodsReceiptTest extends PurchaseOrderTestCase
         $this->assertFalse($po->gr);
         $this->assertSame('Approved', $po->status);
         $this->assertEquals(10, $this->poItem(0)->fresh()->remaining_qty);
+
+        // RF lines are no longer received: back to Ordered (still on the PO), never an invalid status
+        foreach ($this->rf->items as $rfItem) {
+            $this->assertSame('Ordered', $rfItem->fresh()->status);
+        }
+    }
+
+    public function test_deleting_one_of_two_grs_only_reopens_the_lines_it_received(): void
+    {
+        $first = $this->recordGr([[0, 4], [1, 1]]);
+        $this->post(route('erp.goods-receipts.receive', $first));
+        $second = $this->recordGr([[0, 6], [1, 0]]);
+        $this->post(route('erp.goods-receipts.receive', $second));
+
+        $this->actingInProject($this->makeUser('superadmin'))
+            ->delete(route('erp.goods-receipts.destroy', $second))
+            ->assertSessionHas('success');
+
+        $this->assertSame('Ordered', $this->rf->items[0]->fresh()->status);
+        $this->assertSame('Completed', $this->rf->items[1]->fresh()->status, 'line 1 is still fully received by the first GR');
+        $this->assertEquals(6, $this->poItem(0)->fresh()->remaining_qty);
+        $this->assertFalse($this->po->fresh()->gr);
     }
 }

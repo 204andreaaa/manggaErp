@@ -35,8 +35,7 @@
     <div class="page">
         <div class="header">
             <div class="logo">
-                <!-- Assuming logo exists in public/assets/img/logo.png -->
-                <img src="/assets/img/logo.png" alt="Mandau Logo" style="max-width: 150px;">
+                <img src="{{ asset('ImageAsset/logo-mandau.png') }}" alt="Mandau Logo" onerror="this.style.display='none'" style="max-width: 150px;">
                 <div style="font-size: 9px; color: #f37021; margin-top: 5px; font-weight: bold;">PT Mandiri Daya Utama Nusantara</div>
             </div>
         </div>

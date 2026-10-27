@@ -83,6 +83,7 @@ class ErpGoodsReceiptController extends Controller
 
             $totalDelivered = 0;
             $totalReceived = 0;
+            $linesCreated = 0;
 
             foreach ($data['items'] as $item) {
                 $poItem = \App\Models\Erp\ErpPurchaseOrderItem::find($item['po_item_id']);
@@ -91,10 +92,9 @@ class ErpGoodsReceiptController extends Controller
                 $delQty = floatval($item['delivered_qty']);
                 $recQty = floatval($item['received_qty']);
 
-                // Fallback to PO item qty if 0 was passed
-                if ($delQty == 0 && $recQty == 0 && $poItem->qty > 0) {
-                    $delQty = $poItem->qty;
-                    $recQty = $poItem->qty;
+                // 0/0 berarti baris ini tidak ikut di GR ini (mis. sudah diterima penuh di GR sebelumnya) -> lewati
+                if ($delQty <= 0 && $recQty <= 0) {
+                    continue;
                 }
 
                 $maxRemaining = $poItem->remaining_qty;
@@ -115,6 +115,12 @@ class ErpGoodsReceiptController extends Controller
 
                 $totalDelivered += $delQty;
                 $totalReceived += $recQty;
+                $linesCreated++;
+            }
+
+            if ($linesCreated === 0) {
+                DB::rollBack();
+                return redirect()->back()->withInput()->with('error', 'Tidak ada kuantitas yang diterima. Isi minimal satu baris dengan qty lebih dari 0.');
             }
 
             $gr->update([
@@ -273,15 +279,23 @@ class ErpGoodsReceiptController extends Controller
                             $stock->update(['qty_on_hand' => $newQty]);
                         }
                     }
-
-                    if ($grItem->requestFormItem) {
-                        $grItem->requestFormItem->update(['status' => 'Approved']);
-                    }
                 }
             }
 
+            $grItems = $goodsReceipt->items()->with(['requestFormItem', 'purchaseOrderItem'])->get();
+
             $goodsReceipt->items()->delete();
             $goodsReceipt->delete();
+
+            // Baris RF yang sempat 'Completed' oleh GR ini dan kini belum diterima penuh
+            // kembali ke 'Ordered' (masih ada di PO, menunggu GR berikutnya)
+            foreach ($grItems as $grItem) {
+                $rfItem = $grItem->requestFormItem;
+                $poItem = $grItem->purchaseOrderItem;
+                if ($rfItem && $poItem && $rfItem->status === 'Completed' && $poItem->remaining_qty > 0) {
+                    $rfItem->update(['status' => 'Ordered']);
+                }
+            }
 
             if ($po) {
                 $po->load('items');

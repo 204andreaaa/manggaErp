@@ -245,7 +245,11 @@
         </div>
 
         @php
-          $oldItems = old('items', $rf->items->toArray());
+          // date_required is cast to a date: toArray() would give a UTC ISO timestamp
+          // (a day early in Asia/Jakarta), so hand the page a plain Y-m-d instead.
+          $oldItems = old('items', $rf->items->map(fn ($item) => array_merge($item->toArray(), [
+              'date_required' => $item->date_required?->toDateString(),
+          ]))->all());
         @endphp
 
         <div id="lineHiddenInputs"></div>
@@ -478,7 +482,31 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   const initialItems = @json($oldItems);
-  const lineItems = [];
+  // Pre-fill the table with the RF's existing lines (or with old() input after a
+  // failed validation redirect). Each existing line keeps its `id` so update()
+  // edits it in place instead of deleting and recreating it; lines added in this
+  // session have no id and are created as new. Fields are normalized to strings
+  // the same way collectModalItem() does.
+  const lineItems = (Array.isArray(initialItems) ? initialItems : Object.values(initialItems || {})).map((item) => {
+    const line = {};
+    if (item.id) line.id = String(item.id);
+    return Object.assign(line, {
+      product_name: item.product_name ?? '',
+      product_id_text: item.product_id_text ?? '',
+      wid: item.wid ?? '',
+      currency: item.currency ?? 'IDR',
+      status: item.status ?? 'Requested',
+      qty: String(item.qty ?? '1'),
+      qty_fulfilled: String(item.qty_fulfilled ?? '0'),
+      unit_cost: String(item.unit_cost ?? '0'),
+      original_total_cost: String(item.original_total_cost ?? '0'),
+      actual_cost: String(item.actual_cost ?? '0'),
+      date_required: item.date_required ? String(item.date_required).substring(0, 10) : '',
+      pic: item.pic ?? '',
+      within_budget: (item.within_budget && item.within_budget !== '0') ? '1' : '0',
+      remark: item.remark ?? '',
+    });
+  });
   const body = document.getElementById('lineItemsBody');
   const emptyRow = document.getElementById('emptyLineRow');
   const hiddenInputs = document.getElementById('lineHiddenInputs');
@@ -694,6 +722,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     renderHiddenInputs();
   }
+
+  renderTable();
 
   $('#lineProductName').on('change', function () {
     const opt = $(this).find(':selected');
