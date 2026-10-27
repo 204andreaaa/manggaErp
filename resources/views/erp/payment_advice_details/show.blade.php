@@ -30,7 +30,7 @@
     $unapprovedPrev = $paymentAdviceDetail->previousUnapprovedDetail();
     $user = auth()->user();
     $canApprove = false;
-    $activeApproval = $paymentAdviceDetail->approvals()->where('status', 'Pending')->first();
+    $activeApproval = $paymentAdviceDetail->currentApprovals()->where('status', 'Pending')->first();
     if ($activeApproval) {
         if ($user->hasRole('superadmin')) {
             $canApprove = true;
@@ -82,7 +82,7 @@
         <i class="bx bx-arrow-back me-1"></i>Back to PA Header
       </a>
 
-      @if($paymentAdviceDetail->approval_status === 'Draft')
+      @if(in_array($paymentAdviceDetail->approval_status, ['Draft', 'Rejected'], true))
         @if($unapprovedPrev)
           <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3" disabled data-bs-toggle="tooltip" title="Termin sebelumnya ({{ $unapprovedPrev->payment_type }}) belum di-approve.">
             <i class="bx bx-lock-alt me-1"></i>Terkunci (Antrean)
@@ -90,10 +90,10 @@
         @else
           @if(auth()->user()->hasRole(['finance', 'superadmin']))
             <button type="button" class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#submitApprovalModal">
-              <i class="bx bx-paper-plane me-1"></i>Submit for Approval
+              <i class="bx bx-paper-plane me-1"></i>{{ $paymentAdviceDetail->approval_status === 'Rejected' ? 'Ajukan Ulang' : 'Submit for Approval' }}
             </button>
           @else
-            <span class="badge bg-label-secondary px-3 py-2 fs-7"><i class="bx bx-time me-1"></i>Draft (Menunggu Finance)</span>
+            <span class="badge bg-label-secondary px-3 py-2 fs-7"><i class="bx bx-time me-1"></i>{{ $paymentAdviceDetail->approval_status }} (Menunggu Finance)</span>
           @endif
         @endif
       @elseif($paymentAdviceDetail->approval_status === 'Submitted')
@@ -205,7 +205,7 @@
                     <td class="py-2">
                       <div class="d-flex align-items-center flex-wrap gap-2">
                         <span class="fw-bold text-dark">{{ $paymentAdviceDetail->invoice_no ?: '-' }}</span>
-                        @if($paymentAdviceDetail->approval_status === 'Draft' && (auth()->user()->hasRole('finance') || auth()->user()->hasRole('superadmin')))
+                        @if(in_array($paymentAdviceDetail->approval_status, ['Draft', 'Rejected'], true) && (auth()->user()->hasRole('finance') || auth()->user()->hasRole('superadmin')))
                           <button type="button" class="btn btn-xs btn-outline-primary rounded-pill px-2.5 py-0.5" data-bs-toggle="modal" data-bs-target="#editInvoiceModal">
                             <i class="bx bx-edit me-1"></i>Input / Edit
                           </button>
@@ -369,10 +369,13 @@
               </td>
             </tr>
           @else
-            {{-- Submission Step --}}
+            @foreach($paymentAdviceDetail->approvalRounds() as $round)
+            {{-- Submission Step (one per approval round, newest round first) --}}
+            @php $roundSubmitter = $round->submitter?->name ?: ($paymentAdviceDetail->submittedBy?->name ?: 'Finance Staff'); @endphp
             <tr class="bg-light">
               <td colspan="6" class="fw-bold py-2 px-3 text-primary">
-                <i class="bx bx-paper-plane me-2"></i>Termin Payment Request Submitted
+                <i class="bx bx-paper-plane me-2"></i>Approval Request Submitted
+                <span class="badge bg-label-primary ms-2">Round {{ $round->round }}</span>
               </td>
               <td class="bg-success text-white fw-bold text-center py-2">
                 <i class="bx bx-check-circle me-1"></i> Submitted
@@ -380,16 +383,16 @@
             </tr>
             <tr class="bg-white">
               <td>-</td>
-              <td>{{ $paymentAdviceDetail->created_date_sid ? \Carbon\Carbon::parse($paymentAdviceDetail->created_date_sid)->format('Y-m-d H:i') : $paymentAdviceDetail->created_at->format('Y-m-d H:i') }}</td>
+              <td>{{ $round->submitted_at ? \Carbon\Carbon::parse($round->submitted_at)->format('Y-m-d H:i') : '-' }}</td>
               <td><span class="badge bg-label-info">Submitted</span></td>
-              <td>{{ $paymentAdviceDetail->submittedBy?->name ?: (auth()->user()?->hasRole('finance') ? auth()->user()->name : 'Finance Staff') }}</td>
-              <td>{{ $paymentAdviceDetail->submittedBy?->name ?: (auth()->user()?->hasRole('finance') ? auth()->user()->name : 'Finance Staff') }}</td>
+              <td>{{ $roundSubmitter }}</td>
+              <td>{{ $roundSubmitter }}</td>
               <td>Termin Submitted for approval</td>
               <td class="text-center"></td>
             </tr>
 
             {{-- Approval Steps --}}
-            @foreach($paymentAdviceDetail->approvals()->orderBy('level')->get() as $approval)
+            @foreach($round->approvals as $approval)
               @php
                 $statusBg = 'bg-secondary';
                 $statusIcon = 'bx-minus';
@@ -459,6 +462,7 @@
                 <td>{{ $approval->comments ?: '-' }}</td>
                 <td class="text-center"></td>
               </tr>
+            @endforeach
             @endforeach
           @endif
         </tbody>

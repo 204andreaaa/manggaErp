@@ -65,8 +65,8 @@
     <div class="sf-card-head">
       <h6>Expense Declaration Detail</h6>
       <div class="sf-actions">
-        @if($expenseDeclaration->status === 'Draft')
-          <form method="POST" action="{{ route('erp.expense-declarations.submit', $expenseDeclaration) }}">@csrf<button class="btn btn-primary btn-sm"><i class="bx bx-paper-plane me-1"></i>Submit for Approval</button></form>
+        @if(in_array($expenseDeclaration->status, ['Draft', 'Rejected'], true))
+          <form method="POST" action="{{ route('erp.expense-declarations.submit', $expenseDeclaration) }}">@csrf<button class="btn btn-primary btn-sm"><i class="bx bx-paper-plane me-1"></i>{{ $expenseDeclaration->status === 'Rejected' ? 'Ajukan Ulang' : 'Submit for Approval' }}</button></form>
         @endif
       </div>
     </div>
@@ -75,7 +75,6 @@
 
   @include('erp.budget.partials.sf-approval', [
     'approvals' => $expenseDeclaration->approvals,
-    'submittedAt' => $expenseDeclaration->approvals->min('created_at'),
     'submittedBy' => $expenseDeclaration->requestBy?->name,
   ])
 </div>

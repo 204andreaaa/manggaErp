@@ -178,6 +178,65 @@ class PaymentApprovalAndPaidTest extends ErpTestCase
         $this->assertFalse($pa->fresh()->payment_closed);
     }
 
+    public function test_a_rejected_termin_is_resubmitted_as_a_new_round_from_level_one(): void
+    {
+        $this->checker = $this->makeUser('pa_checker');
+        $this->ceo = $this->makeUser('ceo');
+        $director = $this->makeUser('director');
+        $this->financeUser = $this->finance();
+        $this->configureApprovalLevels([['user' => $this->checker], ['role' => 'ceo'], ['user' => $director]]);
+        $po = $this->makeApprovedPo(5_000_000);
+        $pa = $this->makePaymentAdvice($po, 5_000_000, [5_000_000], $this->financeUser);
+        $detail = $pa->details()->first();
+
+        $this->actingInProject($this->financeUser);
+        $this->post(route('erp.payment-advice-details.submit', $detail), ['invoice_no' => 'INV-1'])->assertSessionHas('success');
+        $this->actingInProject($this->checker);
+        $this->post(route('erp.payment-advice-details.approve', $detail), ['comments' => 'ok 1'])->assertSessionHas('success');
+        $this->actingInProject($this->ceo);
+        $this->post(route('erp.payment-advice-details.reject', $detail), ['reason' => 'Invoice salah'])->assertSessionHas('success');
+
+        $round1 = $this->approvals($detail)->map->only(['id', 'level', 'round', 'status', 'comments', 'actual_approver_id'])->all();
+        $this->assertSame(['Approved', 'Rejected', 'Cancelled'], array_column($round1, 'status'));
+        $this->assertSame('Rejected', $detail->fresh()->approval_status);
+
+        // The PA page offers to resubmit the rejected termin.
+        $this->actingInProject($this->financeUser);
+        $this->get(route('erp.payment-advices.show', $pa))->assertOk()->assertSee('Ajukan Ulang');
+        $this->get(route('erp.payment-advice-details.show', $detail))->assertOk()->assertSee('Ajukan Ulang');
+
+        $this->post(route('erp.payment-advice-details.submit', $detail), ['invoice_no' => 'INV-1b'])->assertSessionHas('success');
+        $detail->refresh();
+        $this->assertSame('Submitted', $detail->approval_status);
+        $this->assertSame('INV-1b', $detail->invoice_no);
+        $this->assertSame(2, $detail->latestApprovalRound());
+        $this->assertSame(['Pending', 'Waiting', 'Waiting'], $detail->currentApprovals()->orderBy('level')->pluck('status')->all());
+        $this->assertSame($round1, ErpApproval::where('payment_advice_detail_id', $detail->id)->where('round', 1)->orderBy('level')->get()
+            ->map->only(['id', 'level', 'round', 'status', 'comments', 'actual_approver_id'])->all());
+
+        // Submitting again while round 2 runs is refused.
+        $this->post(route('erp.payment-advice-details.submit', $detail), ['invoice_no' => 'INV-1b'])->assertSessionHas('error');
+
+        // Round 2 goes through all three levels.
+        $this->actingInProject($this->checker);
+        $this->post(route('erp.payment-advice-details.approve', $detail))->assertSessionHas('success');
+        $this->actingInProject($this->ceo);
+        $this->post(route('erp.payment-advice-details.approve', $detail))->assertSessionHas('success');
+        $this->assertSame('Submitted', $detail->fresh()->approval_status);
+        $this->actingInProject($director);
+        $this->post(route('erp.payment-advice-details.approve', $detail))->assertSessionHas('success');
+        $this->assertSame('Approved', $detail->fresh()->approval_status);
+        $this->assertSame(['Approved', 'Rejected', 'Cancelled'], ErpApproval::where('payment_advice_detail_id', $detail->id)
+            ->where('round', 1)->orderBy('level')->pluck('status')->all());
+
+        // Both rounds are listed on the termin and on the PA, newest first.
+        $this->actingInProject($this->financeUser);
+        $this->get(route('erp.payment-advice-details.show', $detail))->assertOk()
+            ->assertSeeInOrder(['Round 2', 'Approval Request Submitted', 'Round 1', 'Invoice salah']);
+        $this->get(route('erp.payment-advices.show', $pa))->assertOk()
+            ->assertSeeInOrder(['Round 2', 'Round 1', 'Invoice salah']);
+    }
+
     public function test_without_dynamic_approvals_staff_cannot_use_the_legacy_approve_or_reject(): void
     {
         $po = $this->makeApprovedPo();

@@ -248,6 +248,57 @@ class ExpenseDeclarationTest extends ErpTestCase
         $this->assertEquals(50000000, $this->remaining('Office'));
     }
 
+    public function test_a_rejected_declaration_is_resubmitted_as_a_new_round_from_level_one(): void
+    {
+        $role2 = \App\Models\Role::where('slug', 'kasbon_approver2')->value('id');
+        foreach ([2, 3] as $level) {
+            \App\Models\Erp\ErpApprovalConfig::create([
+                'record_type' => 'expense_declaration', 'level' => $level, 'name' => "Step {$level}", 'role_id' => $role2,
+            ]);
+        }
+        $this->declarationWithoutAdvance(['Office' => 2000000]);
+        $declaration = ExpenseDeclaration::sole();
+        $this->actingInProject($this->requester);
+        $this->post(route('erp.expense-declarations.submit', $declaration))->assertSessionHas('success');
+
+        $this->actingInProject($this->approver);
+        $this->post(route('erp.expense-declarations.approvals.approve', $this->pendingApproval($declaration)), ['comments' => 'ok'])
+            ->assertSessionHas('success');
+        $this->actingInProject($this->approver2);
+        $this->post(route('erp.expense-declarations.approvals.reject', $this->pendingApproval($declaration)), ['reason' => 'Nota hilang'])
+            ->assertSessionHas('success');
+
+        $this->assertSame('Rejected', $declaration->fresh()->status);
+        $round1 = $declaration->approvals()->orderBy('level')->get()->map->only(['id', 'level', 'round', 'status', 'comments', 'actual_approver_id'])->all();
+        $this->assertSame(['Approved', 'Rejected', 'Cancelled'], array_column($round1, 'status'));
+
+        $this->actingInProject($this->requester);
+        $this->get(route('erp.expense-declarations.show', $declaration))->assertOk()->assertSee('Ajukan Ulang');
+        $this->post(route('erp.expense-declarations.submit', $declaration))->assertSessionHas('success');
+
+        $declaration->refresh();
+        $this->assertSame('Submitted', $declaration->status);
+        $this->assertSame(2, $declaration->latestApprovalRound());
+        $this->assertSame(['Pending', 'Waiting', 'Waiting'], $declaration->currentApprovals()->orderBy('level')->pluck('status')->all());
+        $this->assertSame($round1, $declaration->approvals()->where('round', 1)->orderBy('level')->get()
+            ->map->only(['id', 'level', 'round', 'status', 'comments', 'actual_approver_id'])->all());
+
+        $this->actingInProject($this->approver);
+        $this->post(route('erp.expense-declarations.approvals.approve', $this->pendingApproval($declaration)))->assertSessionHas('success');
+        $this->actingInProject($this->approver2);
+        $this->post(route('erp.expense-declarations.approvals.approve', $this->pendingApproval($declaration)))->assertSessionHas('success');
+        $this->assertEquals(50000000, $this->remaining('Office'), 'No cut before the final approval');
+        $this->post(route('erp.expense-declarations.approvals.approve', $this->pendingApproval($declaration)))->assertSessionHas('success');
+
+        $this->assertSame('Approved', $declaration->fresh()->status);
+        $this->assertEquals(48000000, $this->remaining('Office'));
+        $this->assertSame(['Approved', 'Rejected', 'Cancelled'], $declaration->approvals()->where('round', 1)->orderBy('level')->pluck('status')->all());
+
+        $this->actingInProject($this->requester);
+        $this->get(route('erp.expense-declarations.show', $declaration))->assertOk()
+            ->assertSeeInOrder(['Round 2', 'Approval Request Submitted', 'Round 1', 'Nota hilang']);
+    }
+
     public function test_submit_without_config_is_refused(): void
     {
         \App\Models\Erp\ErpApprovalConfig::where('record_type', 'expense_declaration')->delete();

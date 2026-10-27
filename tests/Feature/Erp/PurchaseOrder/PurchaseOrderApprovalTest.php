@@ -230,13 +230,18 @@ class PurchaseOrderApprovalTest extends PurchaseOrderTestCase
         $this->assertSame('Draft', $draft->fresh()->status);
     }
 
-    public function test_resubmitting_after_rejection_keeps_levels_already_approved(): void
+    public function test_resubmitting_after_rejection_starts_a_new_round_from_level_one(): void
     {
         $this->twoLevels();
         $po = $this->draftPo();
         $this->actingInProject($this->buyer)->post(route('erp.purchase-orders.submit', $po));
-        $this->actingInProject($this->managerA)->post(route('erp.purchase-orders.approve', $po));
+        $this->actingInProject($this->managerA)->post(route('erp.purchase-orders.approve', $po), ['comments' => 'ok A']);
         $this->actingInProject($this->ceo)->post(route('erp.purchase-orders.reject', $po), ['comments' => 'revisi']);
+
+        // The rejected round keeps its whole history.
+        $round1 = $po->approvals()->orderBy('level')->get()->map->only(['id', 'level', 'round', 'status', 'comments', 'actual_approver_id'])->all();
+        $this->assertSame([[0, 'Approved'], [1, 'Approved'], [2, 'Rejected']], array_map(fn ($a) => [(int) $a['level'], $a['status']], $round1));
+        $this->assertSame([1, 1, 1], array_column($round1, 'round'));
 
         // owner edits the rejected PO (back to Draft) and submits again
         $rfItem = $po->items()->first()->request_form_item_id;
@@ -251,14 +256,47 @@ class PurchaseOrderApprovalTest extends PurchaseOrderTestCase
 
         $this->post(route('erp.purchase-orders.submit', $po))->assertSessionHas('success');
 
-        $this->assertSame('Submitted', $po->fresh()->status);
-        $this->assertSame(1, $po->approvals()->where('level', 1)->count(), 'level 1 is not asked again');
-        $this->assertSame('Approved', $this->approvalAt($po, 1)->status);
-        $this->assertSame('Pending', $this->approvalAt($po, 2)->status);
+        // Round 2 starts again from level 1; round 1 rows are not touched.
+        $po->refresh();
+        $this->assertSame('Submitted', $po->status);
+        $this->assertSame(2, $po->latestApprovalRound());
+        $this->assertSame(
+            [[0, 'Approved'], [1, 'Pending'], [2, 'Waiting']],
+            $po->currentApprovals()->orderBy('level')->get()->map(fn ($a) => [(int) $a->level, $a->status])->all()
+        );
+        $this->assertSame($round1, $po->approvals()->where('round', 1)->orderBy('level')->get()
+            ->map->only(['id', 'level', 'round', 'status', 'comments', 'actual_approver_id'])->all());
 
-        $this->actingInProject($this->ceo)->post(route('erp.purchase-orders.approve', $po));
+        // Level 2 has to wait for level 1 again.
+        $this->actingInProject($this->ceo)->post(route('erp.purchase-orders.approve', $po))->assertSessionHas('error');
+        $this->actingInProject($this->managerA)->post(route('erp.purchase-orders.approve', $po))->assertSessionHas('success');
+        $this->assertSame('Submitted', $po->fresh()->status);
+        $this->actingInProject($this->ceo)->post(route('erp.purchase-orders.approve', $po))->assertSessionHas('success');
         $this->assertSame('Approved', $po->fresh()->status);
         $this->assertEquals(10_000_000 - 1_800_000, $this->wid->fresh()->remaining_budget);
+        $this->assertSame(['Approved', 'Approved', 'Rejected'], $po->approvals()->where('round', 1)->orderBy('level')->pluck('status')->all());
+
+        // The approval history shows both rounds, newest first.
+        $this->actingInProject($this->buyer)->get(route('erp.purchase-orders.show', $po))->assertOk()
+            ->assertSeeInOrder(['Round 2', 'Approval Request Submitted', 'Round 1', 'revisi']);
+    }
+
+    public function test_a_rejected_po_can_be_resubmitted_without_editing(): void
+    {
+        $this->twoLevels();
+        $po = $this->draftPo();
+        $this->actingInProject($this->buyer)->post(route('erp.purchase-orders.submit', $po));
+        $this->actingInProject($this->managerA)->post(route('erp.purchase-orders.reject', $po), ['comments' => 'cek lagi']);
+        $this->assertSame('Rejected', $po->fresh()->status);
+
+        $this->actingInProject($this->buyer)->get(route('erp.purchase-orders.show', $po))->assertOk()->assertSee('Ajukan Ulang');
+        $this->post(route('erp.purchase-orders.submit', $po))->assertSessionHas('success');
+
+        $po->refresh();
+        $this->assertSame('Submitted', $po->status);
+        $this->assertNull($po->rejected_date);
+        $this->assertSame(['Approved', 'Rejected', 'Cancelled'], $po->approvals()->where('round', 1)->orderBy('level')->pluck('status')->all());
+        $this->assertSame(['Approved', 'Pending', 'Waiting'], $po->currentApprovals()->orderBy('level')->pluck('status')->all());
     }
 
     public function test_without_configs_small_pos_need_procurement_and_large_pos_need_the_ceo(): void

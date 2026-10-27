@@ -7,6 +7,8 @@ use App\Models\User;
 
 class ErpPurchaseOrder extends Model
 {
+    use \App\Models\Erp\Concerns\HasApprovalRounds;
+
     protected $connection = 'tenant';
     protected $table = 'erp_purchase_orders';
 

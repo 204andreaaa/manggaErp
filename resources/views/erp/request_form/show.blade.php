@@ -434,24 +434,28 @@
                       </td>
                     </tr>
                   @else
+                    @foreach($rf->approvalRounds() as $round)
+                    {{-- One block per approval round, newest round first --}}
+                    @php $roundSubmitter = $round->submitter?->name ?: $rf->requestor; @endphp
                     <tr class="bg-light">
                       <td colspan="6" class="fw-bold py-2 px-3 text-primary">
                         <i class="bx bx-paper-plane me-2"></i>Approval Request Submitted
+                        <span class="badge bg-label-primary ms-2">Round {{ $round->round }}</span>
                       </td>
                       <td class="bg-success text-white fw-bold text-center py-2">
-                        <i class="bx bx-check-circle me-1"></i> Approved
+                        <i class="bx bx-check-circle me-1"></i> Submitted
                       </td>
                     </tr>
                     <tr class="bg-white">
                       <td>-</td>
-                      <td>{{ $rf->approvals->first()?->created_at ? $rf->approvals->first()->created_at->format('Y-m-d H:i') : ($rf->created_at ? $rf->created_at->format('Y-m-d H:i') : '-') }}</td>
+                      <td>{{ $round->submitted_at ? $round->submitted_at->format('Y-m-d H:i') : '-' }}</td>
                       <td><span class="badge bg-label-info">Submitted</span></td>
-                      <td>{{ $rf->requestor }}</td>
-                      <td>{{ $rf->requestor }}</td>
+                      <td>{{ $roundSubmitter }}</td>
+                      <td>{{ $roundSubmitter }}</td>
                       <td>RF Submitted for approval</td>
                       <td class="text-center"></td>
                     </tr>
-                    @foreach($rf->approvals->sortBy('level') as $approval)
+                    @foreach($round->approvals as $approval)
                       @php
                         $statusBg = 'bg-secondary';
                         $statusIcon = 'bx-minus';
@@ -564,6 +568,7 @@
                         <td>{{ $approval->comments ?: '-' }}</td>
                         <td class="text-center"></td>
                       </tr>
+                    @endforeach
                     @endforeach
                   @endif
                 </tbody>

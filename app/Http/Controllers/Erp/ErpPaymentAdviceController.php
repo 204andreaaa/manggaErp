@@ -356,7 +356,10 @@ class ErpPaymentAdviceController extends Controller
             'invoice_attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
         ]);
 
-        if ($paymentAdviceDetail->approvals()->count() > 0) {
+        // A rejected termin can be submitted again: that starts a new approval round
+        // from level 1, earlier rounds stay as history.
+        $latestRound = $paymentAdviceDetail->latestApprovalRound();
+        if ($latestRound > 0 && $paymentAdviceDetail->approval_status !== 'Rejected') {
             return redirect()->back()->with('error', 'Payment Advice Detail is already submitted for approval.');
         }
 
@@ -409,6 +412,8 @@ class ErpPaymentAdviceController extends Controller
                 \App\Models\Erp\ErpApproval::create([
                     'payment_advice_detail_id' => $paymentAdviceDetail->id,
                     'level' => 1,
+                    'round' => $latestRound + 1,
+                    'submitted_by_id' => auth()->id(),
                     'status' => 'Pending',
                 ]);
             } else {
@@ -417,6 +422,8 @@ class ErpPaymentAdviceController extends Controller
                     \App\Models\Erp\ErpApproval::create([
                         'payment_advice_detail_id' => $paymentAdviceDetail->id,
                         'level' => $config->level,
+                        'round' => $latestRound + 1,
+                        'submitted_by_id' => auth()->id(),
                         'assigned_to_role_id' => $config->role_id,
                         'assigned_to_user_id' => $config->user_id,
                         'status' => $isFirst ? 'Pending' : 'Waiting',
@@ -458,7 +465,7 @@ class ErpPaymentAdviceController extends Controller
 
         DB::beginTransaction();
         try {
-            $activeApproval = $paymentAdviceDetail->approvals()->where('status', 'Pending')->lockForUpdate()->first();
+            $activeApproval = $paymentAdviceDetail->currentApprovals()->where('status', 'Pending')->lockForUpdate()->first();
 
             if ($activeApproval) {
                 $isDesignatedApprover = false;
@@ -495,7 +502,7 @@ class ErpPaymentAdviceController extends Controller
                 ]);
 
                 // Promote next step if any
-                $nextApproval = $paymentAdviceDetail->approvals()->where('status', 'Waiting')->orderBy('level')->lockForUpdate()->first();
+                $nextApproval = $paymentAdviceDetail->currentApprovals()->where('status', 'Waiting')->orderBy('level')->lockForUpdate()->first();
                 $notifyUserId = null;
                 $notifyFinal = false;
                 if ($nextApproval) {
@@ -557,6 +564,8 @@ class ErpPaymentAdviceController extends Controller
             \App\Models\Erp\ErpApproval::create([
                 'payment_advice_detail_id' => $paymentAdviceDetail->id,
                 'level' => 1,
+                'round' => $paymentAdviceDetail->latestApprovalRound() + 1,
+                'submitted_by_id' => $user->id,
                 'status' => 'Approved',
                 'assigned_to_user_id' => $user->id,
                 'actual_approver_id' => $user->id,
@@ -585,7 +594,7 @@ class ErpPaymentAdviceController extends Controller
 
         DB::beginTransaction();
         try {
-            $activeApproval = $paymentAdviceDetail->approvals()->where('status', 'Pending')->lockForUpdate()->first();
+            $activeApproval = $paymentAdviceDetail->currentApprovals()->where('status', 'Pending')->lockForUpdate()->first();
 
             if ($activeApproval) {
                 $isAuthorized = false;
@@ -622,7 +631,7 @@ class ErpPaymentAdviceController extends Controller
                 ]);
 
                 // Cancel subsequent steps
-                $paymentAdviceDetail->approvals()->where('status', 'Waiting')->update(['status' => 'Cancelled']);
+                $paymentAdviceDetail->approvals()->where('round', $activeApproval->round)->where('status', 'Waiting')->update(['status' => 'Cancelled']);
 
                 $paymentAdviceDetail->update([
                     'approval_status' => 'Rejected'
@@ -660,6 +669,8 @@ class ErpPaymentAdviceController extends Controller
             \App\Models\Erp\ErpApproval::create([
                 'payment_advice_detail_id' => $paymentAdviceDetail->id,
                 'level' => 1,
+                'round' => $paymentAdviceDetail->latestApprovalRound() + 1,
+                'submitted_by_id' => $user->id,
                 'status' => 'Rejected',
                 'assigned_to_user_id' => $user->id,
                 'actual_approver_id' => $user->id,

@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class ErpPaymentAdviceDetail extends Model
 {
+    use \App\Models\Erp\Concerns\HasApprovalRounds;
+
     protected $connection = 'tenant';
     protected $table = 'erp_payment_advice_details';
 

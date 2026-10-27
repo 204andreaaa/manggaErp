@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class RequestForm extends Model
 {
+    use \App\Models\Erp\Concerns\HasApprovalRounds;
+
     protected $connection = 'tenant';
     use SoftDeletes;
 

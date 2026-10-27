@@ -63,8 +63,8 @@
     <div class="sf-card-head">
       <h6>Advance Request Detail</h6>
       <div class="sf-actions">
-        @if($advanceRequest->status === 'Draft')
-          <form method="POST" action="{{ route('erp.advance-requests.submit', $advanceRequest) }}">@csrf<button class="btn btn-primary btn-sm"><i class="bx bx-paper-plane me-1"></i>Submit for Approval</button></form>
+        @if(in_array($advanceRequest->status, ['Draft', 'Rejected'], true))
+          <form method="POST" action="{{ route('erp.advance-requests.submit', $advanceRequest) }}">@csrf<button class="btn btn-primary btn-sm"><i class="bx bx-paper-plane me-1"></i>{{ $advanceRequest->status === 'Rejected' ? 'Ajukan Ulang' : 'Submit for Approval' }}</button></form>
         @endif
         @if($canPay)
           <form method="POST" action="{{ route('erp.advance-requests.pay', $advanceRequest) }}">@csrf<button class="btn btn-success btn-sm" onclick="return confirm('Tandai kasbon ini sudah dibayar?')"><i class="bx bx-dollar-circle me-1"></i>Mark as Paid</button></form>
@@ -117,10 +117,9 @@
 
   @include('erp.budget.partials.sf-approval', [
     'approvals' => $advanceRequest->approvals,
-    'submittedAt' => $advanceRequest->approvals->min('created_at'),
     'submittedBy' => $advanceRequest->requestBy?->name,
-    'submitForm' => $advanceRequest->status === 'Draft'
-        ? '<form method="POST" action="'.e(route('erp.advance-requests.submit', $advanceRequest)).'"><input type="hidden" name="_token" value="'.e(csrf_token()).'"><button class="btn btn-primary btn-sm">Submit for Approval</button></form>'
+    'submitForm' => in_array($advanceRequest->status, ['Draft', 'Rejected'], true)
+        ? '<form method="POST" action="'.e(route('erp.advance-requests.submit', $advanceRequest)).'"><input type="hidden" name="_token" value="'.e(csrf_token()).'"><button class="btn btn-primary btn-sm">'.($advanceRequest->status === 'Rejected' ? 'Ajukan Ulang' : 'Submit for Approval').'</button></form>'
         : '',
   ])
 </div>

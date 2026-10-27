@@ -134,7 +134,7 @@
       @endif
 
       {{-- Submit for Approval Button (Procurement / Admin only) --}}
-      @if($purchaseOrder->status === 'Draft' && auth()->user()->hasRole(['procurement', 'admin', 'superadmin']))
+      @if(in_array($purchaseOrder->status, ['Draft', 'Rejected'], true) && auth()->user()->hasRole(['procurement', 'admin', 'superadmin']))
         @php
           $isReadyToSubmit = !$isVerificationActive || (bool) $purchaseOrder->verified_by_id;
           $verifierName = $poVerifConfig?->user?->name ?? 'Verifikator PO';
@@ -143,7 +143,7 @@
           <form action="{{ route('erp.purchase-orders.submit', $purchaseOrder) }}" method="POST" class="d-inline">
             @csrf
             <button type="submit" class="btn btn-success btn-sm rounded-pill px-3">
-              <i class="bx bx-paper-plane me-1"></i>Submit for Approval
+              <i class="bx bx-paper-plane me-1"></i>{{ $purchaseOrder->status === 'Rejected' ? 'Ajukan Ulang' : 'Submit for Approval' }}
             </button>
           </form>
         @else
@@ -510,27 +510,33 @@
                   </td>
                 </tr>
               @else
-                {{-- Submission Step --}}
+                @foreach($purchaseOrder->approvalRounds() as $round)
+                {{-- Submission Step (one per approval round, newest round first) --}}
+                @php
+                  $submitRow = $round->approvals->firstWhere('level', 0);
+                  $submitter = $round->submitter ?: $submitRow?->actualApprover ?: $purchaseOrder->owner;
+                @endphp
                 <tr class="bg-light">
                   <td colspan="6" class="fw-bold py-2 px-3 text-primary">
-                    <i class="bx bx-paper-plane me-2"></i>PO Request Submitted
+                    <i class="bx bx-paper-plane me-2"></i>Approval Request Submitted
+                    <span class="badge bg-label-primary ms-2">Round {{ $round->round }}</span>
                   </td>
                   <td class="bg-success text-white fw-bold text-center py-2">
-                    <i class="bx bx-check-circle me-1"></i> Approved
+                    <i class="bx bx-check-circle me-1"></i> Submitted
                   </td>
                 </tr>
                 <tr class="bg-white">
                   <td>-</td>
-                  <td>{{ $purchaseOrder->submitted_date ? \Carbon\Carbon::parse($purchaseOrder->submitted_date)->format('Y-m-d H:i') : ($purchaseOrder->created_at->format('Y-m-d H:i')) }}</td>
+                  <td>{{ $round->submitted_at ? \Carbon\Carbon::parse($round->submitted_at)->format('Y-m-d H:i') : '-' }}</td>
                   <td><span class="badge bg-label-info">Submitted</span></td>
-                  <td>{{ $purchaseOrder->owner?->name ?: 'Requester' }}</td>
-                  <td>{{ $purchaseOrder->owner?->name ?: 'Requester' }}</td>
+                  <td>{{ $submitter?->name ?: 'Requester' }}</td>
+                  <td>{{ $submitter?->name ?: 'Requester' }}</td>
                   <td>PO Submitted for approval</td>
                   <td class="text-center"></td>
                 </tr>
 
                 {{-- Approval Steps --}}
-                @foreach($purchaseOrder->approvals->where('level', '>', 0)->sortBy('level') as $approval)
+                @foreach($round->approvals->where('level', '>', 0) as $approval)
                   @php
                     $statusBg = 'bg-secondary';
                     $statusIcon = 'bx-minus';
@@ -640,6 +646,7 @@
                     <td>{{ $approval->comments ?: '-' }}</td>
                     <td class="text-center"></td>
                   </tr>
+                @endforeach
                 @endforeach
               @endif
             </tbody>

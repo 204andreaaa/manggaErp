@@ -204,11 +204,14 @@ class ExpenseDeclarationController extends Controller
         return DB::transaction(function () use ($expenseDeclaration) {
             $expenseDeclaration = ExpenseDeclaration::where('id', $expenseDeclaration->id)->lockForUpdate()->firstOrFail();
 
-            if ($expenseDeclaration->status !== 'Draft') {
-                return redirect()->back()->with('error', 'Hanya Expense Declaration berstatus Draft yang bisa disubmit.');
+            // A rejected declaration can be submitted again as-is: that starts a new
+            // approval round from level 1, earlier rounds stay as history.
+            if (!in_array($expenseDeclaration->status, ['Draft', 'Rejected'], true)) {
+                return redirect()->back()->with('error', 'Hanya Expense Declaration berstatus Draft atau Rejected yang bisa disubmit.');
             }
 
-            if ($expenseDeclaration->approvals()->count() > 0) {
+            $latestRound = $expenseDeclaration->latestApprovalRound();
+            if ($latestRound > 0 && $expenseDeclaration->status !== 'Rejected') {
                 return redirect()->back()->with('error', 'Expense Declaration sudah pernah disubmit.');
             }
 
@@ -226,6 +229,8 @@ class ExpenseDeclarationController extends Controller
                 ErpApproval::create([
                     'expense_declaration_id' => $expenseDeclaration->id,
                     'level' => $config->level,
+                    'round' => $latestRound + 1,
+                    'submitted_by_id' => auth()->id(),
                     'assigned_to_role_id' => $config->role_id,
                     'assigned_to_user_id' => $config->user_id,
                     'status' => $isFirst ? 'Pending' : 'Waiting',
@@ -298,7 +303,7 @@ class ExpenseDeclarationController extends Controller
             // A without-advance declaration cuts the budget on its last approval,
             // so it must still fit right now.
             $isFinalApproval = $declaration
-                && !$declaration->approvals()->where('status', 'Waiting')->where('id', '!=', $approval->id)->exists();
+                && !$declaration->approvals()->where('round', $approval->round)->where('status', 'Waiting')->where('id', '!=', $approval->id)->exists();
             if ($isFinalApproval && $declaration->record_type === 'without_advance') {
                 $detail = BudgetPlanDetail::where('id', $declaration->budget_plan_detail_id)->lockForUpdate()->firstOrFail();
                 if ($shortfall = BudgetGuard::detailShortfall($detail, (float) $declaration->converted_amount_idr)) {
@@ -315,7 +320,7 @@ class ExpenseDeclarationController extends Controller
             ]);
 
             if ($declaration) {
-                $nextApproval = $declaration->approvals()->where('status', 'Waiting')->orderBy('level')->lockForUpdate()->first();
+                $nextApproval = $declaration->approvals()->where('round', $approval->round)->where('status', 'Waiting')->orderBy('level')->lockForUpdate()->first();
 
                 if ($nextApproval) {
                     $nextApproval->update(['status' => 'Pending']);
@@ -404,7 +409,7 @@ class ExpenseDeclarationController extends Controller
                 : null;
 
             if ($declaration) {
-                $declaration->approvals()->where('status', 'Waiting')->update(['status' => 'Cancelled']);
+                $declaration->approvals()->where('round', $approval->round)->where('status', 'Waiting')->update(['status' => 'Cancelled']);
                 $declaration->update(['status' => 'Rejected']);
 
                 NotificationHelper::pushLive('expense_declaration', $declaration->id, $declaration->status);

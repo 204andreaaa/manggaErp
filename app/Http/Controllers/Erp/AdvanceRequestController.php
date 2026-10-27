@@ -177,11 +177,14 @@ class AdvanceRequestController extends Controller
         return DB::transaction(function () use ($advanceRequest) {
             $advanceRequest = AdvanceRequest::where('id', $advanceRequest->id)->lockForUpdate()->firstOrFail();
 
-            if ($advanceRequest->status !== 'Draft') {
-                return redirect()->back()->with('error', 'Hanya Advance Request berstatus Draft yang bisa disubmit.');
+            // A rejected kasbon can be submitted again as-is: that starts a new approval
+            // round from level 1, earlier rounds stay as history.
+            if (!in_array($advanceRequest->status, ['Draft', 'Rejected'], true)) {
+                return redirect()->back()->with('error', 'Hanya Advance Request berstatus Draft atau Rejected yang bisa disubmit.');
             }
 
-            if ($advanceRequest->approvals()->count() > 0) {
+            $latestRound = $advanceRequest->latestApprovalRound();
+            if ($latestRound > 0 && $advanceRequest->status !== 'Rejected') {
                 return redirect()->back()->with('error', 'Advance Request sudah pernah disubmit.');
             }
 
@@ -199,6 +202,8 @@ class AdvanceRequestController extends Controller
                 ErpApproval::create([
                     'advance_request_id' => $advanceRequest->id,
                     'level' => $config->level,
+                    'round' => $latestRound + 1,
+                    'submitted_by_id' => auth()->id(),
                     'assigned_to_role_id' => $config->role_id,
                     'assigned_to_user_id' => $config->user_id,
                     'status' => $isFirst ? 'Pending' : 'Waiting',
@@ -271,7 +276,7 @@ class AdvanceRequestController extends Controller
 
             // The last approval is what cuts the budget, so it must still fit right now.
             $isFinalApproval = $advanceRequest
-                && !$advanceRequest->approvals()->where('status', 'Waiting')->where('id', '!=', $approval->id)->exists();
+                && !$advanceRequest->approvals()->where('round', $approval->round)->where('status', 'Waiting')->where('id', '!=', $approval->id)->exists();
             if ($isFinalApproval) {
                 $detail = \App\Models\Erp\BudgetPlanDetail::where('id', $advanceRequest->budget_plan_detail_id)->lockForUpdate()->firstOrFail();
                 if ($shortfall = \App\Services\BudgetGuard::detailShortfall($detail, (float) $advanceRequest->total_amount_advance)) {
@@ -288,7 +293,7 @@ class AdvanceRequestController extends Controller
             ]);
 
             if ($advanceRequest) {
-                $nextApproval = $advanceRequest->approvals()->where('status', 'Waiting')->orderBy('level')->lockForUpdate()->first();
+                $nextApproval = $advanceRequest->approvals()->where('round', $approval->round)->where('status', 'Waiting')->orderBy('level')->lockForUpdate()->first();
 
                 if ($nextApproval) {
                     $nextApproval->update(['status' => 'Pending']);
@@ -390,7 +395,7 @@ class AdvanceRequestController extends Controller
                 : null;
 
             if ($advanceRequest) {
-                $advanceRequest->approvals()->where('status', 'Waiting')->update(['status' => 'Cancelled']);
+                $advanceRequest->approvals()->where('round', $approval->round)->where('status', 'Waiting')->update(['status' => 'Cancelled']);
                 $advanceRequest->update(['status' => 'Rejected']);
 
                 NotificationHelper::pushLive('advance_request', $advanceRequest->id, $advanceRequest->status);

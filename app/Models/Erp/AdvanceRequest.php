@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AdvanceRequest extends Model
 {
+    use \App\Models\Erp\Concerns\HasApprovalRounds;
+
     use SoftDeletes;
 
     protected $connection = 'tenant';

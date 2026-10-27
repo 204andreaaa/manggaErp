@@ -492,8 +492,9 @@ class ErpPurchaseOrderController extends Controller
             // Lock the row so two concurrent submits can't both pass the checks below.
             $purchaseOrder = ErpPurchaseOrder::where('id', $purchaseOrder->id)->lockForUpdate()->firstOrFail();
 
-            if ($purchaseOrder->status !== 'Draft') {
-                return redirect()->back()->with('error', 'Only Draft PO Requests can be submitted for approval.');
+            // A rejected PO goes back to its owner and can be submitted again (new round).
+            if (!in_array($purchaseOrder->status, ['Draft', 'Rejected'], true)) {
+                return redirect()->back()->with('error', 'Only Draft or Rejected PO Requests can be submitted for approval.');
             }
 
             $poVerifConfig = \App\Models\Erp\ErpApprovalConfig::where('record_type', 'po_verification')->first();
@@ -502,14 +503,11 @@ class ErpPurchaseOrderController extends Controller
                 return redirect()->back()->with('error', "PO harus diverifikasi oleh {$verifierName} atau Superadmin terlebih dahulu sebelum di-submit.");
             }
 
-            // Ambil data level yang sudah di-approve sebelum ada perubahan status
-            $previouslyApprovedLevels = $purchaseOrder->approvals()
-                ->where('level', '>', 0)
-                ->where('status', 'Approved')
-                ->get()
-                ->keyBy('level');
+            // Setiap submit membuat putaran (round) approval baru dari level 1.
+            // Riwayat putaran sebelumnya (termasuk yang ditolak) tetap disimpan.
+            $round = $purchaseOrder->latestApprovalRound() + 1;
 
-            // Batalkan langkah aktif (Pending / Waiting) yang tersisa dari putaran sebelumnya
+            // Batalkan langkah aktif (Pending / Waiting) yang mungkin tersisa dari data lama
             $purchaseOrder->approvals()
                 ->whereIn('status', ['Pending', 'Waiting'])
                 ->update(['status' => 'Cancelled']);
@@ -518,6 +516,8 @@ class ErpPurchaseOrderController extends Controller
             \App\Models\Erp\ErpApproval::create([
                 'purchase_order_id' => $purchaseOrder->id,
                 'level' => 0,
+                'round' => $round,
+                'submitted_by_id' => auth()->id(),
                 'status' => 'Approved', // Set Approved agar baris ini dianggap selesai
                 'comments' => 'PO Submitted for approval',
                 'assigned_to_user_id' => auth()->id(),
@@ -541,41 +541,24 @@ class ErpPurchaseOrderController extends Controller
                 ->orderBy('level')
                 ->get();
 
-            if ($configs->isNotEmpty()) {
-                $setPending = false;
-                foreach ($configs as $config) {
-                    // Cari dari data yang disimpan di memori
-                    $previousApproved = $previouslyApprovedLevels->get($config->level);
-
-                    if ($previousApproved) {
-                        // Jika level ini sudah pernah di-approve sebelumnya, kita TIDAK perlu membuat baris baru lagi.
-                        continue;
-                    } else {
-                        \App\Models\Erp\ErpApproval::create([
-                            'purchase_order_id' => $purchaseOrder->id,
-                            'level' => $config->level,
-                            'assigned_to_role_id' => $config->role_id,
-                            'assigned_to_user_id' => $config->user_id,
-                            'status' => !$setPending ? 'Pending' : 'Waiting',
-                        ]);
-                        $setPending = true;
-                    }
-                }
-
-                if (!$setPending) {
-                    $purchaseOrder->update([
-                        'status' => 'Approved',
-                        'approved_date' => now(),
-                    ]);
-                    $this->deductBudget($purchaseOrder);
-                    \App\Helpers\NotificationHelper::pushLive('purchase_order', $purchaseOrder->id, $purchaseOrder->status);
-                    return redirect()->back()->with('success', 'PO submitted and automatically approved.');
-                }
+            $setPending = false;
+            foreach ($configs as $config) {
+                \App\Models\Erp\ErpApproval::create([
+                    'purchase_order_id' => $purchaseOrder->id,
+                    'level' => $config->level,
+                    'round' => $round,
+                    'submitted_by_id' => auth()->id(),
+                    'assigned_to_role_id' => $config->role_id,
+                    'assigned_to_user_id' => $config->user_id,
+                    'status' => !$setPending ? 'Pending' : 'Waiting',
+                ]);
+                $setPending = true;
             }
 
             $purchaseOrder->update([
                 'status' => 'Submitted',
                 'submitted_date' => now(),
+                'rejected_date' => null,
             ]);
 
             \App\Helpers\NotificationHelper::pushLive('purchase_order', $purchaseOrder->id, $purchaseOrder->status);
@@ -613,8 +596,8 @@ class ErpPurchaseOrderController extends Controller
                 return redirect()->back()->with('error', 'Hanya PO berstatus Submitted (menunggu approval) yang dapat disetujui.');
             }
 
-            // Check if there are dynamic approvals
-            $activeApproval = $purchaseOrder->approvals()->where('status', 'Pending')->lockForUpdate()->first();
+            // Check if there are dynamic approvals (latest round only)
+            $activeApproval = $purchaseOrder->currentApprovals()->where('status', 'Pending')->lockForUpdate()->first();
 
             if ($activeApproval) {
                 $isDesignatedApprover = false;
@@ -647,7 +630,7 @@ class ErpPurchaseOrderController extends Controller
                     'is_override' => $isSuperadmin && !$isDesignatedApprover,
                 ]);
 
-                $nextApproval = $purchaseOrder->approvals()->where('status', 'Waiting')->orderBy('level')->lockForUpdate()->first();
+                $nextApproval = $purchaseOrder->currentApprovals()->where('status', 'Waiting')->orderBy('level')->lockForUpdate()->first();
                 if ($nextApproval) {
                     $nextApproval->update(['status' => 'Pending']);
                     \App\Helpers\NotificationHelper::pushLive('purchase_order', $purchaseOrder->id, $purchaseOrder->status);
@@ -808,8 +791,8 @@ class ErpPurchaseOrderController extends Controller
                 return redirect()->back()->with('error', 'Hanya PO berstatus Submitted (menunggu approval) yang dapat ditolak.');
             }
 
-            // Check if there are dynamic approvals
-            $activeApproval = $purchaseOrder->approvals()->where('status', 'Pending')->lockForUpdate()->first();
+            // Check if there are dynamic approvals (latest round only)
+            $activeApproval = $purchaseOrder->currentApprovals()->where('status', 'Pending')->lockForUpdate()->first();
 
             if ($activeApproval) {
                 $isAuthorized = false;
@@ -843,7 +826,7 @@ class ErpPurchaseOrderController extends Controller
                 ]);
 
                 // Cancel subsequent steps
-                $purchaseOrder->approvals()->where('status', 'Waiting')->update(['status' => 'Cancelled']);
+                $purchaseOrder->approvals()->where('round', $activeApproval->round)->where('status', 'Waiting')->update(['status' => 'Cancelled']);
 
                 $purchaseOrder->update([
                     'status' => 'Rejected',

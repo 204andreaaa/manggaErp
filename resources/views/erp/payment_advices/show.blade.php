@@ -325,6 +325,12 @@
                       <td>
                         <div class="d-flex align-items-center gap-1">
                           <a href="{{ route('erp.payment-advice-details.show', $pad) }}" class="btn btn-sm btn-icon btn-label-primary rounded-circle" data-bs-toggle="tooltip" title="Lihat Detail Termin"><i class="bx bx-show"></i></a>
+                          @if($pad->approval_status === 'Rejected' && auth()->user()->hasRole(['finance', 'superadmin']))
+                            <form action="{{ route('erp.payment-advice-details.submit', $pad) }}" method="POST" class="d-inline" onsubmit="return confirm('Ajukan ulang termin ini untuk approval? Approval akan dimulai lagi dari level 1.');">
+                              @csrf
+                              <button type="submit" class="btn btn-sm btn-outline-primary rounded-pill px-2 py-0" data-bs-toggle="tooltip" title="Ajukan ulang termin yang ditolak"><i class="bx bx-paper-plane me-1"></i>Ajukan Ulang</button>
+                            </form>
+                          @endif
                           @if((auth()->user()->hasRole('finance') || auth()->user()->hasRole('superadmin')) && ($pad->approval_status === 'Draft' || empty($pad->approval_status)))
                             <form action="{{ route('erp.payment-advice-details.destroy', $pad) }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin menghapus termin ini untuk menyesuaikan jadwal custom?');">
                               @csrf
@@ -425,10 +431,13 @@
                             </td>
                           </tr>
                         @else
-                          {{-- Submission Step --}}
+                          @foreach($detail->approvalRounds() as $round)
+                          {{-- Submission Step (one per approval round, newest round first) --}}
+                          @php $roundSubmitter = $round->submitter?->name ?: ($detail->submittedBy?->name ?: 'Finance Staff'); @endphp
                           <tr class="bg-light">
                             <td colspan="6" class="fw-bold py-2 px-3 text-primary">
-                              <i class="bx bx-paper-plane me-2"></i>Termin Payment Request Submitted
+                              <i class="bx bx-paper-plane me-2"></i>Approval Request Submitted
+                              <span class="badge bg-label-primary ms-2">Round {{ $round->round }}</span>
                             </td>
                             <td class="bg-success text-white fw-bold text-center py-2">
                               <i class="bx bx-check-circle me-1"></i> Submitted
@@ -436,16 +445,16 @@
                           </tr>
                             <tr class="bg-white">
                               <td>-</td>
-                              <td>{{ $detail->created_date_sid ? \Carbon\Carbon::parse($detail->created_date_sid)->format('Y-m-d H:i') : $detail->created_at->format('Y-m-d H:i') }}</td>
+                              <td>{{ $round->submitted_at ? \Carbon\Carbon::parse($round->submitted_at)->format('Y-m-d H:i') : '-' }}</td>
                               <td><span class="badge bg-label-info">Submitted</span></td>
-                              <td>{{ $detail->submittedBy?->name ?: (auth()->user()?->hasRole('finance') ? auth()->user()->name : 'Finance Staff') }}</td>
-                              <td>{{ $detail->submittedBy?->name ?: (auth()->user()?->hasRole('finance') ? auth()->user()->name : 'Finance Staff') }}</td>
+                              <td>{{ $roundSubmitter }}</td>
+                              <td>{{ $roundSubmitter }}</td>
                               <td>Termin Submitted for approval</td>
                               <td class="text-center"></td>
                             </tr>
 
                           {{-- Approval Steps --}}
-                          @foreach($detail->approvals->sortBy('level') as $approval)
+                          @foreach($round->approvals as $approval)
                             @php
                               $statusBg = 'bg-secondary';
                               $statusIcon = 'bx-minus';
@@ -489,6 +498,7 @@
                               <td>{{ $approval->comments ?: '-' }}</td>
                               <td class="text-center"></td>
                             </tr>
+                          @endforeach
                           @endforeach
                         @endif
                       </tbody>

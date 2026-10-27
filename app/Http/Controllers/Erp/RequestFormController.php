@@ -60,8 +60,8 @@ class RequestFormController extends Controller
             ->get()
             ->map(function (RequestForm $rf, int $i) use ($start) {
                 // Auto-sync status for legacy submitted RFs
-                if ($rf->status === 'Draft' && $rf->approvals()->count() > 0) {
-                    $allApproved = $rf->approvals()->where('status', '!=', 'Approved')->count() === 0;
+                if ($rf->status === 'Draft' && $rf->currentApprovals()->count() > 0) {
+                    $allApproved = $rf->currentApprovals()->where('status', '!=', 'Approved')->count() === 0;
                     $rf->status = $allApproved ? 'Approved' : 'Submitted';
                     $rf->update(['status' => $rf->status]);
                 }
@@ -481,8 +481,8 @@ class RequestFormController extends Controller
     {
 
         // Auto-fix status for RF records submitted prior to status bug fix
-        if ($requestForm->status === 'Draft' && $requestForm->approvals()->count() > 0) {
-            $allApproved = $requestForm->approvals()->where('status', '!=', 'Approved')->count() === 0;
+        if ($requestForm->status === 'Draft' && $requestForm->currentApprovals()->count() > 0) {
+            $allApproved = $requestForm->currentApprovals()->where('status', '!=', 'Approved')->count() === 0;
             $newStatus = $allApproved ? 'Approved' : 'Submitted';
             $requestForm->update(['status' => $newStatus]);
             $requestForm->status = $newStatus;

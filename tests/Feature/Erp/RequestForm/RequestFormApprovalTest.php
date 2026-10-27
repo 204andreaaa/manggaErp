@@ -224,21 +224,66 @@ class RequestFormApprovalTest extends ErpTestCase
         $this->approve($level3, $this->approvalAt($rf, 3))->assertSessionHas('error');
         $this->assertSame('Rejected', $rf->fresh()->status);
 
-        // The reason is kept on the RF, since the approval rows reset on resubmit.
-        $this->assertTrue($rf->notesAttachments()->where('type', 'note')->where('content', 'like', '%Budget too high%')->exists());
+        // The history lives in the approval rows: no automatic RF note any more.
+        $this->assertSame(0, $rf->notesAttachments()->count());
+        $this->assertSame([1], $rf->approvals()->pluck('round')->unique()->values()->all());
 
-        // Rejected goes straight back to the owner (no superadmin unlock needed):
-        // they can edit it and resubmit, which starts a fresh approval chain.
+        // Rejected goes straight back to the owner (no superadmin unlock needed).
         $this->actingInProject($requester);
         $this->get(route('erp.request-form.show', $rf))->assertOk()->assertSee('Ajukan Ulang');
         $this->get(route('erp.request-form.edit', $rf))->assertOk();
-        $this->submitRf($requester, $rf)->assertSessionHas('success');
+    }
 
+    public function test_resubmitting_a_rejected_rf_starts_a_new_round_and_keeps_the_old_one(): void
+    {
+        $level1 = $this->makeUser('manager');
+        $level2 = $this->makeUser('director');
+        $level3 = $this->makeUser('ceo');
+        $this->approvalLevel(1, $level1);
+        $this->approvalLevel(2, $level2);
+        $this->approvalLevel(3, $level3);
+        $requester = $this->makeUser('staff');
+        $rf = $this->createRfViaHttp($requester);
+        $this->submitRf($requester, $rf)->assertSessionHas('success');
+        $this->approve($level1, $this->approvalAt($rf, 1), 'ok 1')->assertSessionHas('success');
+        $this->reject($level2, $this->approvalAt($rf, 2), 'Budget too high')->assertSessionHas('success');
+
+        $round1 = $rf->approvals()->orderBy('level')->get()->map->only(['id', 'level', 'round', 'status', 'comments', 'actual_approver_id', 'submitted_by_id'])->all();
+        $this->assertSame([1, 1, 1], array_column($round1, 'round'));
+        $this->assertSame(['Approved', 'Rejected', 'Cancelled'], array_column($round1, 'status'));
+        $this->assertSame([$requester->id, $requester->id, $requester->id], array_map('intval', array_column($round1, 'submitted_by_id')));
+
+        // Owner resubmits: a new round from level 1, built from the current config.
+        $this->submitRf($requester, $rf)->assertSessionHas('success');
         $rf->refresh();
         $this->assertSame('Submitted', $rf->status);
-        $this->assertSame(3, $rf->approvals()->count());
-        $this->assertSame('Pending', $this->approvalAt($rf, 1)->status);
-        $this->assertSame('Waiting', $this->approvalAt($rf, 2)->status);
+        $this->assertSame(2, $rf->latestApprovalRound());
+        $this->assertSame(6, $rf->approvals()->count());
+        $this->assertSame(
+            [[1, 'Pending'], [2, 'Waiting'], [3, 'Waiting']],
+            $rf->currentApprovals()->orderBy('level')->get()->map(fn ($a) => [(int) $a->level, $a->status])->all()
+        );
+
+        // Round 1 is untouched.
+        $this->assertSame($round1, $rf->approvals()->where('round', 1)->orderBy('level')->get()
+            ->map->only(['id', 'level', 'round', 'status', 'comments', 'actual_approver_id', 'submitted_by_id'])->all());
+
+        // A second submit while round 2 is running is refused.
+        $this->submitRf($requester, $rf)->assertSessionHas('error', 'Request Form is already submitted for approval.');
+        $this->assertSame(6, $rf->approvals()->count());
+
+        // Round 2 runs to the end and approves the RF.
+        $this->approve($level1, $this->approvalAt($rf, 1))->assertSessionHas('success');
+        $this->approve($level2, $this->approvalAt($rf, 2))->assertSessionHas('success');
+        $this->approve($level3, $this->approvalAt($rf, 3))->assertSessionHas('success');
+        $this->assertSame('Approved', $rf->fresh()->status);
+        $this->assertSame(['Approved', 'Rejected', 'Cancelled'], $rf->approvals()->where('round', 1)->orderBy('level')->pluck('status')->all());
+
+        // The history page shows both rounds, newest first, with the old rejection reason.
+        $this->actingInProject($requester);
+        $this->get(route('erp.request-form.show', $rf))->assertOk()
+            ->assertSeeInOrder(['Round 2', 'Approval Request Submitted', 'Round 1'])
+            ->assertSee('Budget too high');
     }
 
     public function test_reject_requires_a_reason(): void

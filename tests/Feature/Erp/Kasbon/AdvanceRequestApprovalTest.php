@@ -211,6 +211,57 @@ class AdvanceRequestApprovalTest extends ErpTestCase
         $this->assertSame($this->finance->id, (int) $paid->fresh()->paid_by_id);
     }
 
+    public function test_a_rejected_kasbon_is_resubmitted_as_a_new_round_from_level_one(): void
+    {
+        // Three levels so the rejection happens in the middle of the chain.
+        ErpApprovalConfig::create([
+            'record_type' => 'advance_request', 'level' => 3, 'name' => 'Step 3',
+            'role_id' => \App\Models\Role::where('slug', 'kasbon_approver2')->value('id'),
+        ]);
+        $kasbon = $this->createKasbon('Other Expense', 3000000);
+        $this->submitKasbon($kasbon)->assertSessionHas('success');
+        $this->actingInProject($this->approver);
+        $this->post(route('erp.advance-requests.approvals.approve', $this->pendingApproval($kasbon)), ['comments' => 'L1 ok'])
+            ->assertSessionHas('success');
+        $this->actingInProject($this->approver2);
+        $this->post(route('erp.advance-requests.approvals.reject', $this->pendingApproval($kasbon)), ['reason' => 'Lampiran kurang'])
+            ->assertSessionHas('success');
+
+        $kasbon->refresh();
+        $this->assertSame('Rejected', $kasbon->status);
+        $round1 = $kasbon->approvals()->orderBy('level')->get()->map->only(['id', 'level', 'round', 'status', 'comments', 'actual_approver_id'])->all();
+        $this->assertSame(['Approved', 'Rejected', 'Cancelled'], array_column($round1, 'status'));
+        $this->assertSame([1, 1, 1], array_column($round1, 'round'));
+        $this->assertEquals(10000000, $this->remaining('Other Expense'));
+
+        // The owner resubmits it as-is.
+        $this->actingInProject($this->requester);
+        $this->get(route('erp.advance-requests.show', $kasbon))->assertOk()->assertSee('Ajukan Ulang');
+        $this->submitKasbon($kasbon)->assertSessionHas('success');
+
+        $kasbon->refresh();
+        $this->assertSame('Submitted', $kasbon->status);
+        $this->assertSame(2, $kasbon->latestApprovalRound());
+        $this->assertSame(['Pending', 'Waiting', 'Waiting'], $kasbon->currentApprovals()->orderBy('level')->pluck('status')->all());
+        $this->assertSame([$this->requester->id], $kasbon->currentApprovals()->pluck('submitted_by_id')->map(fn ($v) => (int) $v)->unique()->values()->all());
+        $this->assertSame($round1, $kasbon->approvals()->where('round', 1)->orderBy('level')->get()
+            ->map->only(['id', 'level', 'round', 'status', 'comments', 'actual_approver_id'])->all());
+
+        // A running round cannot be submitted again.
+        $this->submitKasbon($kasbon)->assertSessionHas('error');
+
+        // Round 2 completes the kasbon and the final approval still cuts the detail.
+        $this->approveKasbonFully($kasbon);
+        $kasbon->refresh();
+        $this->assertSame('Approved', $kasbon->status);
+        $this->assertEquals(7000000, $this->remaining('Other Expense'));
+        $this->assertSame(['Approved', 'Rejected', 'Cancelled'], $kasbon->approvals()->where('round', 1)->orderBy('level')->pluck('status')->all());
+
+        $this->actingInProject($this->requester);
+        $this->get(route('erp.advance-requests.show', $kasbon))->assertOk()
+            ->assertSeeInOrder(['Round 2', 'Approval Request Submitted', 'Round 1', 'Lampiran kurang']);
+    }
+
     public function test_rejected_kasbon_does_not_count_against_the_budget(): void
     {
         $kasbon = $this->createKasbon('Other Expense', 9000000);

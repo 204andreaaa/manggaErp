@@ -20,6 +20,8 @@ class ErpApproval extends Model
         'advance_request_id',
         'expense_declaration_id',
         'level',
+        'round',
+        'submitted_by_id',
         'assigned_to_role_id',
         'assigned_to_user_id',
         'actual_approver_id',
@@ -31,6 +33,7 @@ class ErpApproval extends Model
 
     protected $casts = [
         'approved_at' => 'datetime',
+        'round' => 'integer',
         'is_override' => 'boolean',
     ];
 

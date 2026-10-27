@@ -105,10 +105,10 @@ trait RequestFormFixtures
             ->post(route('erp.approvals.submit', $rf));
     }
 
-    /** The approval row of `$rf` at `$level`. */
+    /** The approval row of `$rf` at `$level` in its latest approval round. */
     protected function approvalAt(RequestForm $rf, int $level)
     {
-        return $rf->approvals()->where('level', $level)->firstOrFail();
+        return $rf->currentApprovals()->where('level', $level)->firstOrFail();
     }
 
     protected function approve(User $user, $approval, string $comments = 'OK')
