@@ -87,7 +87,10 @@
       @php
         $authUser = auth()->user();
         $canCreatePr = $rf->status === 'Approved' && ($authUser->hasRole(['logistik', 'superadmin']) || $authUser->hasPermission('request_forms.create_pr'));
-        $canCreatePo = $rf->status === 'Approved' && ($authUser->hasRole(['procurement', 'superadmin']) || $authUser->hasPermission('purchase_orders.create')) && $rf->purchaseRequests->where('status', 'Completed')->count() > 0;
+        // Sama dengan syarat halaman Create PO: masih ada item RF yang belum masuk PO aktif (selain Cancelled)
+        $canCreatePo = $rf->status === 'Approved'
+          && ($authUser->hasRole(['procurement', 'superadmin']) || $authUser->hasPermission('purchase_orders.create'))
+          && $rf->items()->whereDoesntHave('purchaseOrderItems', fn ($q) => $q->whereHas('purchaseOrder', fn ($po) => $po->where('status', '!=', 'Cancelled')))->exists();
       @endphp
       
       @if($canCreatePr)
@@ -117,13 +120,13 @@
     <div class="card-header bg-primary bg-opacity-10 py-3 border-bottom">
       <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
         <div>
-          <span class="text-uppercase fw-bold text-primary small">Nomor RF</span>
-          <h4 class="mb-0 fw-extrabold text-primary">{{ $rf->rf_no }}</h4>
+          <span class="text-uppercase fw-bold text-white opacity-75 small">Nomor RF</span>
+          <h4 class="mb-0 fw-extrabold text-white">{{ $rf->rf_no }}</h4>
         </div>
         <div class="d-flex align-items-center gap-3">
           <div class="text-end">
-            <span class="text-muted small d-block">Total RF Amount</span>
-            <span class="fw-extrabold text-primary fs-5">IDR {{ number_format($rf->total_amount, 0, ',', '.') }}</span>
+            <span class="small d-block text-white opacity-75">Total RF Amount</span>
+            <span class="fw-extrabold text-white fs-5">IDR {{ number_format($rf->total_amount, 0, ',', '.') }}</span>
           </div>
           <div>
             @if($rf->status === 'Approved')

@@ -144,5 +144,52 @@ class ErpPurchaseOrder extends Model
     {
         return (float) $this->items->sum(fn($i) => $i->remaining_qty);
     }
+
+    /**
+     * PO selesai (Completed) bila barang sudah diterima semua DAN pembayaran sudah lunas
+     * (dibayar), urutannya bebas. Dipanggil dari GR receive dan dari termin Paid.
+     */
+    public function markCompletedIfDone(): bool
+    {
+        $this->refresh();
+        $this->load('items');
+
+        if ($this->status !== 'Approved') {
+            return false;
+        }
+
+        if ($this->is_gr_completed && $this->payment_closed) {
+            $this->update(['status' => 'Completed']);
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Alasan PO tidak boleh di-cancel (null = boleh). PO tidak bisa di-cancel bila sudah
+     * ada Goods Receipt, atau ada termin Payment Advice yang sudah diproses (diajukan,
+     * disetujui, ditolak, atau dibayar).
+     */
+    public function cancelBlockReason(): ?string
+    {
+        if ($this->goodsReceipts()->exists()) {
+            return 'PO tidak dapat di-cancel karena sudah ada Goods Receipt (penerimaan barang).';
+        }
+
+        $touchedTermin = ErpPaymentAdviceDetail::whereIn('erp_payment_advice_id', $this->paymentAdvices()->select('id'))
+            ->where(function ($q) {
+                $q->whereNotNull('approval_status')->where('approval_status', '!=', 'Draft')
+                  ->orWhereNotNull('date_paid')
+                  ->orWhereHas('approvals');
+            })
+            ->exists();
+
+        if ($touchedTermin) {
+            return 'PO tidak dapat di-cancel karena termin Payment Advice sudah diproses (diajukan, disetujui, ditolak, atau dibayar).';
+        }
+
+        return null;
+    }
 }
 

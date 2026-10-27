@@ -30,8 +30,8 @@
               <th>Total Amount</th>
               <th>Outstanding</th>
               <th>Due Date</th>
-              <th>Approval</th>
               <th>Status</th>
+              <th>Payment</th>
               <th width="10%">Action</th>
             </tr>
           </thead>

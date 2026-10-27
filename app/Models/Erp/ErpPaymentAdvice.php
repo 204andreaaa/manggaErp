@@ -64,4 +64,21 @@ class ErpPaymentAdvice extends Model
     {
         return $this->hasMany(ErpApproval::class, 'payment_advice_id');
     }
+
+    /** Status yang ditampilkan (list & detail pakai sumber yang sama). */
+    public function getDisplayStatusAttribute(): string
+    {
+        return $this->status ?: 'Draft';
+    }
+
+    /** Warna badge Bootstrap untuk display_status. */
+    public function getStatusBadgeClassAttribute(): string
+    {
+        return match ($this->display_status) {
+            'Approved', 'Completed' => 'bg-success',
+            'Submitted' => 'bg-warning',
+            'Rejected', 'Cancelled' => 'bg-danger',
+            default => 'bg-secondary',
+        };
+    }
 }

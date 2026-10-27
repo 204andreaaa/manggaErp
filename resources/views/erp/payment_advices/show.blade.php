@@ -100,19 +100,11 @@
       <div class="card shadow-sm border-0 rounded-3 p-3 bg-white h-100 border-start border-4 border-warning">
         <div class="text-muted small fw-semibold">STATUS</div>
         <div>
-          @php
-            $stBadge = match($paymentAdvice->status) {
-              'Approved', 'Completed' => 'bg-success',
-              'Submitted' => 'bg-warning',
-              'Rejected' => 'bg-danger',
-              default => 'bg-secondary',
-            };
-          @endphp
-          <span class="badge {{ $stBadge }} px-3 py-1 fs-7 fw-bold">
-            @if($paymentAdvice->status === 'Completed')
+          <span class="badge {{ $paymentAdvice->status_badge_class }} px-3 py-1 fs-7 fw-bold">
+            @if($paymentAdvice->display_status === 'Completed')
               <i class="bx bx-check-circle me-1"></i>
             @endif
-            {{ $paymentAdvice->status }}
+            {{ $paymentAdvice->display_status }}
           </span>
         </div>
       </div>

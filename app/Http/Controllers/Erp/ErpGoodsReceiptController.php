@@ -209,11 +209,9 @@ class ErpGoodsReceiptController extends Controller
         $po = $goodsReceipt->purchaseOrder;
         if ($po) {
             $po->load('items');
-            $isCompleted = $po->is_gr_completed;
-            $po->update([
-                'gr' => $isCompleted,
-                'status' => ($isCompleted && $po->payment_closed) ? 'Completed' : 'Approved',
-            ]);
+            $po->update(['gr' => $po->is_gr_completed]);
+            // Completed bila barang lengkap DAN pembayaran sudah lunas (urutan bebas)
+            $po->markCompletedIfDone();
         }
 
         $warehouseId = $goodsReceipt->warehouse_id 

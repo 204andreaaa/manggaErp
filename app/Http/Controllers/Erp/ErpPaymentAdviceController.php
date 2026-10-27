@@ -47,12 +47,8 @@ class ErpPaymentAdviceController extends Controller
             $rows = $query->orderBy('created_at', 'desc')
                 ->skip($start)->take($length)->get()
                 ->map(function ($pa, $i) use ($start) {
-                    $appBadge = match($pa->approval_status) {
-                        'Approved' => '<span class="badge bg-label-success fw-bold">Approved</span>',
-                        'Submitted', 'Pending' => '<span class="badge bg-label-warning fw-bold">Submitted</span>',
-                        'Rejected' => '<span class="badge bg-label-danger fw-bold">Rejected</span>',
-                        default    => '<span class="badge bg-label-secondary fw-bold">Draft</span>',
-                    };
+                    // Sama dengan halaman detail: pakai status header PA (bukan approval_status yang tidak pernah berubah)
+                    $appBadge = '<span class="badge ' . $pa->status_badge_class . ' fw-bold">' . e($pa->display_status) . '</span>';
 
                     $closedBadge = $pa->payment_closed
                         ? '<span class="badge bg-label-success">Closed</span>'
@@ -172,6 +168,10 @@ class ErpPaymentAdviceController extends Controller
     {
         abort_unless(auth()->user()->hasRole(['finance', 'superadmin']) || auth()->user()->hasPermission('payment_advices.update'), 403, 'Hanya tim Finance yang berhak menambah termin pembayaran.');
 
+        if ($paymentAdvice->status === 'Cancelled') {
+            return redirect()->back()->with('error', 'Payment Advice ini sudah di-cancel (PO dibatalkan).');
+        }
+
         if ($paymentAdvice->payment_closed || $paymentAdvice->outstanding <= 0) {
             return redirect()->back()->with('error', 'Payment Advice ini sudah Lunas, tidak dapat menambah rincian termin lagi.');
         }
@@ -259,12 +259,14 @@ class ErpPaymentAdviceController extends Controller
 
     private function recalculateTotals(ErpPaymentAdvice $paymentAdvice)
     {
-        $sum = $paymentAdvice->details()
-            ->whereNotIn('approval_status', ['Draft', 'Rejected', 'Cancelled'])
-            ->sum('payment_amount_with_tax');
+        $activeTermins = $paymentAdvice->details()
+            ->whereNotIn('approval_status', ['Draft', 'Rejected', 'Cancelled']);
+        $sum = (clone $activeTermins)->sum('payment_amount_with_tax');
         $total = $paymentAdvice->total_invoice_amount_with_tax;
         $outstanding = max(0, $total - $sum);
-        $isClosed = ($outstanding <= 0 && $total > 0);
+        // Lunas = termin menutup seluruh invoice DAN semuanya sudah dibayar (bukan sekadar Approved)
+        $hasUnpaid = (clone $activeTermins)->whereNull('date_paid')->exists();
+        $isClosed = ($total > 0 && $outstanding <= 0 && !$hasUnpaid);
 
         $paymentAdvice->update([
             'sum_payment_amount' => $sum,
@@ -276,6 +278,8 @@ class ErpPaymentAdviceController extends Controller
 
         if ($isClosed && $paymentAdvice->purchaseOrder) {
             $paymentAdvice->purchaseOrder->update(['payment_closed' => true]);
+            // Completed bila barang juga sudah diterima semua (urutan bebas)
+            $paymentAdvice->purchaseOrder->markCompletedIfDone();
         }
     }
 
@@ -346,6 +350,10 @@ class ErpPaymentAdviceController extends Controller
     public function submitDetail(Request $request, ErpPaymentAdviceDetail $paymentAdviceDetail)
     {
         abort_unless(auth()->user()->hasRole(['finance', 'superadmin']), 403, 'Hanya tim Finance yang berhak mengajukan tagihan untuk approval.');
+
+        if ($paymentAdviceDetail->approval_status === 'Cancelled') {
+            return redirect()->back()->with('error', 'Termin ini sudah di-cancel (PO dibatalkan).');
+        }
 
         $invoiceNo = $request->invoice_no ?: $paymentAdviceDetail->invoice_no;
         if (empty($invoiceNo) || $invoiceNo === '-') {
@@ -718,6 +726,11 @@ class ErpPaymentAdviceController extends Controller
             }
 
             $paymentAdviceDetail->update($updateData);
+
+            // PA baru lunas (Completed) saat semua termin yang menutup invoice sudah dibayar
+            if ($paymentAdviceDetail->paymentAdvice) {
+                $this->recalculateTotals($paymentAdviceDetail->paymentAdvice);
+            }
 
             DB::commit();
 

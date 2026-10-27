@@ -1098,6 +1098,24 @@ class ErpPurchaseOrderController extends Controller
             return redirect()->back()->with('error', 'Purchase Order is already cancelled.');
         }
 
+        // Tidak boleh cancel bila sudah ada GR atau termin pembayaran yang sudah diproses
+        if ($blockReason = $purchaseOrder->cancelBlockReason()) {
+            return redirect()->back()->with('error', $blockReason);
+        }
+
+        return DB::transaction(function () use ($purchaseOrder) {
+            return $this->performCancel($purchaseOrder);
+        });
+    }
+
+    private function performCancel(ErpPurchaseOrder $purchaseOrder)
+    {
+        // Payment Advice otomatis yang belum tersentuh (hanya termin Draft) ikut di-cancel
+        foreach ($purchaseOrder->paymentAdvices as $pa) {
+            $pa->details()->update(['approval_status' => 'Cancelled']);
+            $pa->update(['status' => 'Cancelled', 'approval_status' => 'Cancelled']);
+        }
+
         // Collect affected products before cancelling
         $affectedProductIds = [];
         foreach ($purchaseOrder->items as $item) {

@@ -96,7 +96,14 @@
           </button>
         </form>
 
-        @if(!in_array($purchaseOrder->status, ['Cancelled', 'Rejected']))
+        @php $cancelBlockReason = $purchaseOrder->status === 'Cancelled' ? null : $purchaseOrder->cancelBlockReason(); @endphp
+        @if($cancelBlockReason && !in_array($purchaseOrder->status, ['Cancelled', 'Rejected']))
+        <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" title="{{ $cancelBlockReason }}">
+          <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-3" disabled>
+            <i class="bx bx-x-circle me-1"></i>Cancel PO
+          </button>
+        </span>
+        @elseif(!in_array($purchaseOrder->status, ['Cancelled', 'Rejected']))
         <form action="{{ route('erp.purchase-orders.cancel', $purchaseOrder) }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin membatalkan PO ini? \n\nJika PO sudah di-Approve sebelumnya, saldo Budget (WID) akan otomatis dikembalikan (di-refund).');">
           @csrf
           <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-3">

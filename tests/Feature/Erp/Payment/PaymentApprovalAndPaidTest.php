@@ -78,7 +78,7 @@ class PaymentApprovalAndPaidTest extends ErpTestCase
         $this->assertTrue(Notification::where('user_id', $this->financeUser->id)->where('type', 'payment_advice_approved')->exists());
     }
 
-    public function test_approving_the_last_termin_closes_the_pa_and_the_po(): void
+    public function test_approving_the_last_termin_does_not_close_the_pa_until_it_is_paid(): void
     {
         $pa = $this->submittedPa(5_000_000, [5_000_000]);
         $detail = $pa->details()->first();
@@ -88,11 +88,64 @@ class PaymentApprovalAndPaidTest extends ErpTestCase
         $this->actingInProject($this->ceo);
         $this->post(route('erp.payment-advice-details.approve', $detail))->assertSessionHas('success');
 
+        // Approved is not "lunas": the PA and PO stay open until the money is paid.
         $pa->refresh();
         $this->assertEquals(0, $pa->outstanding);
+        $this->assertFalse($pa->payment_closed);
+        $this->assertNotSame('Completed', $pa->status);
+        $this->assertFalse((bool) $pa->purchaseOrder->fresh()->payment_closed);
+
+        $this->actingInProject($this->financeUser);
+        $this->post(route('erp.payment-advice-details.mark-paid', $detail))->assertSessionHas('success');
+
+        $pa->refresh();
         $this->assertTrue($pa->payment_closed);
         $this->assertSame('Completed', $pa->status);
         $this->assertTrue((bool) $pa->purchaseOrder->fresh()->payment_closed);
+    }
+
+    public function test_pa_with_two_termins_closes_only_when_both_are_paid(): void
+    {
+        $pa = $this->submittedPa(5_000_000, [2_000_000, 3_000_000]);
+        [$first, $second] = $pa->details()->orderBy('id')->get()->all();
+        $admin = $this->makeUser('superadmin');
+
+        $this->actingInProject($admin);
+        $this->post(route('erp.payment-advice-details.approve', $first));
+        $this->post(route('erp.payment-advice-details.approve', $first));
+        $this->post(route('erp.payment-advice-details.mark-paid', $first))->assertSessionHas('success');
+        $this->assertFalse($pa->fresh()->payment_closed);
+
+        $this->actingInProject($this->financeUser);
+        $this->post(route('erp.payment-advice-details.submit', $second), ['invoice_no' => 'INV-2'])->assertSessionHas('success');
+        $this->actingInProject($admin);
+        $this->post(route('erp.payment-advice-details.approve', $second));
+        $this->post(route('erp.payment-advice-details.approve', $second));
+        $this->assertFalse($pa->fresh()->payment_closed, 'all termins approved but one unpaid');
+
+        $this->post(route('erp.payment-advice-details.mark-paid', $second))->assertSessionHas('success');
+        $this->assertTrue($pa->fresh()->payment_closed);
+        $this->assertSame('Completed', $pa->fresh()->status);
+    }
+
+    public function test_pa_list_and_detail_show_the_same_status(): void
+    {
+        $pa = $this->submittedPa(5_000_000, [5_000_000]);
+        $detail = $pa->details()->first();
+        $this->actingInProject($this->makeUser('superadmin'));
+        $this->post(route('erp.payment-advice-details.approve', $detail));
+        $this->post(route('erp.payment-advice-details.approve', $detail));
+        $this->post(route('erp.payment-advice-details.mark-paid', $detail))->assertSessionHas('success');
+        $this->assertSame('Completed', $pa->fresh()->status);
+
+        $this->get(route('erp.payment-advices.show', $pa))->assertOk()->assertSee('Completed');
+
+        $row = collect($this->post(route('erp.payment-advices.datatable'), ['draw' => 1, 'start' => 0, 'length' => 50])
+            ->assertOk()->json('data'))
+            ->first(fn ($r) => str_contains($r['supplier_invoice_no'], $pa->supplier_invoice_no));
+        $this->assertNotNull($row);
+        $this->assertStringContainsString('Completed', $row['approval_status']);
+        $this->assertStringNotContainsString('Draft', $row['approval_status']);
     }
 
     public function test_user_who_is_not_the_current_approver_is_refused(): void

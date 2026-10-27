@@ -487,7 +487,7 @@
             <tbody>
                 @forelse($purchaseOrder->items as $index => $item)
                     @php
-                        $uomName = $item->uom ?: ($item->requestFormItem?->erpProduct?->uom?->name ?: 'Unit');
+                        $uomName = $item->requestFormItem?->erpProduct?->uom?->uom_name ?: 'Unit';
                         $unitCost = (float)($item->unit_cost ?? 0);
                         $totalCost = (float)($item->total_cost ?? ($unitCost * (float)($item->qty ?? 1)));
                     @endphp

@@ -296,6 +296,83 @@ class PurchaseOrderLifecycleTest extends PurchaseOrderTestCase
         $this->assertSame($verifier->id, $po->fresh()->verified_by_id);
     }
 
+    public function test_cancel_is_refused_once_a_goods_receipt_exists(): void
+    {
+        $po = $this->approvedPo();
+        $this->actingInProject($this->makeUser('logistik'))
+            ->post(route('erp.goods-receipts.store', $po), [
+                'date' => now()->toDateString(),
+                'supplier_do_no' => 'SJ-1',
+                'items' => [['po_item_id' => $po->items[0]->id, 'delivered_qty' => 1, 'received_qty' => 1]],
+            ])
+            ->assertSessionHasNoErrors();
+        $this->assertSame(1, ErpGoodsReceipt::where('erp_purchase_order_id', $po->id)->count());
+
+        $this->actingInProject($this->admin)
+            ->post(route('erp.purchase-orders.cancel', $po))
+            ->assertSessionHas('error', 'PO tidak dapat di-cancel karena sudah ada Goods Receipt (penerimaan barang).');
+
+        $this->assertSame('Approved', $po->fresh()->status);
+        $this->assertEquals(8_900_000, $this->wid->fresh()->remaining_budget);
+        $this->get(route('erp.purchase-orders.show', $po))->assertOk()->assertSee('sudah ada Goods Receipt', false);
+    }
+
+    public function test_cancel_is_refused_once_a_termin_was_submitted(): void
+    {
+        $po = $this->approvedPo();
+        $pa = ErpPaymentAdvice::where('erp_purchase_order_id', $po->id)->firstOrFail();
+        $pa->details()->orderBy('id')->first()->update(['approval_status' => 'Submitted']);
+
+        $this->actingInProject($this->admin)
+            ->post(route('erp.purchase-orders.cancel', $po))
+            ->assertSessionHas('error');
+
+        $this->assertSame('Approved', $po->fresh()->status);
+        $this->assertNotSame('Cancelled', $pa->fresh()->status);
+        $this->assertEquals(8_900_000, $this->wid->fresh()->remaining_budget);
+    }
+
+    public function test_cancel_is_refused_for_a_draft_termin_that_has_approval_history(): void
+    {
+        $po = $this->approvedPo();
+        $detail = ErpPaymentAdvice::where('erp_purchase_order_id', $po->id)->firstOrFail()->details()->first();
+        ErpApproval::create(['payment_advice_detail_id' => $detail->id, 'level' => 1, 'round' => 1, 'status' => 'Rejected']);
+
+        $this->actingInProject($this->admin)->post(route('erp.purchase-orders.cancel', $po))->assertSessionHas('error');
+
+        $this->assertSame('Approved', $po->fresh()->status);
+    }
+
+    public function test_cancel_with_an_untouched_payment_advice_cancels_it_too(): void
+    {
+        $po = $this->approvedPo();
+        $pa = ErpPaymentAdvice::where('erp_purchase_order_id', $po->id)->firstOrFail();
+        $this->assertGreaterThan(0, $pa->details()->count());
+
+        $this->actingInProject($this->admin)->post(route('erp.purchase-orders.cancel', $po))->assertSessionHas('success');
+
+        $this->assertSame('Cancelled', $po->fresh()->status);
+        $this->assertSame('Cancelled', $pa->fresh()->status);
+        $this->assertSame(0, $pa->details()->where('approval_status', '!=', 'Cancelled')->count());
+        $this->assertEquals(10_000_000, $this->wid->fresh()->remaining_budget);
+        foreach ($this->rf->items as $item) {
+            $this->assertSame('Requested', $item->fresh()->status);
+        }
+    }
+
+    public function test_print_shows_the_real_uom_of_the_product(): void
+    {
+        $uom = \App\Models\Erp\Uom::create(['uom_name' => 'BATANG']);
+        $this->makeProduct('PRD-PIPA', 'Pipa PVC')->update(['uom_id' => $uom->id]);
+        $this->rf->items()->where('product_name', 'Pipa PVC')->update(['product_id_text' => 'PRD-PIPA']);
+        $po = $this->approvedPo();
+
+        $this->actingInProject($this->buyer)
+            ->get(route('erp.purchase-orders.print', $po))
+            ->assertOk()
+            ->assertSee('BATANG');
+    }
+
     public function test_index_show_and_print_pages_render(): void
     {
         $po = $this->approvedPo();
