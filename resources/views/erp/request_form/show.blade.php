@@ -56,7 +56,7 @@
         <i class="bx bx-arrow-back me-1"></i>Back to List
       </a>
 
-      @if(auth()->user()->hasRole('superadmin') && $rf->status !== 'Draft')
+      @if(auth()->user()->hasRole('superadmin') && !in_array($rf->status, ['Draft', 'Rejected'], true))
         <form action="{{ route('erp.request-form.unlock', $rf) }}" method="POST" class="d-inline">
           @csrf
           <button type="submit" class="btn btn-sm btn-outline-warning" onclick="return confirm('Yakin ingin unlock RF ini? Semua approval akan dihapus dan status kembali ke Draft.')">
@@ -65,7 +65,7 @@
         </form>
       @endif
 
-      @if($rf->status === 'Draft' && auth()->user()->hasPermission('products.update'))
+      @if(in_array($rf->status, ['Draft', 'Rejected'], true) && auth()->user()->hasPermission('products.update'))
         <a href="{{ route('erp.request-form.edit', $rf) }}" class="btn btn-sm btn-outline-primary">
           <i class="bx bx-edit me-1"></i>Edit RF
         </a>
@@ -78,8 +78,8 @@
       @if($rf->status !== 'Approved')
         <form action="{{ route('erp.approvals.submit', $rf) }}" method="POST" class="d-inline">
           @csrf
-          <button class="btn btn-sm btn-primary" {{ $rf->approvals->count() > 0 ? 'disabled' : '' }}>
-            <i class="bx bx-paper-plane me-1"></i>Submit for Approval
+          <button class="btn btn-sm btn-primary" {{ $rf->approvals->count() > 0 && $rf->status !== 'Rejected' ? 'disabled' : '' }}>
+            <i class="bx bx-paper-plane me-1"></i>{{ $rf->status === 'Rejected' ? 'Ajukan Ulang' : 'Submit for Approval' }}
           </button>
         </form>
       @endif
@@ -406,8 +406,8 @@
               @if($rf->status !== 'Approved')
                 <form action="{{ route('erp.approvals.submit', $rf) }}" method="POST" class="d-inline">
                   @csrf
-                  <button class="btn btn-sm btn-primary" {{ $rf->approvals->count() > 0 ? 'disabled' : '' }}>
-                    <i class="bx bx-paper-plane me-1"></i>Submit for Approval
+                  <button class="btn btn-sm btn-primary" {{ $rf->approvals->count() > 0 && $rf->status !== 'Rejected' ? 'disabled' : '' }}>
+                    <i class="bx bx-paper-plane me-1"></i>{{ $rf->status === 'Rejected' ? 'Ajukan Ulang' : 'Submit for Approval' }}
                   </button>
                 </form>
               @endif

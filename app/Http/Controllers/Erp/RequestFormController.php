@@ -312,7 +312,7 @@ class RequestFormController extends Controller
 
     public function edit(RequestForm $requestForm)
     {
-        abort_unless($requestForm->status === 'Draft', 403, 'Request Form hanya dapat di-edit saat berstatus Draft.');
+        abort_unless(in_array($requestForm->status, ['Draft', 'Rejected'], true), 403, 'Request Form hanya dapat di-edit saat berstatus Draft atau Rejected.');
 
         $requestForm->load(['items', 'notesAttachments']);
         $products = \App\Models\Erp\ErpProduct::orderBy('name')->get();
@@ -333,7 +333,7 @@ class RequestFormController extends Controller
 
     public function update(Request $request, RequestForm $requestForm)
     {
-        abort_unless($requestForm->status === 'Draft', 403, 'Request Form hanya dapat di-edit saat berstatus Draft.');
+        abort_unless(in_array($requestForm->status, ['Draft', 'Rejected'], true), 403, 'Request Form hanya dapat di-edit saat berstatus Draft atau Rejected.');
 
         $data = $request->validate([
             'record_type' => ['required', Rule::in(['project', 'non_project'])],

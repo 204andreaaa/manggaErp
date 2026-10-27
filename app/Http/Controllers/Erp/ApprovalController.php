@@ -23,6 +23,12 @@ class ApprovalController extends Controller
             // Lock the RF row so two concurrent submits can't both pass the "already submitted" check.
             $requestForm = RequestForm::where('id', $requestForm->id)->lockForUpdate()->firstOrFail();
 
+            // A rejected RF goes straight back to its owner: resubmitting starts a
+            // fresh approval chain (the rejection reason is kept as an RF note).
+            if ($requestForm->status === 'Rejected') {
+                $requestForm->approvals()->delete();
+            }
+
             if ($requestForm->approvals()->count() > 0) {
                 DB::rollBack();
                 return redirect()->back()->with('error', 'Request Form is already submitted for approval.');
@@ -245,6 +251,14 @@ class ApprovalController extends Controller
             if ($requestForm) {
                 $requestForm->approvals()->where('status', 'Waiting')->update(['status' => 'Cancelled']);
                 $requestForm->update(['status' => 'Rejected']);
+
+                // The approval rows are reset when the owner resubmits, so keep the
+                // reason on the RF itself.
+                $requestForm->notesAttachments()->create([
+                    'type' => 'note',
+                    'content' => "Ditolak oleh {$user->name} (Level {$approval->level}): {$request->input('reason')}",
+                    'user_id' => $user->id,
+                ]);
             }
 
             DB::commit();

@@ -220,12 +220,25 @@ class RequestFormApprovalTest extends ErpTestCase
         $this->assertSame('Cancelled', $this->approvalAt($rf, 3)->status);
         $this->assertTrue(Notification::where('user_id', $requester->id)->where('type', 'rf_rejected')->where('reference_id', $rf->id)->exists());
 
-        // Nothing further can move: the cancelled level cannot be approved, the RF cannot be edited or resubmitted.
+        // The cancelled level cannot be approved any more.
         $this->approve($level3, $this->approvalAt($rf, 3))->assertSessionHas('error');
         $this->assertSame('Rejected', $rf->fresh()->status);
-        $this->get(route('erp.request-form.edit', $rf))->assertForbidden();
-        $this->submitRf($requester, $rf)->assertSessionHas('error');
-        $this->get(route('erp.request-form.show', $rf))->assertOk();
+
+        // The reason is kept on the RF, since the approval rows reset on resubmit.
+        $this->assertTrue($rf->notesAttachments()->where('type', 'note')->where('content', 'like', '%Budget too high%')->exists());
+
+        // Rejected goes straight back to the owner (no superadmin unlock needed):
+        // they can edit it and resubmit, which starts a fresh approval chain.
+        $this->actingInProject($requester);
+        $this->get(route('erp.request-form.show', $rf))->assertOk()->assertSee('Ajukan Ulang');
+        $this->get(route('erp.request-form.edit', $rf))->assertOk();
+        $this->submitRf($requester, $rf)->assertSessionHas('success');
+
+        $rf->refresh();
+        $this->assertSame('Submitted', $rf->status);
+        $this->assertSame(3, $rf->approvals()->count());
+        $this->assertSame('Pending', $this->approvalAt($rf, 1)->status);
+        $this->assertSame('Waiting', $this->approvalAt($rf, 2)->status);
     }
 
     public function test_reject_requires_a_reason(): void
