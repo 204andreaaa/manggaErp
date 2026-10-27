@@ -316,7 +316,7 @@ class ErpProductController extends Controller
     {
         abort_unless(auth()->user()->hasPermission('products.export'), 403);
 
-        $products = ErpProduct::with(['uom', 'family', 'type', 'brand', 'model', 'currency'])->orderBy('id')->get();
+        $products = ErpProduct::with(['uom', 'brand'])->orderBy('id')->get();
 
         $filename = 'products_export_' . date('Ymd_His') . '.csv';
         $headers = [
@@ -334,9 +334,9 @@ class ErpProductController extends Controller
                     $p->product_code,
                     $p->part_number ?? '-',
                     $p->name,
-                    $p->uom->code ?? '-',
-                    $p->brand->name ?? '-',
-                    $p->price ?? 0,
+                    $p->uom->uom_name ?? '-',
+                    $p->brand->brand_name ?? '-',
+                    $p->buying_price ?? 0,
                     $p->is_active ? 'Active' : 'Inactive',
                 ]);
             }

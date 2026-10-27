@@ -77,6 +77,20 @@ class ProductCatalogTest extends ErpTestCase
         $this->assertDatabaseHas('erp_products', ['product_code' => 'ABC-1'], 'tenant');
     }
 
+    public function test_export_lists_products_with_uom_brand_and_price(): void
+    {
+        $this->actingInProject($this->makeUser('superadmin'));
+        $this->product([
+            'product_code' => 'EPRD-777',
+            'uom_id' => Uom::create(['uom_name' => 'Sak'])->id,
+            'brand_id' => Brand::create(['brand_name' => 'Tiga Roda'])->id,
+        ]);
+
+        $csv = $this->get(route('erp.products.export'))->assertOk()->streamedContent();
+
+        $this->assertStringContainsString('EPRD-777,-,"Cement 50kg",Sak,"Tiga Roda",65000', $csv);
+    }
+
     public function test_create_rejects_duplicate_code_bad_lookup_and_missing_fields(): void
     {
         $this->actingInProject($this->makeUser('superadmin'));
