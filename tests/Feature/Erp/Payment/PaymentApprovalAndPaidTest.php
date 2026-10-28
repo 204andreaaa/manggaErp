@@ -282,12 +282,12 @@ class PaymentApprovalAndPaidTest extends ErpTestCase
         $this->assertSame(['Approved', 'Rejected', 'Cancelled'], ErpApproval::where('payment_advice_detail_id', $detail->id)
             ->where('round', 1)->orderBy('level')->pluck('status')->all());
 
-        // Both rounds are listed on the termin and on the PA, newest first.
+        // Both rounds are listed on the termin and on the PA, oldest first, in the order they happened.
         $this->actingInProject($this->financeUser);
         $this->get(route('erp.payment-advice-details.show', $detail))->assertOk()
-            ->assertSeeInOrder(['Round 2', 'Approval Request Submitted', 'Round 1', 'Invoice salah']);
+            ->assertSeeInOrder(['Round 1', 'Invoice salah', 'Approval Request Submitted', 'Round 2']);
         $this->get(route('erp.payment-advices.show', $pa))->assertOk()
-            ->assertSeeInOrder(['Round 2', 'Round 1', 'Invoice salah']);
+            ->assertSeeInOrder(['Round 1', 'Invoice salah', 'Round 2']);
     }
 
     public function test_without_dynamic_approvals_staff_cannot_use_the_legacy_approve_or_reject(): void

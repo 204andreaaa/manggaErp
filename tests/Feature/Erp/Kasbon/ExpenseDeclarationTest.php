@@ -296,7 +296,7 @@ class ExpenseDeclarationTest extends ErpTestCase
 
         $this->actingInProject($this->requester);
         $this->get(route('erp.expense-declarations.show', $declaration))->assertOk()
-            ->assertSeeInOrder(['Round 2', 'Approval Request Submitted', 'Round 1', 'Nota hilang']);
+            ->assertSeeInOrder(['Round 1', 'Nota hilang', 'Approval Request Submitted', 'Round 2']);
     }
 
     public function test_submit_without_config_is_refused(): void

@@ -259,7 +259,7 @@ class AdvanceRequestApprovalTest extends ErpTestCase
 
         $this->actingInProject($this->requester);
         $this->get(route('erp.advance-requests.show', $kasbon))->assertOk()
-            ->assertSeeInOrder(['Round 2', 'Approval Request Submitted', 'Round 1', 'Lampiran kurang']);
+            ->assertSeeInOrder(['Round 1', 'Lampiran kurang', 'Approval Request Submitted', 'Round 2']);
     }
 
     public function test_rejected_kasbon_does_not_count_against_the_budget(): void

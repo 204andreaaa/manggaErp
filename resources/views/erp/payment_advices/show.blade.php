@@ -424,7 +424,7 @@
                           </tr>
                         @else
                           @foreach($detail->approvalRounds() as $round)
-                          {{-- Submission Step (one per approval round, newest round first) --}}
+                          {{-- Submission Step (one per approval round, oldest round first, in the order they happened) --}}
                           @php $roundSubmitter = $round->submitter?->name ?: ($detail->submittedBy?->name ?: 'Finance Staff'); @endphp
                           <tr class="bg-light">
                             <td colspan="6" class="fw-bold py-2 px-3 text-primary">

@@ -438,7 +438,7 @@
                     </tr>
                   @else
                     @foreach($rf->approvalRounds() as $round)
-                    {{-- One block per approval round, newest round first --}}
+                    {{-- One block per approval round, oldest round first, in the order they happened --}}
                     @php $roundSubmitter = $round->submitter?->name ?: $rf->requestor; @endphp
                     <tr class="bg-light">
                       <td colspan="6" class="fw-bold py-2 px-3 text-primary">

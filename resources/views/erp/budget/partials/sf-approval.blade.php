@@ -1,6 +1,6 @@
 {{--
-  Salesforce "Approval History" related list. Grouped by approval round, newest
-  round on top; each round starts with its "Approval Request Submitted" row (who
+  Salesforce "Approval History" related list. Grouped by approval round in the order
+  they happened (round 1 on top); each round starts with its "Approval Request Submitted" row (who
   submitted it and when), followed by its steps by level.
   $approvals: ErpApproval collection (all rounds);
   $submittedBy: fallback submitter name for rows that predate submitted_by_id;
@@ -13,7 +13,7 @@
   };
   $submitterIds = $approvals->pluck('submitted_by_id')->filter()->unique();
   $submitters = $submitterIds->isEmpty() ? collect() : \App\Models\User::whereIn('id', $submitterIds)->pluck('name', 'id');
-  $rounds = $approvals->groupBy(fn ($a) => (int) ($a->round ?: 1))->sortKeysDesc();
+  $rounds = $approvals->groupBy(fn ($a) => (int) ($a->round ?: 1))->sortKeys();
 @endphp
 <div class="sf-card">
   <div class="sf-card-head">

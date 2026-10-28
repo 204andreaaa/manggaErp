@@ -32,7 +32,7 @@ trait HasApprovalRounds
     }
 
     /**
-     * All rounds for the history UI, newest first: each item has round, submitted_at,
+     * All rounds for the history UI in the order they happened (round 1 first): each item has round, submitted_at,
      * submitter and the round's approvals sorted by level.
      */
     public function approvalRounds(): Collection
@@ -44,7 +44,7 @@ trait HasApprovalRounds
 
         return $this->approvals
             ->groupBy(fn ($a) => (int) ($a->round ?: 1))
-            ->sortKeysDesc()
+            ->sortKeys()
             ->map(function ($rows, $round) use ($submitters) {
                 $first = $rows->sortBy('id')->first();
 

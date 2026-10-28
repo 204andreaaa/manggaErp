@@ -518,7 +518,7 @@
                 </tr>
               @else
                 @foreach($purchaseOrder->approvalRounds() as $round)
-                {{-- Submission Step (one per approval round, newest round first) --}}
+                {{-- Submission Step (one per approval round, oldest round first, in the order they happened) --}}
                 @php
                   $submitRow = $round->approvals->firstWhere('level', 0);
                   $submitter = $round->submitter ?: $submitRow?->actualApprover ?: $purchaseOrder->owner;

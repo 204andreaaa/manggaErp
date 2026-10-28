@@ -276,9 +276,9 @@ class PurchaseOrderApprovalTest extends PurchaseOrderTestCase
         $this->assertEquals(10_000_000 - 1_800_000, $this->wid->fresh()->remaining_budget);
         $this->assertSame(['Approved', 'Approved', 'Rejected'], $po->approvals()->where('round', 1)->orderBy('level')->pluck('status')->all());
 
-        // The approval history shows both rounds, newest first.
+        // The approval history shows both rounds, oldest first, in the order they happened.
         $this->actingInProject($this->buyer)->get(route('erp.purchase-orders.show', $po))->assertOk()
-            ->assertSeeInOrder(['Round 2', 'Approval Request Submitted', 'Round 1', 'revisi']);
+            ->assertSeeInOrder(['Round 1', 'revisi', 'Approval Request Submitted', 'Round 2']);
     }
 
     public function test_a_rejected_po_can_be_resubmitted_without_editing(): void

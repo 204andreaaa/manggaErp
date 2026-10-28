@@ -279,10 +279,10 @@ class RequestFormApprovalTest extends ErpTestCase
         $this->assertSame('Approved', $rf->fresh()->status);
         $this->assertSame(['Approved', 'Rejected', 'Cancelled'], $rf->approvals()->where('round', 1)->orderBy('level')->pluck('status')->all());
 
-        // The history page shows both rounds, newest first, with the old rejection reason.
+        // The history page shows both rounds, oldest first, in the order they happened, with the old rejection reason.
         $this->actingInProject($requester);
         $this->get(route('erp.request-form.show', $rf))->assertOk()
-            ->assertSeeInOrder(['Round 2', 'Approval Request Submitted', 'Round 1'])
+            ->assertSeeInOrder(['Round 1', 'Budget too high', 'Approval Request Submitted', 'Round 2'])
             ->assertSee('Budget too high');
     }
 
