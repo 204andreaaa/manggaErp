@@ -70,29 +70,65 @@
         <i class="bx bx-printer me-1"></i>Print GR
       </a>
 
+      @php
+        $grVerifConfig = \App\Models\Erp\ErpApprovalConfig::where('record_type', 'gr_verification')->first();
+        $isGrVerificationActive = (bool) $grVerifConfig;
+        $canVerifyGr = false;
+        if (auth()->user()->hasRole('superadmin')) {
+            $canVerifyGr = true;
+        } elseif ($grVerifConfig) {
+            if ($grVerifConfig->user_id && auth()->id() == $grVerifConfig->user_id) {
+                $canVerifyGr = true;
+            } elseif ($grVerifConfig->role_id && $grVerifConfig->role && auth()->user()->hasRole($grVerifConfig->role->slug)) {
+                $canVerifyGr = true;
+            }
+        } else {
+            $canVerifyGr = auth()->user()->hasRole(['logistik', 'warehouse', 'ga', 'general_affair', 'superadmin']) || auth()->user()->hasPermission('goods_receipts.verify') || auth()->user()->hasPermission('goods_receipts.create');
+        }
+        $canVerifyGr = $canVerifyGr && $goodsReceipt->status !== 'Received';
+
+        // With GR verification switched off, receiving is just "goods received" — no verification wording.
+        $grText = $isGrVerificationActive ? [
+            'button' => 'Receive Verification',
+            'done' => 'Verification Completed',
+            'tab' => 'Verification & Biometrics',
+            'tabTitle' => 'Verification & Delivery Documents',
+            'record' => 'Receive Verification Record',
+            'by' => 'Receive Verified By:',
+            'at' => 'Verification Timestamp:',
+            'notYet' => 'Not Verified Yet',
+            'statusTitle' => 'Status Verifikasi Penerimaan',
+            'doneMsg' => 'Barang telah berhasil diverifikasi dan masuk ke dalam Stok Fisik Gudang.',
+            'waitMsg' => 'Status penerimaan menunggu verifikasi & QC fisik oleh tim Logistik / Gudang.',
+            'action' => 'Verifikasi Penerimaan Barang',
+            'modalTitle' => 'Verifikasi Penerimaan Barang (GR)',
+            'modalMsg' => 'Dengan memverifikasi penerimaan barang ini, jumlah fisik barang akan secara otomatis ditambahkan ke dalam Stok Fisik Gudang ERP.',
+        ] : [
+            'button' => 'Terima Barang',
+            'done' => 'Barang Diterima',
+            'tab' => 'Penerimaan & Dokumen',
+            'tabTitle' => 'Penerimaan & Dokumen Pengiriman',
+            'record' => 'Catatan Penerimaan',
+            'by' => 'Diterima Oleh:',
+            'at' => 'Waktu Diterima:',
+            'notYet' => 'Belum Diterima',
+            'statusTitle' => 'Status Penerimaan',
+            'doneMsg' => 'Barang telah diterima dan masuk ke dalam Stok Fisik Gudang.',
+            'waitMsg' => 'Menunggu konfirmasi penerimaan barang oleh tim Logistik / Gudang.',
+            'action' => 'Terima Barang',
+            'modalTitle' => 'Terima Barang (GR)',
+            'modalMsg' => 'Dengan mengonfirmasi penerimaan barang ini, jumlah fisik barang akan secara otomatis ditambahkan ke dalam Stok Fisik Gudang ERP.',
+        ];
+      @endphp
+
       @if($goodsReceipt->status !== 'Received')
-        @php
-          $grVerifConfig = \App\Models\Erp\ErpApprovalConfig::where('record_type', 'gr_verification')->first();
-          $canVerifyGr = false;
-          if (auth()->user()->hasRole('superadmin')) {
-              $canVerifyGr = true;
-          } elseif ($grVerifConfig) {
-              if ($grVerifConfig->user_id && auth()->id() == $grVerifConfig->user_id) {
-                  $canVerifyGr = true;
-              } elseif ($grVerifConfig->role_id && auth()->user()->hasRole($grVerifConfig->role?->name)) {
-                  $canVerifyGr = true;
-              }
-          } else {
-              $canVerifyGr = auth()->user()->hasRole(['logistik', 'warehouse', 'ga', 'general_affair', 'superadmin']) || auth()->user()->hasPermission('goods_receipts.verify') || auth()->user()->hasPermission('goods_receipts.create');
-          }
-        @endphp
         @if($canVerifyGr)
           <button type="button" class="btn btn-success btn-sm rounded-pill px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#receiveModal">
-            <i class="bx bx-check-double me-1"></i>Receive Verification
+            <i class="bx bx-check-double me-1"></i>{{ $grText['button'] }}
           </button>
         @endif
       @else
-        <span class="badge bg-success px-3 py-2 fs-7"><i class="bx bx-check-circle me-1"></i>Verification Completed</span>
+        <span class="badge bg-success px-3 py-2 fs-7"><i class="bx bx-check-circle me-1"></i>{{ $grText['done'] }}</span>
       @endif
 
       @if(auth()->user()->hasRole('superadmin'))
@@ -165,7 +201,7 @@
         </li>
         <li class="nav-item" role="presentation">
           <button class="nav-link py-3" id="tab-notes-btn" data-bs-toggle="tab" data-bs-target="#tab-notes" type="button" role="tab">
-            <i class="bx bx-paperclip me-2 fs-5"></i>3. Verification & Biometrics
+            <i class="bx bx-paperclip me-2 fs-5"></i>3. {{ $grText['tab'] }}
           </button>
         </li>
       </ul>
@@ -263,14 +299,14 @@
 
             {{-- Biometric Verification Box --}}
             <div class="p-3 bg-light rounded-3 border">
-              <h6 class="fw-bold text-dark mb-2"><i class="bx bx-shield-quarter me-1 text-primary"></i>Receive Verification Record</h6>
+              <h6 class="fw-bold text-dark mb-2"><i class="bx bx-shield-quarter me-1 text-primary"></i>{{ $grText['record'] }}</h6>
               <div class="row g-2 small">
                 <div class="col-6">
-                  <span class="text-muted d-block">Receive Verified By:</span>
-                  <span class="fw-bold text-dark">{{ $goodsReceipt->verifiedBy?->name ?: ($goodsReceipt->receive_verified_by_id ? \App\Models\User::find($goodsReceipt->receive_verified_by_id)?->name : 'Not Verified Yet') }}</span>
+                  <span class="text-muted d-block">{{ $grText['by'] }}</span>
+                  <span class="fw-bold text-dark">{{ $goodsReceipt->verifiedBy?->name ?: ($goodsReceipt->receive_verified_by_id ? \App\Models\User::find($goodsReceipt->receive_verified_by_id)?->name : $grText['notYet']) }}</span>
                 </div>
                 <div class="col-6">
-                  <span class="text-muted d-block">Verification Timestamp:</span>
+                  <span class="text-muted d-block">{{ $grText['at'] }}</span>
                   <span class="fw-bold text-dark">{{ $goodsReceipt->verification_timestamp ? \Carbon\Carbon::parse($goodsReceipt->verification_timestamp)->format('d M Y H:i') : '-' }}</span>
                 </div>
               </div>
@@ -343,7 +379,7 @@
 
       {{-- Tab 3: Verification & Biometrics --}}
       <div class="tab-pane fade" id="tab-notes" role="tabpanel">
-        <h6 class="fw-bold mb-3 text-primary"><i class="bx bx-shield-check me-1"></i>Verification & Delivery Documents</h6>
+        <h6 class="fw-bold mb-3 text-primary"><i class="bx bx-shield-check me-1"></i>{{ $grText['tabTitle'] }}</h6>
         
         <div class="row g-4">
           <div class="col-md-6">
@@ -358,18 +394,18 @@
 
           <div class="col-md-6">
             <div class="p-4 bg-light rounded-4 border">
-              <h6 class="fw-bold text-dark mb-3"><i class="bx bx-check-shield text-success me-2 fs-5"></i>Status Verifikasi Penerimaan</h6>
+              <h6 class="fw-bold text-dark mb-3"><i class="bx bx-check-shield text-success me-2 fs-5"></i>{{ $grText['statusTitle'] }}</h6>
               @if($goodsReceipt->status === 'Received')
                 <div class="alert alert-success border-0 mb-0">
-                  <i class="bx bx-check-circle me-1 fs-5 align-middle"></i> Barang telah berhasil diverifikasi dan masuk ke dalam Stok Fisik Gudang.
+                  <i class="bx bx-check-circle me-1 fs-5 align-middle"></i> {{ $grText['doneMsg'] }}
                 </div>
               @else
                 <div class="alert alert-warning border-0 mb-3">
-                  <i class="bx bx-time-five me-1 fs-5 align-middle"></i> Status penerimaan menunggu verifikasi & QC fisik oleh tim Logistik / Gudang.
+                  <i class="bx bx-time-five me-1 fs-5 align-middle"></i> {{ $grText['waitMsg'] }}
                 </div>
-                @if(auth()->user()->hasRole(['logistik', 'warehouse', 'superadmin']))
+                @if($canVerifyGr)
                   <button type="button" class="btn btn-success rounded-pill px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#receiveModal">
-                    <i class="bx bx-check-double me-1"></i>Verifikasi Penerimaan Barang
+                    <i class="bx bx-check-double me-1"></i>{{ $grText['action'] }}
                   </button>
                 @endif
               @endif
@@ -382,18 +418,18 @@
 
   </div>
 
-  {{-- Receive Verification Modal (Only for Logistik / Superadmin) --}}
-  @if(auth()->user()->hasRole(['logistik', 'warehouse', 'superadmin']))
+  {{-- Receive Modal (same rule as the receive endpoint) --}}
+  @if($canVerifyGr)
   <div class="modal fade" id="receiveModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <form action="{{ route('erp.goods-receipts.receive', $goodsReceipt) }}" method="POST" class="modal-content shadow-lg border-0 rounded-4">
         @csrf
         <div class="modal-header border-bottom bg-success bg-opacity-10 py-3">
-          <h5 class="modal-title fw-bold text-success"><i class="bx bx-check-circle me-1"></i>Verifikasi Penerimaan Barang (GR)</h5>
+          <h5 class="modal-title fw-bold text-success"><i class="bx bx-check-circle me-1"></i>{{ $grText['modalTitle'] }}</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body p-4">
-          <p class="text-muted small">Dengan memverifikasi penerimaan barang ini, jumlah fisik barang akan secara otomatis ditambahkan ke dalam **Stok Fisik Gudang ERP**.</p>
+          <p class="text-muted small">{{ $grText['modalMsg'] }}</p>
           <div class="mb-3">
             <label class="form-label fw-semibold">Catatan Penerimaan (Opsional)</label>
             <textarea name="remarks" class="form-control rounded-3" rows="3" placeholder="Tuliskan catatan kondisi fisik barang..."></textarea>

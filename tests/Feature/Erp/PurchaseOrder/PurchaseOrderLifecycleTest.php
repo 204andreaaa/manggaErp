@@ -296,6 +296,49 @@ class PurchaseOrderLifecycleTest extends PurchaseOrderTestCase
         $this->assertSame($verifier->id, $po->fresh()->verified_by_id);
     }
 
+    public function test_without_po_verification_the_page_has_no_verify_step_and_both_submit_buttons(): void
+    {
+        $po = $this->draftPo();
+        $html = $this->actingInProject($this->buyer)->get(route('erp.purchase-orders.show', $po))
+            ->assertOk()
+            ->assertDontSee('Verify PO')
+            ->assertDontSee('Procurement Verification Status')
+            ->getContent();
+
+        // header button and the one in the Approval History tab
+        $this->assertSame(2, substr_count($html, route('erp.purchase-orders.submit', $po)));
+    }
+
+    public function test_with_po_verification_submit_waits_and_the_role_verifier_sees_the_verify_button(): void
+    {
+        $verifier = $this->makeUser('head_procurement');
+        ErpApprovalConfig::create(['record_type' => 'po_verification', 'level' => 1, 'name' => 'Verifikasi PO', 'role_id' => $this->role('head_procurement')->id]);
+        $po = $this->draftPo();
+
+        $html = $this->actingInProject($this->buyer)->get(route('erp.purchase-orders.show', $po))
+            ->assertOk()
+            ->assertSee('Procurement Verification Status')
+            ->assertDontSee('Verify PO')
+            ->getContent();
+        $this->assertSame(0, substr_count($html, route('erp.purchase-orders.submit', $po)));
+
+        $this->actingInProject($verifier)->get(route('erp.purchase-orders.show', $po))
+            ->assertOk()
+            ->assertSee('Verify PO');
+    }
+
+    public function test_rejected_po_offers_resubmit_in_the_approval_history_tab_too(): void
+    {
+        $po = $this->draftPo();
+        $this->actingInProject($this->buyer)->post(route('erp.purchase-orders.submit', $po));
+        $this->actingInProject($this->admin)->post(route('erp.purchase-orders.reject', $po), ['comments' => 'harga dicek ulang']);
+        $this->assertSame('Rejected', $po->fresh()->status);
+
+        $html = $this->actingInProject($this->buyer)->get(route('erp.purchase-orders.show', $po))->assertOk()->getContent();
+        $this->assertSame(2, substr_count($html, route('erp.purchase-orders.submit', $po)));
+        $this->assertSame(2, substr_count($html, 'Ajukan Ulang'));
+    }
+
     public function test_cancel_is_refused_once_a_goods_receipt_exists(): void
     {
         $po = $this->approvedPo();

@@ -123,7 +123,7 @@
         } elseif ($poVerifConfig) {
             if ($poVerifConfig->user_id && auth()->id() == $poVerifConfig->user_id) {
                 $canVerifyPo = true;
-            } elseif ($poVerifConfig->role_id && auth()->user()->hasRole($poVerifConfig->role?->name)) {
+            } elseif ($poVerifConfig->role_id && $poVerifConfig->role && auth()->user()->hasRole($poVerifConfig->role->slug)) {
                 $canVerifyPo = true;
             }
         }
@@ -141,9 +141,12 @@
       @endif
 
       {{-- Submit for Approval Button (Procurement / Admin only) --}}
-      @if(in_array($purchaseOrder->status, ['Draft', 'Rejected'], true) && auth()->user()->hasRole(['procurement', 'admin', 'superadmin']))
+      @php
+        $canSubmitPo = in_array($purchaseOrder->status, ['Draft', 'Rejected'], true) && auth()->user()->hasRole(['procurement', 'admin', 'superadmin']);
+        $isReadyToSubmit = !$isVerificationActive || (bool) $purchaseOrder->verified_by_id;
+      @endphp
+      @if($canSubmitPo)
         @php
-          $isReadyToSubmit = !$isVerificationActive || (bool) $purchaseOrder->verified_by_id;
           $verifierName = $poVerifConfig?->user?->name ?? 'Verifikator PO';
         @endphp
         @if($isReadyToSubmit)
@@ -376,7 +379,8 @@
               </tbody>
             </table>
 
-            {{-- Procurement Verification Info --}}
+            {{-- Procurement Verification Info (hidden when verification is off and this PO was never verified) --}}
+            @if($isVerificationActive || $purchaseOrder->verified_by_id)
             <div class="p-3 bg-light rounded-3 border">
               <h6 class="fw-bold text-dark mb-2"><i class="bx bx-shield-quarter me-1 text-primary"></i>Procurement Verification Status</h6>
               <div class="row g-2 small">
@@ -390,6 +394,7 @@
                 </div>
               </div>
             </div>
+            @endif
 
           </div>
 
@@ -486,11 +491,11 @@
             </div>
             <h6 class="fw-bold mb-0 text-primary">Approval Log & Workflow Trail</h6>
           </div>
-          @if($purchaseOrder->status === 'Draft' && $purchaseOrder->verified_by_id)
+          @if($canSubmitPo && $isReadyToSubmit)
             <form action="{{ route('erp.purchase-orders.submit', $purchaseOrder) }}" method="POST" class="d-inline">
               @csrf
               <button type="submit" class="btn btn-sm btn-success rounded-pill px-3">
-                <i class="bx bx-paper-plane me-1"></i>Submit for Approval
+                <i class="bx bx-paper-plane me-1"></i>{{ $purchaseOrder->status === 'Rejected' ? 'Ajukan Ulang' : 'Submit for Approval' }}
               </button>
             </form>
           @endif

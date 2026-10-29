@@ -246,6 +246,41 @@ class GoodsReceiptTest extends PurchaseOrderTestCase
         $this->assertSame('Received', $gr->fresh()->status);
     }
 
+    public function test_without_gr_verification_the_page_says_terima_barang(): void
+    {
+        $gr = $this->recordGr([[0, 10]]);
+
+        $this->get(route('erp.goods-receipts.show', $gr))
+            ->assertOk()
+            ->assertSee('Terima Barang')
+            ->assertSee(route('erp.goods-receipts.receive', $gr))
+            ->assertDontSee('Receive Verification')
+            ->assertDontSee('Verifikasi Penerimaan');
+
+        $this->post(route('erp.goods-receipts.receive', $gr))->assertSessionHas('success');
+        $this->get(route('erp.goods-receipts.show', $gr))
+            ->assertOk()
+            ->assertSee('Barang Diterima')
+            ->assertDontSee('Verification Completed');
+    }
+
+    public function test_with_gr_verification_only_the_role_verifier_gets_the_receive_form(): void
+    {
+        $verifier = $this->makeUser('warehouse_head');
+        ErpApprovalConfig::create(['record_type' => 'gr_verification', 'level' => 1, 'name' => 'Verifikasi GR', 'role_id' => $this->role('warehouse_head')->id]);
+        $gr = $this->recordGr([[0, 10]]);
+
+        $this->get(route('erp.goods-receipts.show', $gr))
+            ->assertOk()
+            ->assertSee('Receive Verification Record')
+            ->assertDontSee(route('erp.goods-receipts.receive', $gr));
+
+        $this->actingInProject($verifier)->get(route('erp.goods-receipts.show', $gr))
+            ->assertOk()
+            ->assertSee('Receive Verification')
+            ->assertSee(route('erp.goods-receipts.receive', $gr));
+    }
+
     public function test_receive_ignores_verified_by_id_from_the_request(): void
     {
         $gr = $this->recordGr([[0, 10]]);
