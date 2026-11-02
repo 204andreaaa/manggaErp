@@ -30,14 +30,55 @@ class BudgetPagesAndPermissionsTest extends ErpTestCase
     {
         $this->loginAsBudgetAdmin();
         $parent = $this->createParent(1000000, ['budget_code' => 'BP-DT']);
-        $this->createWid($this->createSubProject($parent, 'SP-DT'), 1000, 'WID-DT-001');
+        $sub = $this->createSubProject($parent, 'SP-DT');
+        $wid = $this->createWid($sub, 1000, 'WID-DT-001');
 
         $this->postJson(route('erp.budget-parents.datatable'), ['draw' => 1, 'search' => ['value' => 'BP-DT']])
             ->assertOk()->assertJsonPath('recordsFiltered', 1)->assertJsonPath('data.0.remaining_budget', '999,000.00');
-        $this->postJson(route('erp.sub-projects.datatable'), ['draw' => 1])
-            ->assertOk()->assertJsonPath('data.0.sub_project_code', 'SP-DT');
-        $this->postJson(route('erp.work-items.datatable'), ['draw' => 1])
-            ->assertOk()->assertJsonPath('data.0.wid_code', 'WID-DT-001');
+
+        // codes link to their detail pages
+        $subRow = $this->postJson(route('erp.sub-projects.datatable'), ['draw' => 1])->assertOk()->json('data.0');
+        $this->assertStringContainsString('>SP-DT</a>', $subRow['sub_project_code']);
+        $this->assertStringContainsString(route('erp.sub-projects.show', $sub), $subRow['sub_project_code']);
+        $this->assertStringContainsString(route('erp.budget-parents.show', $parent), $subRow['budget_parent']);
+
+        $widRow = $this->postJson(route('erp.work-items.datatable'), ['draw' => 1])->assertOk()->json('data.0');
+        $this->assertStringContainsString('>WID-DT-001</a>', $widRow['wid_code']);
+        $this->assertStringContainsString(route('erp.work-items.show', $wid), $widRow['wid_code']);
+        $this->assertStringContainsString(route('erp.sub-projects.show', $sub), $widRow['sub_project']);
+    }
+
+    public function test_wid_and_sub_project_detail_pages_list_what_is_charged_to_them(): void
+    {
+        $this->loginAsBudgetAdmin();
+        $parent = $this->createParent(1000000, ['budget_code' => 'BP-REL']);
+        $sub = $this->createSubProject($parent, 'SP-REL');
+        $wid = $this->createWid($sub, 400000, 'WID-REL-001');
+        $other = $this->createWid($sub, 100000, 'WID-REL-002');
+        $annual = $this->createAnnual($wid, 200000);
+        $kasbonId = $this->approvedKasbon($this->createDetail($this->createMonthly($annual, 100000), 'Office', 50000), 10000);
+        $kasbonCode = \App\Models\Erp\AdvanceRequest::find($kasbonId)->code;
+
+        $this->get(route('erp.work-items.show', $wid))
+            ->assertOk()
+            ->assertSee('WID-REL-001')
+            ->assertSee('SP-REL')
+            ->assertSee(route('erp.budget-parents.show', $parent), false)
+            ->assertSee($annual->code)
+            ->assertSee($kasbonCode);
+
+        // the other WID has none of it
+        $this->get(route('erp.work-items.show', $other))
+            ->assertOk()
+            ->assertDontSee($annual->code)
+            ->assertDontSee($kasbonCode);
+
+        $this->get(route('erp.sub-projects.show', $sub))
+            ->assertOk()
+            ->assertSee('WID-REL-001')
+            ->assertSee('WID-REL-002')
+            ->assertSee($annual->code)
+            ->assertSee($kasbonCode);
     }
 
     public function test_budget_parent_detail_page_lists_plans_projects_works_kasbon_and_declarations(): void
@@ -84,6 +125,8 @@ class BudgetPagesAndPermissionsTest extends ErpTestCase
         $this->putJson(route('erp.budget-parents.update', $parent), [])->assertForbidden();
         $this->deleteJson(route('erp.budget-parents.destroy', $parent))->assertForbidden();
         $this->get(route('erp.sub-projects.index'))->assertForbidden();
+        $this->get(route('erp.sub-projects.show', $sub))->assertForbidden();
+        $this->get(route('erp.work-items.show', $wid))->assertForbidden();
         $this->postJson(route('erp.sub-projects.store'), [])->assertForbidden();
         $this->deleteJson(route('erp.sub-projects.destroy', $sub))->assertForbidden();
         $this->get(route('erp.work-items.index'))->assertForbidden();

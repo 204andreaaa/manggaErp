@@ -67,13 +67,13 @@ Route::middleware(['auth', 'active'])->group(function () {
 
 
         Route::post('sub-projects/datatable', [\App\Http\Controllers\Erp\ErpSubProjectController::class, 'datatable'])->name('sub-projects.datatable');
-        Route::resource('sub-projects', \App\Http\Controllers\Erp\ErpSubProjectController::class)->except(['create', 'edit', 'show']);
+        Route::resource('sub-projects', \App\Http\Controllers\Erp\ErpSubProjectController::class)->except(['create', 'edit']);
 
         Route::post('work-items/datatable', [\App\Http\Controllers\Erp\ErpWorkItemController::class, 'datatable'])->name('work-items.datatable');
         Route::get('work-items/next-code', [\App\Http\Controllers\Erp\ErpWorkItemController::class, 'getNextWidCode'])->name('work-items.next-code');
-        Route::resource('work-items', \App\Http\Controllers\Erp\ErpWorkItemController::class)->except(['create', 'edit', 'show']);
-        
+        // Before the resource, so "by-project" isn't taken as a WID id by work-items/{work_item}.
         Route::get('work-items/by-project', [\App\Http\Controllers\Erp\ErpWorkItemController::class, 'getWorkItemsByProject'])->name('work-items.by_project');
+        Route::resource('work-items', \App\Http\Controllers\Erp\ErpWorkItemController::class)->except(['create', 'edit']);
 
         // Request Form
         Route::post('request-form/datatable', [\App\Http\Controllers\Erp\RequestFormController::class, 'datatable'])->name('request-form.datatable');

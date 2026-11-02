@@ -6,6 +6,7 @@ use App\Helpers\NotificationHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Erp\ErpSubProject;
 use App\Models\Erp\ErpBudgetParent;
+use App\Services\WorkItemUsage;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -60,8 +61,10 @@ class ErpSubProjectController extends Controller
 
                 return [
                     'rownum'           => $start + $i + 1,
-                    'budget_parent'    => e($c->budgetParent->name ?? '-'),
-                    'sub_project_code' => e($c->sub_project_code),
+                    'budget_parent'    => $c->budgetParent
+                        ? '<a href="'.e(route('erp.budget-parents.show', $c->budgetParent)).'">'.e($c->budgetParent->name).'</a>'
+                        : '-',
+                    'sub_project_code' => '<a class="fw-semibold text-nowrap" href="'.e(route('erp.sub-projects.show', $c)).'">'.e($c->sub_project_code).'</a>',
                     'name'             => e($c->name),
                     'actions'          => '<div class="text-center">'.$editBtn.$deleteBtn.'</div>',
                 ];
@@ -73,6 +76,17 @@ class ErpSubProjectController extends Controller
             'recordsFiltered' => $recordsFiltered,
             'data'            => $rows,
         ]);
+    }
+
+    public function show(ErpSubProject $subProject)
+    {
+        abort_unless(auth()->user()->hasPermission('sub_projects.view') || auth()->user()->hasPermission('budgets.view'), 403);
+
+        $subProject->load('budgetParent');
+        $workItems = $subProject->workItems()->with('subProject')->orderBy('wid_code')->get();
+        $usage = WorkItemUsage::for($workItems);
+
+        return view('erp.sub_projects.show', compact('subProject', 'workItems', 'usage'));
     }
 
     public function store(Request $r)

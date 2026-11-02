@@ -4,11 +4,10 @@ namespace App\Http\Controllers\Erp;
 
 use App\Helpers\NotificationHelper;
 use App\Http\Controllers\Controller;
-use App\Models\Erp\AdvanceRequest;
 use App\Models\Erp\ErpBudgetParent;
 use App\Models\Erp\ErpWorkItem;
-use App\Models\Erp\ExpenseDeclaration;
 use App\Models\User;
+use App\Services\WorkItemUsage;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -98,14 +97,12 @@ class ErpBudgetParentController extends Controller
             ->whereHas('subProject', fn ($q) => $q->where('budget_parent_id', $budgetParent->id))
             ->orderBy('wid_code')
             ->get();
-        $workIds = $workItems->pluck('id');
 
-        $advanceRequests = AdvanceRequest::with(['budgetPlanDetail', 'work'])
-            ->whereIn('work_id', $workIds)->latest()->get();
-        $declarations = ExpenseDeclaration::with(['advanceRequest', 'work'])
-            ->whereIn('work_id', $workIds)->latest()->get();
+        $usage = WorkItemUsage::for($workItems);
+        // Plans are listed by the account they belong to (older ones may have no WID).
+        $usage['annual'] = $budgetParent->annualBudgetPlans;
 
-        return view('erp.budget_parents.show', compact('budgetParent', 'workItems', 'advanceRequests', 'declarations'));
+        return view('erp.budget_parents.show', compact('budgetParent', 'workItems', 'usage'));
     }
 
     public function store(Request $r)

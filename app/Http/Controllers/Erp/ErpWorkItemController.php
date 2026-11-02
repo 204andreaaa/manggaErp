@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Erp\ErpBudgetParent;
 use App\Models\Erp\ErpWorkItem;
 use App\Models\Erp\ErpSubProject;
+use App\Services\WorkItemUsage;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
@@ -31,6 +32,16 @@ class ErpWorkItemController extends Controller
         });
 
         return view('erp.work_items.index', compact('subProjects'));
+    }
+
+    public function show(ErpWorkItem $workItem)
+    {
+        abort_unless(auth()->user()->hasPermission('work_items.view') || auth()->user()->hasPermission('budgets.view'), 403);
+
+        $workItem->load('subProject.budgetParent');
+        $usage = WorkItemUsage::for(collect([$workItem]));
+
+        return view('erp.work_items.show', compact('workItem', 'usage'));
     }
 
     public function datatable(Request $r)
@@ -75,8 +86,10 @@ class ErpWorkItemController extends Controller
 
                 return [
                     'rownum'           => $start + $i + 1,
-                    'sub_project'      => e($c->subProject->name ?? '-'),
-                    'wid_code'         => e($c->wid_code),
+                    'sub_project'      => $c->subProject
+                        ? '<a href="'.e(route('erp.sub-projects.show', $c->subProject)).'">'.e($c->subProject->name).'</a>'
+                        : '-',
+                    'wid_code'         => '<a class="fw-semibold text-nowrap" href="'.e(route('erp.work-items.show', $c)).'">'.e($c->wid_code).'</a>',
                     'name'             => e($c->name),
                     'allocated_budget' => number_format($c->allocated_budget, 2),
                     'remaining_budget' => number_format($c->remaining_budget, 2),
