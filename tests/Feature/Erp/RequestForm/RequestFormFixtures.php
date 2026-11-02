@@ -75,6 +75,11 @@ trait RequestFormFixtures
     /** Create an RF through the real store route as `$user` and return it. */
     protected function createRfViaHttp(User $user, string $recordType = 'non_project', array $items = null, array $overrides = []): RequestForm
     {
+        if ($recordType === 'non_project' && ! array_key_exists('department_id', $overrides)) {
+            $department = \App\Models\Department::forUser($user) ?? $this->giveDepartment($user);
+            $overrides['department_id'] = $department->id;
+        }
+
         $this->actingInProject($user)
             ->post(route('erp.request-form.store'), $this->rfPayload($recordType, $items, $overrides))
             ->assertSessionHasNoErrors()

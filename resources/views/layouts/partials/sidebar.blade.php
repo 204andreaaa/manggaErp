@@ -83,6 +83,7 @@ $hasAnyDepartment = $isAdminProject || $isGA || $isProcurement || $isFinance || 
 // Route Active States
 $isHrOpen = request()->routeIs('erp.hr.*') || request()->routeIs('erp.departments.*');
 $isProjectOpen = request()->routeIs('erp.budget-parents.*')
+    || request()->routeIs('erp.department-spending.*')
     || request()->routeIs('erp.sub-projects.*')
     || request()->routeIs('erp.work-items.*')
     || request()->routeIs('erp.annual-budget-plans.*')
@@ -273,6 +274,14 @@ $isSystemOpen = request()->routeIs('erp.users.*')
                     <a href="{{ $rl('erp.budget-parents.index') }}" class="menu-link">
                         <i class="bx bx-wallet-alt me-2"></i>
                         <div class="text-truncate">Budget Parents</div>
+                    </a>
+                </li>
+                @endif
+                @if($isSuperAdmin || $u?->hasPermission('budgets.view'))
+                <li class="menu-item {{ request()->routeIs('erp.department-spending.*') ? 'active' : '' }}">
+                    <a href="{{ $rl('erp.department-spending.index') }}" class="menu-link">
+                        <i class="bx bx-buildings me-2"></i>
+                        <div class="text-truncate">Pengeluaran Departemen</div>
                     </a>
                 </li>
                 @endif

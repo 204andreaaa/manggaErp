@@ -127,7 +127,10 @@
                 <div class="form-text text-muted small">Pilih Sub Project (JSI atau Apjatel). Pilihan WID barang di Tab 2 akan otomatis disaring sesuai Sub Project ini.</div>
               </div>
             @else
-              <div class="alert alert-secondary py-2 small mb-3">Non Project RF tidak menggunakan project code.</div>
+              @include('erp.request_form.partials.department-field', [
+                'selectedId' => $rf->department_id ?? $myDepartment?->id,
+                'lockedName' => $rf->department_name ?? \App\Models\Department::forUser(\App\Models\User::find($rf->created_by_id))?->name,
+              ])
             @endif
 
             <div class="row g-3">

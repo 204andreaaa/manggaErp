@@ -64,6 +64,8 @@ Route::middleware(['auth', 'active'])->group(function () {
         // Budget Project System
         Route::post('budget-parents/datatable', [\App\Http\Controllers\Erp\ErpBudgetParentController::class, 'datatable'])->name('budget-parents.datatable');
         Route::resource('budget-parents', \App\Http\Controllers\Erp\ErpBudgetParentController::class)->except(['create', 'edit']);
+        Route::get('department-spending', [\App\Http\Controllers\Erp\DepartmentSpendingController::class, 'index'])->name('department-spending.index');
+        Route::get('department-spending/{department}', [\App\Http\Controllers\Erp\DepartmentSpendingController::class, 'show'])->name('department-spending.show');
 
 
         Route::post('sub-projects/datatable', [\App\Http\Controllers\Erp\ErpSubProjectController::class, 'datatable'])->name('sub-projects.datatable');

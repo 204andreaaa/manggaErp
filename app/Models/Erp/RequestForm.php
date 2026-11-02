@@ -17,6 +17,8 @@ class RequestForm extends Model
         'rf_no',
         'record_type',
         'project_code',
+        'department_id',
+        'department_name',
         'requestor',
         'owner',
         'priority',
@@ -58,6 +60,12 @@ class RequestForm extends Model
     public function workItem()
     {
         return $this->belongsTo(ErpWorkItem::class, 'work_item_id');
+    }
+
+    /** Non-project RFs only; departments live in the master database. */
+    public function department()
+    {
+        return $this->belongsTo(\App\Models\Department::class, 'department_id');
     }
 
     public function items()

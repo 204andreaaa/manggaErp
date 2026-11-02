@@ -25,6 +25,7 @@ class RequestFormCrudTest extends ErpTestCase
     {
         Storage::fake('public');
         $user = $this->makeUser('staff');
+        $department = $this->giveDepartment($user);
 
         $payload = $this->rfPayload('non_project', [
             $this->itemPayload(['product_name' => 'Item A', 'unit_cost' => 10000, 'qty' => 5]),
@@ -43,6 +44,7 @@ class RequestFormCrudTest extends ErpTestCase
         $this->assertSame('Draft', $rf->status);
         $this->assertSame('non_project', $rf->record_type);
         $this->assertNull($rf->project_code, 'non-project RFs never keep a project code');
+        $this->assertSame($department->id, (int) $rf->department_id, 'charged to the creator\'s department');
         $this->assertSame($user->id, (int) $rf->created_by_id);
         $this->assertSame($user->name, $rf->requestor, 'requestor defaults to the logged-in user');
         $this->assertMatchesRegularExpression('/^RF-\d{4}-\d{2}-00001$/', $rf->rf_no);

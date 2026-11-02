@@ -190,7 +190,14 @@
                 <input class="form-control bg-white" value="{{ $rf->project_code ?: '-' }}" readonly>
               </div>
             @else
-              <div class="alert alert-secondary py-2 small mb-3">Non Project RF tidak memakai project code.</div>
+              <div class="mb-3">
+                <label class="form-label fw-semibold small text-uppercase text-muted">Departemen</label>
+                @if($rf->department_id && auth()->user()->hasPermission('budgets.view'))
+                  <a href="{{ route('erp.department-spending.show', $rf->department_id) }}" class="form-control bg-white text-decoration-none">{{ $rf->department_name }}</a>
+                @else
+                  <input class="form-control bg-white" value="{{ $rf->department_name ?: '-' }}" readonly>
+                @endif
+              </div>
             @endif
 
             <div class="row g-3">

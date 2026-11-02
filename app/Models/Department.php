@@ -24,4 +24,12 @@ class Department extends Model
     {
         return $this->hasMany(Employee::class, 'department', 'name');
     }
+
+    /** The active department on the user's employee record, or null when that data is missing. */
+    public static function forUser(?User $user): ?self
+    {
+        $name = $user?->employee?->department;
+
+        return $name ? static::where('name', $name)->where('status', 'active')->first() : null;
+    }
 }

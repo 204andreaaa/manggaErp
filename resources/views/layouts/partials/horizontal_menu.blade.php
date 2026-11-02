@@ -109,6 +109,13 @@ if ($isGA || $isLogistik) {
                             <i class="bx bx-wallet-alt me-2"></i> Budget Parents
                         </a>
                     </li>
+                    @if($isSuperAdmin || $u?->hasPermission('budgets.view'))
+                    <li>
+                        <a class="dropdown-item {{ request()->routeIs('erp.department-spending.*') ? 'active' : '' }}" href="{{ $rl('erp.department-spending.index') }}">
+                            <i class="bx bx-buildings me-2"></i> Pengeluaran Departemen
+                        </a>
+                    </li>
+                    @endif
                     @if($isSuperAdmin || $u?->canSeeMenu('annual_budget_plans'))
                     <li>
                         <a class="dropdown-item {{ request()->routeIs('erp.annual-budget-plans.*') || request()->routeIs('erp.monthly-budget-plans.*') ? 'active' : '' }}" href="{{ $rl('erp.annual-budget-plans.index') }}">

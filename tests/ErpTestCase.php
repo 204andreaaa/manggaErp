@@ -118,6 +118,18 @@ abstract class ErpTestCase extends TestCase
         return $user->fresh();
     }
 
+    /** Put `$user` in a department (employee record + master department), which non-project RFs need. */
+    protected function giveDepartment(User $user, string $name = 'General Affair'): \App\Models\Department
+    {
+        $department = \App\Models\Department::firstOrCreate(['name' => $name], ['code' => Str::upper(Str::slug($name)), 'status' => 'active']);
+        \App\Models\Employee::updateOrCreate(['user_id' => $user->id], [
+            'nik' => sprintf('EMP-%04d', $user->id), 'name' => $user->name, 'department' => $department->name,
+        ]);
+        $user->unsetRelation('employee');
+
+        return $department;
+    }
+
     /** Log in as `$user` inside the test project (what picking a project does). */
     protected function actingInProject(User $user): static
     {

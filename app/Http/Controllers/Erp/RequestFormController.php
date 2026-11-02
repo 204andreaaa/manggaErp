@@ -4,12 +4,15 @@ namespace App\Http\Controllers\Erp;
 
 use App\Helpers\NotificationHelper;
 use App\Http\Controllers\Controller;
+use App\Models\Department;
 use App\Models\Erp\ErpPurchaseOrder;
 use App\Models\Erp\ErpWorkItem;
 use App\Models\Erp\RequestForm;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class RequestFormController extends Controller
 {
@@ -116,7 +119,7 @@ class RequestFormController extends Controller
             'users' => $users,
             'subProjects' => $subProjects,
             'workItems' => $workItems,
-        ]);
+        ] + $this->departmentFormData());
     }
 
     /**
@@ -167,7 +170,7 @@ class RequestFormController extends Controller
             'workItems' => $workItems,
             'cloneFrom' => $requestForm,
             'cloneItems' => $cloneItems,
-        ]);
+        ] + $this->departmentFormData());
     }
 
     public function store(Request $request)
@@ -213,7 +216,9 @@ class RequestFormController extends Controller
             'items.*.wid.required_if' => 'WID wajib dipilih untuk setiap item pada RF Project.',
         ]);
 
-        $rf = DB::transaction(function () use ($request, $data) {
+        $department = $this->resolveDepartment($request, $data['record_type']);
+
+        $rf = DB::transaction(function () use ($request, $data, $department) {
             $items = collect($data['items'] ?? [])->map(function (array $item) {
                 $qty = (float) $item['qty'];
                 $unitCost = (int) ($item['unit_cost'] ?? 0);
@@ -243,7 +248,7 @@ class RequestFormController extends Controller
                 ];
             });
 
-            $rf = RequestForm::create([
+            $rf = RequestForm::create($department + [
                 'created_by_id' => auth()->id(),
                 'rf_no' => $this->generateNextCode(),
                 'record_type' => $data['record_type'],
@@ -328,7 +333,7 @@ class RequestFormController extends Controller
             'users' => $users,
             'subProjects' => $subProjects,
             'workItems' => $workItems,
-        ]);
+        ] + $this->departmentFormData());
     }
 
     public function update(Request $request, RequestForm $requestForm)
@@ -374,7 +379,9 @@ class RequestFormController extends Controller
             'items.*.wid.required_if' => 'WID wajib dipilih untuk setiap item pada RF Project.',
         ]);
 
-        DB::transaction(function () use ($request, $data, $requestForm) {
+        $department = $this->resolveDepartment($request, $data['record_type'], $requestForm);
+
+        DB::transaction(function () use ($request, $data, $requestForm, $department) {
             $itemsData = collect($data['items'] ?? [])->map(function (array $item) {
                 $qty = (float) $item['qty'];
                 $unitCost = (int) ($item['unit_cost'] ?? 0);
@@ -396,7 +403,7 @@ class RequestFormController extends Controller
                 ]);
             });
 
-            $requestForm->update([
+            $requestForm->update($department + [
                 'record_type' => $data['record_type'],
                 'project_code' => $data['record_type'] === 'project' ? $data['project_code'] : null,
                 'requestor' => $data['requestor'] ?? auth()->user()->name ?? null,
@@ -620,6 +627,54 @@ class RequestFormController extends Controller
                 $workItem->save();
             }
         }
+    }
+
+    /** Admins choose which department a non-project RF is charged to; everyone else is locked to their own. */
+    private function canPickDepartment(): bool
+    {
+        return auth()->user()->hasRole(['admin', 'superadmin']);
+    }
+
+    private function departmentFormData(): array
+    {
+        return [
+            'canPickDepartment' => $this->canPickDepartment(),
+            'departments' => Department::where('status', 'active')->orderBy('name')->get(['id', 'name']),
+            'myDepartment' => Department::forUser(auth()->user()),
+        ];
+    }
+
+    /**
+     * The department columns for a save. Project RFs have none. A non-admin's RF keeps the
+     * department it was stamped with, else takes its creator's; without one it is refused.
+     */
+    private function resolveDepartment(Request $request, string $recordType, ?RequestForm $existing = null): array
+    {
+        if ($recordType !== 'non_project') {
+            return ['department_id' => null, 'department_name' => null];
+        }
+
+        if ($this->canPickDepartment()) {
+            $request->validate([
+                'department_id' => ['required', Rule::exists('master.departments', 'id')->where('status', 'active')],
+            ], [
+                'department_id.required' => 'Departemen wajib dipilih untuk RF Non Project.',
+                'department_id.exists' => 'Departemen yang dipilih tidak ditemukan atau tidak aktif.',
+            ]);
+            $department = Department::find($request->input('department_id'));
+        } elseif ($existing?->department_id) {
+            return ['department_id' => $existing->department_id, 'department_name' => $existing->department_name];
+        } else {
+            $owner = $existing?->created_by_id ? User::find($existing->created_by_id) : auth()->user();
+            $department = Department::forUser($owner);
+            if (! $department) {
+                throw ValidationException::withMessages([
+                    'department_id' => 'Data departemen pembuat RF belum lengkap. Minta admin melengkapi departemen di data user/karyawan sebelum membuat RF Non Project.',
+                ]);
+            }
+        }
+
+        return ['department_id' => $department->id, 'department_name' => $department->name];
     }
 
     private function generateNextCode(): string
