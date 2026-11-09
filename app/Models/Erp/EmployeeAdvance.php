@@ -26,6 +26,16 @@ class EmployeeAdvance extends Model
         'Lainnya',
     ];
 
+    /** Theme colour (bg-label-*, text-*) and icon per expense type. */
+    public const EXPENSE_TYPE_STYLES = [
+        'Pinjaman Karyawan' => ['warning', 'bx-money'],
+        'Beasiswa / Tunjangan' => ['info', 'bx-book-reader'],
+        'Klaim Asuransi / Reimburse' => ['success', 'bx-plus-medical'],
+        'Own Risk / Denda' => ['danger', 'bx-car'],
+        'Acara Kantor' => ['primary', 'bx-group'],
+        'Lainnya' => ['secondary', 'bx-dots-horizontal-rounded'],
+    ];
+
     protected $fillable = [
         'code',
         'employee_id',
@@ -62,6 +72,28 @@ class EmployeeAdvance extends Model
     public function updatedBy()
     {
         return $this->belongsTo(User::class, 'updated_by_id');
+    }
+
+    public function statusColor(): string
+    {
+        return ['Completed' => 'success', 'Cancelled' => 'danger'][$this->status] ?? 'secondary';
+    }
+
+    public function paymentColor(): string
+    {
+        return ['Paid' => 'success', 'Unpaid' => 'warning'][$this->payment_status] ?? 'secondary';
+    }
+
+    /** [colour, icon] for the expense type. */
+    public function typeStyle(): array
+    {
+        return self::EXPENSE_TYPE_STYLES[$this->expense_type] ?? ['secondary', 'bx-receipt'];
+    }
+
+    /** Advance minus declaration; null until something is declared. */
+    public function difference(): ?float
+    {
+        return $this->declaration_amount === null ? null : (float) $this->advance_amount - (float) $this->declaration_amount;
     }
 
     /** ADVEXNPJ-00001, ADVEXNPJ-00002, ... (deleted rows keep their number). */

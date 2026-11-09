@@ -2,100 +2,187 @@
 
 @section('title', 'Karyawan - ' . $employee->name)
 
-@include('erp.budget.partials.sf-style')
+@include('erp.hr.partials.style')
 
 @section('content')
 @php
   $e = $employee;
-  $money = fn ($v) => $v === null ? '' : 'IDR '.number_format((float) $v, 0, ',', '.');
-  $date = fn ($d) => $d?->format('Y/m/d') ?? '';
+  $money = fn ($v) => 'IDR '.number_format((float) $v, 0, ',', '.');
   $canEdit = auth()->user()->hasPermission('employees.update');
-  $left = [
-    ['Employee Id', '<b>'.e($e->nik ?? '-').'</b>'],
-    ['Full Name', e($e->name)],
-    ['Gender', e(['male' => 'Male', 'female' => 'Female'][$e->gender] ?? '')],
-    ['Date of Join', e($date($e->join_date))],
-    ['Years of Services', e($e->join_date ? number_format($e->join_date->floatDiffInYears(now()), 2, ',', '.') : '')],
-    ['Position', e($e->position ?? '')],
-    ['Department Name', e($e->department ?? '')],
-    ['Bank Account', e(collect([$e->bank_name, $e->bank_account_number, $e->bank_account_holder ? 'a.n '.$e->bank_account_holder : null])->filter()->implode(' '))],
+  $years = $e->join_date ? number_format($e->join_date->floatDiffInYears(now()), 1, ',', '.').' tahun' : '-';
+  $bank = collect([$e->bank_name, $e->bank_account_number])->filter()->implode(' · ');
+  $info = [
+    ['bx-envelope', 'primary', 'Email', $e->email ?: '-'],
+    ['bx-phone', 'success', 'Telepon', $e->phone ?: '-'],
+    ['bx-calendar-check', 'info', 'Tanggal Bergabung', $e->join_date?->format('d M Y') ?? '-'],
+    ['bx-time-five', 'warning', 'Masa Kerja', $years],
+    ['bx-calendar-x', 'danger', 'Akhir Kontrak / Probation', $e->end_contract_date?->format('d M Y') ?? '-'],
+    ['bx-credit-card', 'secondary', 'Rekening Bank', $bank ? $bank.($e->bank_account_holder ? ' a.n '.$e->bank_account_holder : '') : '-'],
+    ['bx-key', 'primary', 'Akun Login', $e->user?->username ?? 'Belum terhubung'],
   ];
-  $right = [
-    ['Employee Status', e(ucfirst($e->employment_status ?? ''))],
-    ['End of Probation/ Contract', e($date($e->end_contract_date))],
-    ['Email', $e->email ? '<a class="sf-link" href="mailto:'.e($e->email).'">'.e($e->email).'</a>' : ''],
-    ['Phone', e($e->phone ?? '')],
-    ['Akun Login', e($e->user?->username ?? '-')],
-    ['IsActive', $e->status === 'active' ? '<i class="bx bx-check fs-5"></i>' : e(ucfirst($e->status))],
-    ['Last Modified', e($e->updated_at?->format('Y/m/d H:i') ?? '')],
+  $active = $advances->where('status', '!=', 'Cancelled');
+  $stats = [
+    ['bx-wallet', 'primary', 'Total Advance', $money($active->sum('advance_amount'))],
+    ['bx-receipt', 'success', 'Total Dideklarasikan', $money($active->sum('declaration_amount'))],
+    ['bx-hourglass', 'warning', 'Belum Dideklarasikan', $active->whereNull('declaration_amount')->count().' record'],
   ];
 @endphp
-<div class="container-xxl flex-grow-1 container-p-y sf-wrap" style="--sf-accent: #1798c1">
+<div class="container-xxl flex-grow-1 container-p-y">
 
   @if(session('success'))
-    <div class="alert alert-success">{{ session('success') }}</div>
+    <div class="alert alert-success alert-dismissible d-flex align-items-center border-0 shadow-sm" role="alert">
+      <i class="bx bx-check-circle fs-4 me-2"></i>{{ session('success') }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
   @endif
 
-  <div class="sf-head">
-    <div class="d-flex align-items-center">
-      <span class="sf-icon"><i class="bx bx-user-pin"></i></span>
-      <div><div class="sf-object">Manpower Detail</div><div class="sf-name">{{ $e->name }}</div></div>
-    </div>
-    <a href="{{ route('erp.hr.employees.index') }}" class="btn btn-outline-secondary btn-sm"><i class="bx bx-arrow-back me-1"></i>Back to List</a>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{{ route('erp.hr.employees.index') }}">Data Karyawan</a></li>
+        <li class="breadcrumb-item active fw-semibold">{{ $e->name }}</li>
+      </ol>
+    </nav>
+    <a href="{{ route('erp.hr.employees.index') }}" class="btn btn-sm btn-label-secondary"><i class="bx bx-arrow-back me-1"></i>Kembali</a>
   </div>
 
-  @include('erp.budget.partials.jump-bar', ['sections' => ['advexnpj' => ['Advance-Expense Declaration Non Project', $advances->count()]]])
-
-  <div class="sf-card">
-    <div class="sf-card-head"><h6>Employee Detail</h6></div>
-    @include('erp.budget.partials.sf-fields', ['left' => $left, 'right' => $right])
-  </div>
-
-  <div class="sf-card" id="rel-advexnpj" style="--sf-accent: #d27d5b">
-    <div class="sf-card-head">
-      <h6><i class="bx bx-wallet me-1"></i>Advance-Expense Declaration Non Project</h6>
-      @if($canEdit)
-        <div class="sf-actions"><a href="{{ route('erp.hr.employee-advances.create', ['employee_id' => $e->id]) }}" class="btn btn-primary btn-sm"><i class="bx bx-plus me-1"></i>New Advance-Expense Declaration Non Project</a></div>
-      @endif
-    </div>
-    @if($advances->isEmpty())
-      <div class="sf-empty">No records to display</div>
-    @else
-      <div class="table-responsive">
-        <table class="sf-table">
-          <thead>
-            <tr>
-              @if($canEdit)<th>Action</th>@endif
-              <th>Advance Expense Declaration NPJ ID</th><th>Expense Type</th><th>Description</th><th>Description of Expense Declaration</th>
-              <th class="text-end">Advance Amount</th><th class="text-end">Declaration Amount</th><th>Payment</th><th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            @foreach($advances as $a)
-              <tr>
-                @if($canEdit)
-                  <td class="text-nowrap">
-                    <a class="sf-link" href="{{ route('erp.hr.employee-advances.edit', $a) }}">Edit</a> |
-                    <form method="POST" action="{{ route('erp.hr.employee-advances.destroy', $a) }}" class="d-inline" onsubmit="return confirm('Hapus {{ $a->code }}?')">
-                      @csrf @method('DELETE')
-                      <button type="submit" class="btn btn-link p-0 sf-link align-baseline">Del</button>
-                    </form>
-                  </td>
-                @endif
-                <td class="text-nowrap"><a class="sf-link" href="{{ route('erp.hr.employee-advances.show', $a) }}">{{ $a->code }}</a></td>
-                <td>{{ $a->expense_type ?: '-' }}</td>
-                <td style="min-width: 260px; white-space: normal">{{ $a->description }}</td>
-                <td style="min-width: 260px; white-space: normal">{{ $a->declaration_description }}</td>
-                <td class="text-end text-nowrap">{{ $money($a->advance_amount) }}</td>
-                <td class="text-end text-nowrap">{{ $money($a->declaration_amount) }}</td>
-                <td>{{ $a->payment_status ?: '-' }}@if($a->payment_date)<div class="small text-muted">{{ $a->payment_date->format('Y/m/d') }}</div>@endif</td>
-                <td>{{ $a->status }}</td>
-              </tr>
-            @endforeach
-          </tbody>
-        </table>
+  {{-- Profile header --}}
+  <div class="card hr-hero shadow-sm mb-4">
+    <div class="hr-hero-banner"></div>
+    <div class="hr-hero-body d-flex flex-wrap align-items-start gap-3">
+      <div class="hr-avatar">{{ strtoupper(mb_substr($e->name, 0, 1)) }}</div>
+      <div class="flex-grow-1">
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+          <h4 class="fw-bold mb-0">{{ $e->name }}</h4>
+          <span class="badge bg-label-{{ $e->status === 'active' ? 'success' : 'secondary' }} rounded-pill">{{ $e->status === 'active' ? 'Aktif' : ucfirst($e->status) }}</span>
+          <span class="badge bg-label-primary rounded-pill">{{ ucfirst($e->employment_status ?? '-') }}</span>
+        </div>
+        <div class="hr-meta">
+          <span><i class="bx bx-id-card"></i>{{ $e->nik ?? '-' }}</span>
+          <span><i class="bx bx-briefcase"></i>{{ $e->position ?: 'Staff' }}</span>
+          <span><i class="bx bx-buildings"></i>{{ $e->department ?: 'Departemen belum diisi' }}</span>
+        </div>
       </div>
-    @endif
+    </div>
+  </div>
+
+  <div class="row g-4">
+    {{-- Employee info --}}
+    <div class="col-xl-4 col-lg-5">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-header pb-2">
+          <h6 class="hr-section-title"><span class="avatar avatar-sm"><span class="avatar-initial rounded bg-label-primary"><i class="bx bx-user"></i></span></span>Informasi Karyawan</h6>
+        </div>
+        <div class="card-body pt-0">
+          <ul class="hr-info-list">
+            @foreach($info as [$icon, $color, $label, $value])
+              <li>
+                <span class="hr-info-icon bg-label-{{ $color }}"><i class="bx {{ $icon }}"></i></span>
+                <div class="min-w-0">
+                  <div class="hr-info-label">{{ $label }}</div>
+                  <div class="hr-info-value">{{ $value }}</div>
+                </div>
+              </li>
+            @endforeach
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-8 col-lg-7">
+      {{-- Totals --}}
+      <div class="row g-3 mb-4">
+        @foreach($stats as [$icon, $color, $label, $value])
+          <div class="col-md-4">
+            <div class="card hr-stat card-border-shadow-{{ $color }} shadow-sm">
+              <div class="card-body d-flex align-items-center gap-3">
+                <div class="avatar flex-shrink-0"><span class="avatar-initial rounded bg-label-{{ $color }}"><i class="bx {{ $icon }} fs-4"></i></span></div>
+                <div class="min-w-0">
+                  <p class="hr-stat-label">{{ $label }}</p>
+                  <p class="hr-stat-value text-{{ $color }}">{{ $value }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        @endforeach
+      </div>
+
+      {{-- ADVEXNPJ --}}
+      <div class="card shadow-sm border-0" id="advexnpj">
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <div>
+            <h6 class="hr-section-title"><span class="avatar avatar-sm"><span class="avatar-initial rounded bg-label-warning"><i class="bx bx-wallet"></i></span></span>Advance-Expense Declaration Non Project</h6>
+            <small class="text-muted">Pinjaman, tunjangan, klaim &amp; pengeluaran lain untuk karyawan ini</small>
+          </div>
+          @if($canEdit)
+            <a href="{{ route('erp.hr.employee-advances.create', ['employee_id' => $e->id]) }}" class="btn btn-primary btn-sm"><i class="bx bx-plus me-1"></i>Buat Baru</a>
+          @endif
+        </div>
+
+        @if($advances->isEmpty())
+          <div class="card-body text-center py-5">
+            <div class="avatar avatar-xl mx-auto mb-3"><span class="avatar-initial rounded-circle bg-label-secondary"><i class="bx bx-receipt fs-2"></i></span></div>
+            <h6 class="mb-1">Belum ada record</h6>
+            <p class="text-muted small mb-0">No records to display</p>
+          </div>
+        @else
+          <div class="table-responsive">
+            <table class="table table-hover hr-table mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>ID &amp; Jenis</th>
+                  <th>Keterangan</th>
+                  <th class="text-end">Advance / Deklarasi</th>
+                  <th>Status</th>
+                  @if($canEdit)<th class="text-end"></th>@endif
+                </tr>
+              </thead>
+              <tbody>
+                @foreach($advances as $a)
+                  @php [$typeColor, $typeIcon] = $a->typeStyle(); @endphp
+                  <tr>
+                    <td class="text-nowrap">
+                      <div class="d-flex align-items-center gap-2">
+                        <div class="avatar avatar-sm flex-shrink-0"><span class="avatar-initial rounded bg-label-{{ $typeColor }}"><i class="bx {{ $typeIcon }}"></i></span></div>
+                        <div>
+                          <a class="hr-code" href="{{ route('erp.hr.employee-advances.show', $a) }}">{{ $a->code }}</a>
+                          <div class="small text-muted">{{ $a->expense_type ?: 'Tanpa jenis' }}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="hr-clamp small" title="{{ $a->description }}">{{ $a->description ?: '-' }}</div>
+                      @if($a->advance_request_date)<div class="small text-muted mt-1"><i class="bx bx-calendar me-1"></i>{{ $a->advance_request_date->format('d M Y') }}</div>@endif
+                    </td>
+                    <td class="text-end text-nowrap">
+                      <div class="fw-semibold">{{ $a->advance_amount !== null ? $money($a->advance_amount) : '-' }}</div>
+                      @if($a->declaration_amount !== null)
+                        <div class="small text-success fw-semibold"><i class="bx bx-check-circle me-1"></i>{{ $money($a->declaration_amount) }}</div>
+                      @else
+                        <div class="small text-muted">Belum dideklarasikan</div>
+                      @endif
+                    </td>
+                    <td class="text-nowrap">
+                      <span class="badge bg-label-{{ $a->statusColor() }}">{{ $a->status }}</span>
+                      @if($a->payment_status)<div class="mt-1"><span class="badge bg-label-{{ $a->paymentColor() }} rounded-pill" style="font-size:.68rem">{{ $a->payment_status }}</span></div>@endif
+                    </td>
+                    @if($canEdit)
+                      <td class="text-end text-nowrap">
+                        <a href="{{ route('erp.hr.employee-advances.edit', $a) }}" class="btn btn-icon btn-sm btn-label-primary" title="Edit"><i class="bx bx-edit-alt"></i></a>
+                        <form method="POST" action="{{ route('erp.hr.employee-advances.destroy', $a) }}" class="d-inline" onsubmit="return confirm('Hapus {{ $a->code }}?')">
+                          @csrf @method('DELETE')
+                          <button type="submit" class="btn btn-icon btn-sm btn-label-danger" title="Del"><i class="bx bx-trash"></i></button>
+                        </form>
+                      </td>
+                    @endif
+                  </tr>
+                @endforeach
+              </tbody>
+            </table>
+          </div>
+        @endif
+      </div>
+    </div>
   </div>
 </div>
 @endsection

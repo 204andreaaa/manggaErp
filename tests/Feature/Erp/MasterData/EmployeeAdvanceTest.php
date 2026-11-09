@@ -86,7 +86,9 @@ class EmployeeAdvanceTest extends ErpTestCase
         $advance = EmployeeAdvance::create($this->payload(['code' => 'ADVEXNPJ-00001', 'employee_id' => $employee->id]));
 
         $this->actingInProject($this->makeUser('viewer', ['employees.view']));
-        $this->get(route('erp.hr.employees.show', $employee))->assertOk()->assertSee('ADVEXNPJ-00001')->assertDontSee('New Advance-Expense Declaration Non Project');
+        $this->get(route('erp.hr.employees.show', $employee))->assertOk()->assertSee('ADVEXNPJ-00001')
+            ->assertDontSee(route('erp.hr.employee-advances.create', ['employee_id' => $employee->id]), false)
+            ->assertDontSee(route('erp.hr.employee-advances.edit', $advance), false);
         $this->get(route('erp.hr.employee-advances.show', $advance))->assertOk();
         $this->get(route('erp.hr.employee-advances.create', ['employee_id' => $employee->id]))->assertForbidden();
         $this->put(route('erp.hr.employee-advances.update', $advance), $this->payload())->assertForbidden();
