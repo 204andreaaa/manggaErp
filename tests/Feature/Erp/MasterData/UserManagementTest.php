@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Erp\MasterData;
 
+use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Role;
 use App\Models\User;
@@ -14,9 +15,18 @@ class UserManagementTest extends ErpTestCase
 {
     use MasterDataHelpers;
 
+    /** The master department list the role guess points into. */
+    private function seedDepartments(): void
+    {
+        foreach (['PROC' => 'Procurement & Purchasing', 'GA' => 'General Affair (GA)', 'FIN' => 'Finance & Accounting'] as $code => $name) {
+            Department::firstOrCreate(['code' => $code], ['name' => $name, 'status' => 'active']);
+        }
+    }
+
     private function validUser(array $overrides = []): array
     {
         Role::firstOrCreate(['slug' => 'procurement'], ['name' => 'Procurement']);
+        $this->seedDepartments();
 
         return array_merge([
             'name' => 'Rina Procurement',
@@ -24,7 +34,7 @@ class UserManagementTest extends ErpTestCase
             'email' => 'rina@test.local',
             'phone' => '0811111',
             'position' => 'Buyer',
-            'department' => 'Procurement & GA',
+            'department' => 'Procurement & Purchasing',
             'password' => 'secret123',
             'password_confirmation' => 'secret123',
             'roles' => ['procurement'],
@@ -59,7 +69,7 @@ class UserManagementTest extends ErpTestCase
         Storage::disk('public')->assertExists($user->signature_path);
 
         $employee = Employee::where('user_id', $user->id)->firstOrFail();
-        $this->assertSame('Procurement & GA', $employee->department);
+        $this->assertSame('Procurement & Purchasing', $employee->department);
         $this->assertSame(sprintf('EMP-%04d', $user->id), $employee->nik);
     }
 
@@ -85,6 +95,7 @@ class UserManagementTest extends ErpTestCase
         $target = $this->makeUser('staff', [], ['username' => 'joko', 'email' => 'joko@test.local']);
         $oldHash = $target->password;
         Role::firstOrCreate(['slug' => 'finance'], ['name' => 'Finance']);
+        $this->seedDepartments();
         $form = ['name' => 'Joko Finance', 'username' => 'joko', 'email' => 'joko@test.local', 'roles' => ['finance'], 'status' => 'active'];
 
         $this->actingInProject($admin)
@@ -102,6 +113,48 @@ class UserManagementTest extends ErpTestCase
         $this->put(route('erp.users.update', $target), $form + ['password' => 'newpass1', 'password_confirmation' => 'newpass1'])
             ->assertSessionHasNoErrors();
         $this->assertTrue(Hash::check('newpass1', $target->fresh()->password));
+    }
+
+    public function test_department_left_empty_is_guessed_with_procurement_and_ga_apart(): void
+    {
+        $this->seedDepartments();
+        Role::firstOrCreate(['slug' => 'general_affair'], ['name' => 'General Affair']);
+        Role::firstOrCreate(['slug' => 'driver'], ['name' => 'Driver']);
+        $this->actingInProject($this->makeUser('superadmin'));
+
+        $cases = ['buyer' => ['procurement', 'Procurement & Purchasing'], 'gauser' => ['general_affair', 'General Affair (GA)'], 'driver' => ['driver', null]];
+        foreach ($cases as $username => [$role, $expected]) {
+            $this->from(route('erp.users.index'))->post(route('erp.users.store'), $this->validUser([
+                'username' => $username, 'email' => $username.'@test.local', 'phone' => null, 'department' => '', 'roles' => [$role],
+            ]))->assertSessionHasNoErrors();
+            $this->assertSame($expected, User::where('username', $username)->first()->employee->department, $username);
+        }
+
+        // only names on the master list are accepted
+        $this->post(route('erp.users.store'), $this->validUser(['username' => 'x', 'email' => 'x@test.local', 'phone' => null, 'department' => 'Procurement & GA']))
+            ->assertSessionHasErrors('department');
+    }
+
+    public function test_data_fix_moves_employees_onto_the_master_department_list(): void
+    {
+        $this->seedDepartments();
+        $buyer = $this->makeUser('procurement');
+        $ga = $this->makeUser('general_affair');
+        $noEmployee = $this->makeUser('finance');
+        $unknown = $this->makeUser('driver');
+        $kept = $this->makeUser('procurement');
+        foreach ([[$buyer, 'Procurement & GA'], [$ga, 'Procurement & GA'], [$unknown, 'Umum'], [$kept, 'General Affair (GA)']] as [$user, $dept]) {
+            Employee::create(['user_id' => $user->id, 'nik' => 'EMP-T'.$user->id, 'name' => $user->name, 'department' => $dept]);
+        }
+
+        (require database_path('migrations/master/2026_11_09_000001_fix_employee_departments_to_master_list.php'))->up();
+
+        $dept = fn (User $u) => Employee::where('user_id', $u->id)->value('department');
+        $this->assertSame('Procurement & Purchasing', $dept($buyer));
+        $this->assertSame('General Affair (GA)', $dept($ga));
+        $this->assertSame('Finance & Accounting', $dept($noEmployee), 'a missing employee record is created');
+        $this->assertSame('Umum', $dept($unknown), 'no role to go by: left for an admin');
+        $this->assertSame('General Affair (GA)', $dept($kept), 'a valid department is never overwritten');
     }
 
     public function test_an_inactive_user_is_logged_out_on_the_next_request(): void

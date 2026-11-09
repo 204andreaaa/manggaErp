@@ -79,7 +79,7 @@ class UserController extends Controller
             'email'        => ['required','email','max:190','unique:master.users,email'],
             'phone'        => ['nullable','string','max:20','unique:master.users,phone'],
             'position'     => ['nullable','string','max:100'],
-            'department'   => ['nullable','string','max:100'],
+            'department'   => ['nullable','string','max:100', Rule::exists('master.departments','name')->where('status','active')],
             'signature'    => ['nullable','image','mimes:jpg,jpeg,png,webp','max:2048'],
             'password'     => ['required','confirmed','min:6'],
             'roles'        => ['array','min:1'],
@@ -171,7 +171,7 @@ class UserController extends Controller
             'email'        => ['required','email','max:190', Rule::unique('master.users','email')->ignore($user->id)],
             'phone'        => ['nullable','string','max:20', Rule::unique('master.users','phone')->ignore($user->id)],
             'position'     => ['nullable','string','max:100'],
-            'department'   => ['nullable','string','max:100'],
+            'department'   => ['nullable','string','max:100', Rule::exists('master.departments','name')->where('status','active')],
             'signature'    => ['nullable','image','mimes:jpg,jpeg,png,webp','max:2048'],
             'password'     => ['nullable','confirmed','min:6'],
             'roles'        => ['array','min:1'],
@@ -239,23 +239,8 @@ class UserController extends Controller
      */
     protected function syncEmployeeProfile(User $user, ?string $customDept = null): void
     {
-        $dept = $customDept;
-        if (empty($dept)) {
-            $dept = 'Umum';
-            if ($user->hasRole(['admin_project', 'project_manager', 'site_engineer'])) {
-                $dept = 'Project Management';
-            } elseif ($user->hasRole(['procurement', 'general_affair'])) {
-                $dept = 'Procurement & GA';
-            } elseif ($user->hasRole(['logistik', 'warehouse'])) {
-                $dept = 'Logistik & Gudang';
-            } elseif ($user->hasRole(['finance', 'accounting'])) {
-                $dept = 'Finance & Accounting';
-            } elseif ($user->hasRole(['hrd'])) {
-                $dept = 'Human Resource (HRD)';
-            } elseif ($user->hasRole(['ceo', 'superadmin', 'admin'])) {
-                $dept = 'Executive & Management';
-            }
-        }
+        // Left empty: guessed from the roles; null when no role points to a department
+        $dept = $customDept ?: Department::guessFromRoles($user)?->name;
 
         Employee::on('master')->updateOrCreate(
             ['user_id' => $user->id],

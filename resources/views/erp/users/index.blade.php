@@ -132,7 +132,12 @@
                                 <td>
                                     <div class="fw-semibold">{{ $u->position ?? '-' }}</div>
                                     <div class="text-muted small" style="font-size:0.75rem;">
-                                        <i class="bx bx-sitemap me-1 text-primary"></i>{{ $u->employee?->department ?? 'Umum' }}
+                                        @php $userDept = $u->employee?->department; @endphp
+                                        @if($userDept && $departments->contains('name', $userDept))
+                                            <i class="bx bx-sitemap me-1 text-primary"></i>{{ $userDept }}
+                                        @else
+                                            <span class="text-danger" title="Departemen belum diisi / tidak ada di master. User ini belum bisa membuat RF Non Project."><i class="bx bx-error-circle me-1"></i>{{ $userDept ?: 'Departemen belum diisi' }}</span>
+                                        @endif
                                     </div>
                                 </td>
                                 <td class="text-center">
