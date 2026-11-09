@@ -54,14 +54,10 @@
   .hr-activity { padding: .65rem .5rem; border-radius: 10px; border-bottom: 1px dashed #eceef1; }
   .hr-activity:last-child { border-bottom: 0; }
   .hr-activity:hover { background: rgba(105, 108, 255, .06); }
-  .hr-kasbon-row td { border-top: 2px solid #eceef1; }
-  .hr-child-row td { background: rgba(67, 89, 113, .03); border-bottom-style: dashed; }
 
   html[data-theme="dark"] .hr-tabs { border-top-color: #444564; }
   html[data-theme="dark"] .hr-tabs .nav-link { color: #a3a4cc; }
   html[data-theme="dark"] .hr-activity { border-bottom-color: #444564; }
-  html[data-theme="dark"] .hr-kasbon-row td { border-top-color: #444564; }
-  html[data-theme="dark"] .hr-child-row td { background: rgba(255, 255, 255, .03); }
   html[data-theme="dark"] .hr-avatar { background: #2b2c40; border-color: #2b2c40; }
   html[data-theme="dark"] .hr-info-list li { border-bottom-color: #444564; }
   html[data-theme="dark"] .hr-info-list .hr-info-value { color: #cbcbe2; }

@@ -60,7 +60,8 @@ class EmployeeDetailTabsTest extends ErpTestCase
             ->assertOk()
             ->assertSee('id="tab-rf"', false)->assertSee('id="tab-kasbon"', false)->assertSee('id="tab-advexnpj"', false)->assertSee('id="tab-leave"', false)
             ->assertSee('RF-OWN-001')->assertDontSee('RF-OTHER-001')
-            ->assertSee($this->kasbonCode)->assertSee('ED-CHILD-1')->assertSee('ED-ALONE-1')->assertSee('tanpa kasbon')
+            // a declaration under a kasbon is counted on its row; one without a kasbon gets its own row
+            ->assertSee($this->kasbonCode)->assertSee('1 deklarasi')->assertSee('ED-ALONE-1')->assertSee('tanpa kasbon')
             ->assertSee('ADVEXNPJ-00001');
 
         $this->get(route('erp.hr.employee-advances.show', EmployeeAdvance::first()))->assertOk();

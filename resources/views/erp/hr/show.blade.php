@@ -217,7 +217,7 @@
         <div class="card shadow-sm border-0">
           <div class="card-header">
             <h6 class="hr-section-title"><span class="avatar avatar-sm"><span class="avatar-initial rounded bg-label-warning"><i class="bx bx-wallet"></i></span></span>Kasbon Project</h6>
-            <small class="text-muted">Advance Request beserta Expense Declaration-nya, yang diajukan oleh {{ $e->name }}</small>
+            <small class="text-muted">Advance Request &amp; Expense Declaration yang diajukan oleh {{ $e->name }}</small>
           </div>
           @if(! $e->user_id)
             @include('erp.hr.partials.empty', ['icon' => 'bx-key', 'title' => 'Belum punya akun login', 'text' => 'Kasbon project hanya bisa diajukan lewat akun login.'])
@@ -225,11 +225,11 @@
             @include('erp.hr.partials.empty', ['icon' => 'bx-wallet', 'title' => 'Belum ada kasbon project', 'text' => 'No records to display'])
           @else
             <div class="table-responsive">
-              <table class="table hr-table mb-0">
+              <table class="table table-hover hr-table mb-0">
                 <thead class="table-light"><tr><th>Kode</th><th>Tanggal</th><th>Keterangan</th><th class="text-end">Nominal</th><th>Status</th></tr></thead>
                 <tbody>
                   @foreach($kasbons as $k)
-                    <tr class="hr-kasbon-row">
+                    <tr>
                       <td class="text-nowrap">
                         <div class="d-flex align-items-center gap-2">
                           <div class="avatar avatar-sm"><span class="avatar-initial rounded bg-label-warning"><i class="bx bx-wallet"></i></span></div>
@@ -238,24 +238,14 @@
                       </td>
                       <td class="text-nowrap">{{ $k->advance_request_date?->format('d M Y') ?? '-' }}</td>
                       <td><div class="hr-clamp small" title="{{ $k->description }}">{{ $k->description ?: '-' }}</div></td>
-                      <td class="text-end text-nowrap fw-semibold">{{ $money($k->total_amount_advance) }}</td>
+                      <td class="text-end text-nowrap">
+                        <div class="fw-semibold">{{ $money($k->total_amount_advance) }}</div>
+                        {{-- the declarations themselves are listed on the advance request's page --}}
+                        <div class="small text-muted">{{ $k->expenseDeclarations->count() ? $k->expenseDeclarations->count().' deklarasi' : 'Belum ada deklarasi' }}</div>
+                      </td>
                       <td class="text-nowrap"><span class="badge bg-label-{{ $badge($k->status) }}">{{ $k->status }}</span>
                         @if($k->payment_status)<div class="mt-1"><span class="badge rounded-pill bg-label-{{ $badge($k->payment_status) }}" style="font-size:.66rem">{{ $k->payment_status }}</span></div>@endif</td>
                     </tr>
-                    @forelse($k->expenseDeclarations as $d)
-                      <tr class="hr-child-row">
-                        <td class="text-nowrap ps-5">
-                          <i class="bx bx-subdirectory-right text-muted me-1"></i><a class="hr-code" href="{{ route('erp.expense-declarations.show', $d) }}">{{ $d->code }}</a>
-                          <div class="small text-muted ps-4">Expense Declaration</div>
-                        </td>
-                        <td class="text-nowrap">{{ $d->request_date?->format('d M Y') ?? '-' }}</td>
-                        <td><div class="hr-clamp small" title="{{ $d->description }}">{{ $d->description ?: '-' }}</div></td>
-                        <td class="text-end text-nowrap text-success fw-semibold">{{ $money($d->amount_declaration) }}</td>
-                        <td><span class="badge bg-label-{{ $badge($d->status) }}">{{ $d->status }}</span></td>
-                      </tr>
-                    @empty
-                      <tr class="hr-child-row"><td colspan="5" class="ps-5 small text-muted"><i class="bx bx-subdirectory-right me-1"></i>Belum ada Expense Declaration</td></tr>
-                    @endforelse
                   @endforeach
                   @foreach($standaloneDeclarations as $d)
                     <tr>
