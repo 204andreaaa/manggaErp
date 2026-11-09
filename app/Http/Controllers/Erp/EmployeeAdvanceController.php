@@ -51,8 +51,8 @@ class EmployeeAdvanceController extends Controller
 
     public function show(EmployeeAdvance $employeeAdvance)
     {
-        abort_unless(auth()->user()->hasPermission('employees.view'), 403);
         $employeeAdvance->load(['employee', 'updatedBy']);
+        abort_unless($employeeAdvance->employee?->viewableBy(auth()->user()) ?? auth()->user()->hasPermission('employees.view'), 403);
 
         return view('erp.hr.advances.show', ['advance' => $employeeAdvance]);
     }

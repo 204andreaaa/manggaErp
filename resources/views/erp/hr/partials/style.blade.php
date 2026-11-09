@@ -2,6 +2,7 @@
 @once
 @push('styles')
 <style>
+  .min-w-0 { min-width: 0; }
   .hr-hero { border: 0; overflow: hidden; }
   .hr-hero-banner {
     height: 96px;
@@ -44,6 +45,23 @@
   .hr-amount-card { border-radius: 14px; padding: 1rem 1.15rem; height: 100%; }
   .hr-amount-card .hr-amount { font-size: 1.35rem; font-weight: 700; margin: .15rem 0 0; }
 
+  .hr-tabs { border-top: 1px solid #eceef1; }
+  .hr-tabs .nav-tabs { background: transparent !important; box-shadow: none !important; }
+  .hr-tabs .nav-link { border: 0 !important; border-bottom: 3px solid transparent !important; border-radius: 0; padding: .85rem 1rem; color: #697a8d; font-weight: 600; background: transparent !important; box-shadow: none !important; }
+  .hr-tabs .nav-link:hover { color: var(--primary-accent, #696cff); }
+  .hr-tabs .nav-link.active { color: var(--primary-accent, #696cff); border-bottom-color: var(--primary-accent, #696cff) !important; }
+
+  .hr-activity { padding: .65rem .5rem; border-radius: 10px; border-bottom: 1px dashed #eceef1; }
+  .hr-activity:last-child { border-bottom: 0; }
+  .hr-activity:hover { background: rgba(105, 108, 255, .06); }
+  .hr-kasbon-row td { border-top: 2px solid #eceef1; }
+  .hr-child-row td { background: rgba(67, 89, 113, .03); border-bottom-style: dashed; }
+
+  html[data-theme="dark"] .hr-tabs { border-top-color: #444564; }
+  html[data-theme="dark"] .hr-tabs .nav-link { color: #a3a4cc; }
+  html[data-theme="dark"] .hr-activity { border-bottom-color: #444564; }
+  html[data-theme="dark"] .hr-kasbon-row td { border-top-color: #444564; }
+  html[data-theme="dark"] .hr-child-row td { background: rgba(255, 255, 255, .03); }
   html[data-theme="dark"] .hr-avatar { background: #2b2c40; border-color: #2b2c40; }
   html[data-theme="dark"] .hr-info-list li { border-bottom-color: #444564; }
   html[data-theme="dark"] .hr-info-list .hr-info-value { color: #cbcbe2; }

@@ -51,6 +51,20 @@ class Employee extends Model
         'basic_salary'      => 'decimal:2',
     ];
 
+    /** Roles that see every tab of any employee's page. */
+    public const SEES_ALL_ROLES = ['hrd', 'ceo', 'admin', 'superadmin'];
+
+    /** The employee themselves, HRD, CEO and admins see all of this employee's documents. */
+    public function seesEverything(User $viewer): bool
+    {
+        return ($this->user_id && $this->user_id === $viewer->id) || $viewer->hasRole(self::SEES_ALL_ROLES);
+    }
+
+    public function viewableBy(User $viewer): bool
+    {
+        return $this->seesEverything($viewer) || $viewer->hasPermission('employees.view');
+    }
+
     /* ================== RELASI ================== */
 
     public function user()

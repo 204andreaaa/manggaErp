@@ -178,6 +178,16 @@
 
           <li><div class="dropdown-divider"></div></li>
 
+          @if($myEmployee = auth()->user()?->employee)
+            <li>
+              <a class="dropdown-item" href="{{ route('erp.hr.employees.show', $myEmployee) }}">
+                <i class="bx bx-user me-2"></i>
+                <span>Profil Saya</span>
+              </a>
+            </li>
+            <li><div class="dropdown-divider"></div></li>
+          @endif
+
           <li>
             <form method="POST" action="{{ route('logout') }}">
               @csrf
