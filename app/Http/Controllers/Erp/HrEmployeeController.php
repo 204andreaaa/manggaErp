@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Erp;
 
 use App\Http\Controllers\Controller;
 use App\Models\Employee;
+use App\Models\Erp\EmployeeAdvance;
 use App\Models\User;
 use Illuminate\Http\Request;
 
@@ -19,6 +20,16 @@ class HrEmployeeController extends Controller
         $linkedUsers = $employees->whereNotNull('user_id')->count();
 
         return view('erp.hr.index', compact('employees', 'totalEmployees', 'activeEmployees', 'linkedUsers'));
+    }
+
+    public function show(Employee $employee)
+    {
+        abort_unless(auth()->user()?->hasPermission('employees.view'), 403);
+
+        $employee->load('user');
+        $advances = EmployeeAdvance::where('employee_id', $employee->id)->latest('id')->get();
+
+        return view('erp.hr.show', compact('employee', 'advances'));
     }
 
     public function attendances()

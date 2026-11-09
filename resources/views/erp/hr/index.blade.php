@@ -122,14 +122,14 @@
                                         </span>
                                     </div>
                                     <div>
-                                        <div class="fw-bold text-dark">{{ $emp->name }}</div>
+                                        <a class="fw-bold" href="{{ route('erp.hr.employees.show', $emp) }}">{{ $emp->name }}</a>
                                         <small class="text-muted">{{ $emp->email ?? '-' }}</small>
                                     </div>
                                 </div>
                             </td>
                             <td>
                                 <div class="fw-semibold text-dark">{{ $emp->position ?? 'Staff' }}</div>
-                                <span class="badge bg-label-info font-monospace" style="font-size: 0.72rem;">{{ $emp->department ?? 'Umum' }}</span>
+                                <span class="badge bg-label-info font-monospace" style="font-size: 0.72rem;">{{ $emp->department ?? '-' }}</span>
                             </td>
                             <td>
                                 <small class="text-muted"><i class="bx bx-phone me-1"></i>{{ $emp->phone ?? '-' }}</small>

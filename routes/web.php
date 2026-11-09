@@ -213,6 +213,8 @@ Route::middleware(['auth', 'active'])->group(function () {
         // Human Resource (HRIS)
         Route::prefix('hr')->name('hr.')->group(function () {
             Route::get('employees', [\App\Http\Controllers\Erp\HrEmployeeController::class, 'index'])->name('employees.index');
+            Route::get('employees/{employee}', [\App\Http\Controllers\Erp\HrEmployeeController::class, 'show'])->name('employees.show');
+            Route::resource('employee-advances', \App\Http\Controllers\Erp\EmployeeAdvanceController::class)->except(['index']);
             Route::get('attendances', [\App\Http\Controllers\Erp\HrEmployeeController::class, 'attendances'])->name('attendances.index');
             Route::get('payroll', [\App\Http\Controllers\Erp\HrEmployeeController::class, 'payroll'])->name('payroll.index');
         });
