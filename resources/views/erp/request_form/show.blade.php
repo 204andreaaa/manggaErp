@@ -106,9 +106,17 @@
       @endif
 
       @if(auth()->user()->hasRole('superadmin'))
-        <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteRfModal">
-          <i class="bx bx-trash me-1"></i>Hapus RF
-        </button>
+        @if($deleteBlockReason = $rf->deleteBlockReason())
+          <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" title="{{ $deleteBlockReason }}">
+            <button type="button" class="btn btn-sm btn-outline-danger" disabled>
+              <i class="bx bx-trash me-1"></i>Hapus RF
+            </button>
+          </span>
+        @else
+          <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteRfModal">
+            <i class="bx bx-trash me-1"></i>Hapus RF
+          </button>
+        @endif
       @endif
     </div>
   </div>
@@ -911,7 +919,7 @@
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content border-0 shadow">
         <div class="modal-header bg-danger text-white py-3">
-          <h5 class="modal-title fw-bold text-white mb-0"><i class="bx bx-trash me-2"></i>Hapus Request Form & Kembalikan Nilai</h5>
+          <h5 class="modal-title fw-bold text-white mb-0"><i class="bx bx-trash me-2"></i>Hapus Request Form</h5>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
         </div>
         <form action="{{ route('erp.request-form.destroy', $rf) }}" method="POST">
@@ -923,12 +931,11 @@
               <h5 class="fw-bold text-dark">Yakin Ingin Menghapus {{ $rf->rf_no }}?</h5>
             </div>
             <div class="alert alert-warning border-0 small">
-              <strong class="d-block mb-1"><i class="bx bx-info-circle me-1"></i>Ketentuan Pembersihan & Pengembalian Nilai:</strong>
+              <strong class="d-block mb-1"><i class="bx bx-info-circle me-1"></i>Yang akan dihapus:</strong>
               <ul class="mb-0 ps-3">
                 <li>Seluruh line item dan approval pada Request Form ini akan dihapus.</li>
                 @if($rf->purchaseOrders->count() > 0)
-                  <li class="text-danger fw-semibold">Terdapat {{ $rf->purchaseOrders->count() }} PO terkait yang akan ikut dibersihkan (termasuk GR dan Payment Advice-nya).</li>
-                  <li class="text-success fw-bold">Sisa Budget WID yang sebelumnya terpotong oleh PO akan <u>DIKEMBALIKAN (REFUND)</u> penuh ke sisa anggaran project.</li>
+                  <li>Terdapat {{ $rf->purchaseOrders->count() }} PO yang sudah di-cancel dan akan ikut dihapus (budget WID-nya sudah dikembalikan saat cancel).</li>
                 @endif
                 @if($rf->purchaseRequests->count() > 0)
                   <li>Terdapat {{ $rf->purchaseRequests->count() }} PR terkait yang akan ikut dihapus.</li>
@@ -940,7 +947,7 @@
           <div class="modal-footer bg-light py-2.5">
             <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3" data-bs-dismiss="modal">Batal</button>
             <button type="submit" class="btn btn-danger btn-sm rounded-pill px-3">
-              <i class="bx bx-trash me-1"></i>Ya, Hapus & Kembalikan Nilai
+              <i class="bx bx-trash me-1"></i>Ya, Hapus
             </button>
           </div>
         </form>

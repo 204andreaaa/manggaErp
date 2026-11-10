@@ -5,8 +5,6 @@ namespace App\Http\Controllers\Erp;
 use App\Helpers\NotificationHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Department;
-use App\Models\Erp\ErpPurchaseOrder;
-use App\Models\Erp\ErpWorkItem;
 use App\Models\Erp\RequestForm;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -534,26 +532,25 @@ class RequestFormController extends Controller
     {
         abort_unless(auth()->user()->hasRole('superadmin'), 403, 'Hanya Superadmin yang berhak menghapus Request Form.');
 
+        if ($reason = $requestForm->deleteBlockReason()) {
+            return redirect()->back()->with('error', $reason);
+        }
+
         DB::transaction(function () use ($requestForm) {
             $affectedProductIds = [];
 
-            // 1. Process and cascade delete all Purchase Orders linked to this RF
+            // 1. Only cancelled POs can be left here (their budget was refunded on cancel); clear them out
             foreach ($requestForm->purchaseOrders as $po) {
                 // Track affected products to resync prices after deletion
                 foreach ($po->items as $poItem) {
                     $rfItem = $poItem->requestFormItem;
-                    $p = $rfItem?->erpProduct 
+                    $p = $rfItem?->erpProduct
                         ?: \App\Models\Erp\ErpProduct::where('product_code', $rfItem?->product_id_text)
                             ->orWhere('name', $rfItem?->product_name)
                             ->first();
                     if ($p) {
                         $affectedProductIds[] = $p->id;
                     }
-                }
-
-                // Refund WID budget if PO was approved / budget was deducted
-                if ($po->status === 'Approved') {
-                    $this->refundBudgetFromPo($po);
                 }
 
                 // Delete Payment Advices belonging to this PO
@@ -599,34 +596,7 @@ class RequestFormController extends Controller
             NotificationHelper::pushLive('request_form', $requestForm->id, 'Deleted');
         });
 
-        return redirect()->route('erp.request-form.index')->with('success', "Request Form {$requestForm->rf_no} dan seluruh data turunannya (PO, GR, Payment Advice, PR) berhasil dihapus dan nilai budget WID dikembalikan seperti semula.");
-    }
-
-    private function refundBudgetFromPo(ErpPurchaseOrder $purchaseOrder)
-    {
-        $purchaseOrder->load(['items.requestFormItem', 'requestForm']);
-        $rf = $purchaseOrder->requestForm;
-
-        foreach ($purchaseOrder->items as $poItem) {
-            $rfItem = $poItem->requestFormItem;
-            $itemCost = $poItem->total_cost ?: (($poItem->qty * $poItem->unit_cost) + ($poItem->tax ?? 0));
-
-            $workItem = null;
-            if ($rfItem && $rfItem->work_item_id) {
-                $workItem = ErpWorkItem::find($rfItem->work_item_id);
-            } elseif ($rfItem && $rfItem->wid) {
-                $workItem = ErpWorkItem::where('wid_code', $rfItem->wid)->first();
-            } elseif ($rf && $rf->work_item_id) {
-                $workItem = ErpWorkItem::find($rf->work_item_id);
-            } elseif ($rf && $rf->project_code) {
-                $workItem = ErpWorkItem::where('wid_code', $rf->project_code)->first();
-            }
-
-            if ($workItem) {
-                $workItem->remaining_budget = min($workItem->allocated_budget, $workItem->remaining_budget + $itemCost);
-                $workItem->save();
-            }
-        }
+        return redirect()->route('erp.request-form.index')->with('success', "Request Form {$requestForm->rf_no} beserta PR dan PO yang sudah di-cancel berhasil dihapus.");
     }
 
     /** Admins choose which department a non-project RF is charged to; everyone else is locked to their own. */

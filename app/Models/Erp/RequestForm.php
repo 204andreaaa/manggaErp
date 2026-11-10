@@ -83,6 +83,19 @@ class RequestForm extends Model
         return $this->hasMany(ErpPurchaseOrder::class, 'request_form_id');
     }
 
+    /**
+     * Why this RF may not be deleted (null = it may). Once a PO exists the RF is part of
+     * the purchase record, so every PO has to be cancelled first; cancelling is what
+     * returns the WID budget and is itself refused after goods receipt or payment.
+     */
+    public function deleteBlockReason(): ?string
+    {
+        $active = $this->purchaseOrders()->where('status', '!=', 'Cancelled')->pluck('po_no');
+
+        return $active->isEmpty() ? null
+            : 'RF tidak dapat dihapus karena sudah ada PO ('.$active->join(', ').'). Cancel PO-nya terlebih dahulu.';
+    }
+
     public function approvals()
     {
         return $this->hasMany(ErpApproval::class);
