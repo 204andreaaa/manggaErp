@@ -101,6 +101,8 @@ class RequestFormController extends Controller
 
     public function create(Request $request)
     {
+        abort_unless(auth()->user()->hasPermission('request_forms.create'), 403);
+
         $recordType = $request->query('type');
         abort_unless(in_array($recordType, ['project', 'non_project'], true), 404);
 
@@ -128,6 +130,8 @@ class RequestFormController extends Controller
      */
     public function cloneForm(RequestForm $requestForm)
     {
+        abort_unless(auth()->user()->hasPermission('request_forms.create'), 403);
+
         $requestForm->load('items');
 
         $recordType = $requestForm->record_type;
@@ -173,6 +177,7 @@ class RequestFormController extends Controller
 
     public function store(Request $request)
     {
+        abort_unless(auth()->user()->hasPermission('request_forms.create'), 403);
 
         $data = $request->validate([
             'record_type' => ['required', Rule::in(['project', 'non_project'])],
@@ -315,6 +320,7 @@ class RequestFormController extends Controller
 
     public function edit(RequestForm $requestForm)
     {
+        abort_unless($requestForm->isManageableBy(auth()->user()), 403, 'Hanya pembuat RF atau admin yang dapat mengubah Request Form ini.');
         abort_unless(in_array($requestForm->status, ['Draft', 'Rejected'], true), 403, 'Request Form hanya dapat di-edit saat berstatus Draft atau Rejected.');
 
         $requestForm->load(['items', 'notesAttachments']);
@@ -336,6 +342,7 @@ class RequestFormController extends Controller
 
     public function update(Request $request, RequestForm $requestForm)
     {
+        abort_unless($requestForm->isManageableBy(auth()->user()), 403, 'Hanya pembuat RF atau admin yang dapat mengubah Request Form ini.');
         abort_unless(in_array($requestForm->status, ['Draft', 'Rejected'], true), 403, 'Request Form hanya dapat di-edit saat berstatus Draft atau Rejected.');
 
         $data = $request->validate([

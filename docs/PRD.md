@@ -6,10 +6,11 @@
 | **Sistem** | Mangga ERP — ERP multi-project untuk procurement, budget project, kasbon, pembayaran supplier, gudang dan HR |
 | **Repo** | `204andreaaa/manggaErp` (branch utama `master`) |
 | **Versi kode** | Laravel 13, PHP 8.2+ (server: PHP 8.4) |
+| **Versi PRD** | 1.1 |
 | **Terakhir diperbarui** | 2026-11-12 |
 | **Status** | Belum production (masih tahap uji internal) |
 
-> **Cara dokumen ini dirawat.** PRD ini ditulis dari kode yang berjalan, bukan dari rencana. Setiap perubahan perilaku sistem (function, aturan, field, status, hak akses, halaman) **wajib** memperbarui bagian modul terkait di dokumen ini dan menambah satu baris di [Changelog](#14-changelog), di commit yang sama dengan perubahan kodenya. Di repo ini sudah ada hook Claude Code (`.claude/settings.json` → `.claude/hooks/prd-reminder.cjs`) yang mengingatkan hal ini setiap kali file di `app/`, `routes/`, `database/`, `config/` atau `resources/views/` diubah.
+> **Cara dokumen ini dirawat.** PRD ini ditulis dari kode yang berjalan, bukan dari rencana. Setiap perubahan perilaku sistem (function, aturan, field, status, hak akses, halaman) menghasilkan **PRD versi baru**: versi yang lama disalin dulu ke `docs/prd-history/PRD-v<versi>.md`, lalu dokumen ini diperbarui, nomor versinya dinaikkan, dan satu baris ditambahkan di [Changelog](#14-changelog) — semuanya di commit yang sama dengan perubahan kodenya. Di repo ini ada hook Claude Code (`.claude/settings.json` → `.claude/hooks/prd-reminder.cjs`) yang mengingatkan hal ini setiap kali file di `app/`, `routes/`, `database/`, `config/` atau `resources/views/` diubah.
 
 ## Daftar isi
 
@@ -55,7 +56,6 @@ Sebelumnya proses ini mengikuti pola Salesforce. Mangga ERP menggantikannya deng
 - Rental mobil GA (hanya pesan "dalam pengembangan").
 - Akuntansi/jurnal umum.
 - Retur barang, penyesuaian stok manual.
-- Pengembalian sisa kasbon (close/return).
 
 ---
 
@@ -143,11 +143,12 @@ RF (Draft) ──submit──► approval berjenjang ──► RF Approved
 ### 4.2 Kasbon project
 ```
 Annual Plan → Monthly Plan → Detail (jenis biaya)
-        Kasbon (Advance Request) Draft ──submit──► approval ──► Approved
+        Kasbon (Advance Request) Draft ──submit (budget di-booking)──► approval ──► Approved
                  └─► Finance tandai Paid
                         └─► Expense Declaration "with advance" (langsung Approved)
                                → sisa kasbon (outstanding) berkurang
-Expense Declaration "without advance": Draft ──submit──► approval ──► Approved
+                        └─► Finance Settle: sisa dicatat dikembalikan, kasbon Closed, budget dilepas
+Expense Declaration "without advance": Draft ──submit (budget di-booking)──► approval ──► Approved
 ```
 
 ### 4.3 Non project per karyawan (ADVEXNPJ)
@@ -210,14 +211,15 @@ Pinjaman/klaim karyawan di luar project dicatat di halaman karyawan, tanpa appro
 **Status RF**
 | Dari → Ke | Aksi | Siapa | Syarat dan efek |
 |---|---|---|---|
-| — → Draft | Simpan | User login | — |
-| Draft/Rejected → Submitted | Submit / Ajukan Ulang | User login | Minimal 1 item; harus ada konfigurasi approval `request_form` yang cocok (jenis project dan nominal), bila tidak: *"Approval flow is not configured"*. Membuka putaran approval baru. |
+| — → Draft | Simpan / Clone | Permission `request_forms.create` (diberikan ke **semua role** secara default) | — |
+| Draft/Rejected → Submitted | Submit / Ajukan Ulang | Pembuat RF atau admin/superadmin | Minimal 1 item; harus ada konfigurasi approval `request_form` yang cocok (jenis project dan nominal), bila tidak: *"Approval flow is not configured"*. Membuka putaran approval baru. |
 | Submitted → Approved | Approve level terakhir | Approver yang ditunjuk / anggota role / superadmin | Pembuat RF tidak boleh approve RF sendiri (kecuali superadmin) |
 | Submitted → Rejected | Reject | Sama dengan approve | Alasan wajib. Bisa diedit dan diajukan ulang |
 | Selain Draft → Draft | Unlock | Superadmin | **Seluruh riwayat approval dihapus** |
 | → dihapus | Hapus RF | Superadmin | **Ditolak bila masih ada PO yang belum Cancelled** (tombol abu-abu dengan alasan). PO yang sudah Cancelled, PR, item dan approval ikut dihapus. |
 
-- RF hanya bisa diedit saat Draft atau Rejected.
+- RF hanya bisa diedit saat Draft atau Rejected, dan **hanya oleh pembuatnya atau admin/superadmin**. Tombol Edit dan Submit tidak muncul untuk orang lain.
+- Semua role mendapat `request_forms.view/create/submit` secara default (RoleSeeder + migrasi master `2026_11_12_000001`). Akibatnya tab Request Form di halaman karyawan juga terlihat oleh siapa pun yang boleh membuka halaman karyawan itu.
 - Status item berubah otomatis: PR dibuat → Ordered/Completed sesuai qty terpenuhi; PO dibuat → Ordered; PO cancel/hapus → Requested; GR diterima penuh → Completed.
 
 ### 5.2 Purchase Request (PR)
@@ -244,14 +246,14 @@ Pinjaman/klaim karyawan di luar project dicatat di halaman karyawan, tanpa appro
 
 | Aksi | Siapa | Syarat dan efek |
 |---|---|---|
-| Edit | Procurement/superadmin/`purchase_orders.update` | Hanya Draft/Rejected. Status kembali Draft, verifikasi direset |
-| Verifikasi | User/role di konfigurasi `po_verification`, atau superadmin | Bila konfigurasi ini ada, **PO wajib diverifikasi sebelum submit** |
+| Edit | Procurement/superadmin/`purchase_orders.update` | Hanya Draft/Rejected. Status kembali Draft, verifikasi direset. Baris harus dari RF PO itu sendiri dan tidak boleh sudah ada di PO aktif lain. Baris qty 0 tidak disimpan. Item RF yang dibuang dari PO kembali *Requested*, yang ada di PO jadi *Ordered* |
+| Verifikasi | User di konfigurasi `po_verification`, atau superadmin. Tanpa konfigurasi: role procurement atau permission `purchase_orders.verify` | Bila konfigurasi ini ada, **PO wajib diverifikasi sebelum submit** |
 | Submit | Procurement/admin/superadmin | Draft/Rejected. Membuat putaran approval dari konfigurasi `purchase_order` (cocok jenis RF dan total + pajak). Bila tidak ada konfigurasi: ≤ Rp1.000.000 di-approve procurement, di atasnya CEO |
 | Approve | Approver yang ditunjuk / role / superadmin | Pembuat PO tidak boleh approve sendiri. Approve terakhir → **Approved**: potong budget WID, buat Payment Advice otomatis, perbarui harga beli produk |
 | Reject | Sama | Alasan wajib. Bisa diedit dan diajukan ulang |
 | Cancel | Superadmin | Ditolak bila sudah ada GR atau ada termin yang sudah diproses/dibayar. Efek: PA dan termin → Cancelled, **budget WID dikembalikan**, item RF → Requested |
 | Unlock | Superadmin | Ditolak bila ada GR Received atau pembayaran. Efek: budget dikembalikan, approval dan PA dihapus, status → Draft |
-| Hapus | Superadmin | Hapus permanen PO, GR (stok dikurangi bila sudah Received), item RF → Requested |
+| Hapus | Superadmin | **Hanya PO Draft yang belum pernah diajukan** (belum ada approval, GR, atau Payment Advice). PO lain harus di-Cancel; tombol Delete tidak muncul. Efek: PO dan itemnya dihapus, item RF → Requested |
 
 **Potong budget WID (saat PO Approved)**
 - Per baris PO: biaya = total baris (qty × harga + pajak).
@@ -259,7 +261,9 @@ Pinjaman/klaim karyawan di luar project dicatat di halaman karyawan, tanpa appro
 - `remaining_budget` WID dikurangi (minimal 0). Dikembalikan saat Cancel/Unlock (maksimal sebesar alokasi).
 - RF Non Project tidak punya WID, jadi tidak memotong apa pun.
 
-**Aturan Completed:** PO Approved otomatis menjadi **Completed** saat semua item sudah diterima penuh (GR) **dan** Payment Advice sudah lunas, urutan mana pun yang terjadi duluan.
+**Aturan Completed:** PO Approved otomatis menjadi **Completed** saat semua item sudah diterima penuh (GR) **dan** Payment Advice sudah lunas, urutan mana pun yang terjadi duluan. Perintah `erp:sync-stocks` memakai aturan yang sama.
+
+**Sudah dibayar / sisa tagihan:** setiap kali termin ditandai dibayar, `amount_paid` PO = Σ termin yang sudah dibayar (semua Payment Advice PO itu) dan `balance_amount` = total PO dengan pajak − yang sudah dibayar.
 
 **Harga beli produk:** setiap PO approved/cancel/unlock/hapus, harga beli produk disinkronkan ke harga satuan PO Approved terbaru.
 
@@ -268,19 +272,19 @@ Pinjaman/klaim karyawan di luar project dicatat di halaman karyawan, tanpa appro
 - **Field:** tanggal (wajib), no DO supplier, pengirim, penerima, remark, dan per item qty dikirim / qty diterima (tidak boleh melebihi sisa qty PO).
 - **Penerimaan sebagian** didukung; satu PO bisa punya banyak GR.
 - **Status:** Recorded → Received.
-- **Verifikasi (Receive):** user/role di konfigurasi `gr_verification`; bila tidak ada konfigurasi, role logistik/GA/superadmin atau `goods_receipts.verify`.
+- **Verifikasi (Receive):** user di konfigurasi `gr_verification`; bila tidak ada konfigurasi, role logistik/GA/superadmin atau `goods_receipts.verify`.
 - **Efek Received:** stok bertambah (hanya produk fisik), item RF yang sudah penuh → Completed, flag GR di PO diperbarui, cek aturan Completed PO.
-- **Hapus GR:** superadmin. Stok dikurangi bila sudah Received, PO dikembalikan ke Approved.
+- **Hapus GR:** superadmin, **hanya GR yang masih Recorded** (belum diverifikasi). GR Received tetap tercatat dan tidak bisa dihapus (tombol tidak muncul). Setelah GR Recorded dihapus: flag GR PO dihitung ulang; PO Completed hanya turun ke Approved bila tidak lagi diterima penuh dan lunas.
 - **Cetak GR** tersedia.
 
 ### 5.5 Stok
 - Stok disimpan per **produk + gudang + supplier**.
 - Halaman stok: filter gudang dan jenis (Fisik / Jasa / semua), kolom kode, nama, part no, jenis, gudang, supplier, qty + UOM, status stok (*In Stock* > 10, *Low Stock* > 0, *Out of Stock*).
-- Stok hanya berubah dari GR Received, hapus GR, hapus PO, dan perintah `erp:sync-stocks`. **Belum ada penyesuaian manual.**
+- Stok hanya bertambah dari GR Received dan dibangun ulang oleh perintah `erp:sync-stocks`. **Belum ada penyesuaian manual atau retur.**
 
 ### 5.6 Pengeluaran Departemen
 **Tujuan:** mencatat (bukan membatasi) pengeluaran RF/PO Non Project per departemen.
-- **Akses:** permission `budgets.view` (admin/superadmin selalu bisa).
+- **Akses:** permission `department_spending.view` (bisa dicentang di menu Role; `budgets.view` lama tetap berlaku). Admin/superadmin selalu bisa.
 - **Filter tahun:** default tahun berjalan, atau "semua".
 - **Ringkasan per departemen:** jumlah dan nilai RF Approved, jumlah PO dan nilai terpakai (PO Approved/Completed, total + pajak), baris total.
 - **Peringatan:** jumlah RF Non Project tanpa departemen (tidak ikut dihitung).
@@ -369,30 +373,32 @@ Budget Parent (Account)          total_budget
 - Jenis biaya: Personnel, Materials, Materials-Subcon, Transportation & Telecommunication, Office, Utilities, Other Expense; masing-masing direct atau indirect (unik per bulan).
 - Kode: `BPD-{YYYY-MM}-{NNNNN}`.
 - Total expense plan = nominal × qty bulan; harus muat di budget bulan.
-- **Sisa detail** = total expense plan − Σ Expense Declaration Approved − Σ outstanding Kasbon Approved.
+- **Sisa detail** = total expense plan − Σ Expense Declaration Approved − Σ outstanding Kasbon Approved − **booking** (Σ kasbon yang sedang Submitted + Σ deklarasi tanpa kasbon yang sedang Submitted). Kasbon yang sudah di-settle outstanding-nya 0.
+- **Booking:** budget dipesan begitu kasbon/deklarasi tanpa kasbon di-submit, jadi dua pengajuan yang menunggu approval tidak bisa bersama-sama melewati budget. Booking lepas sendiri bila pengajuan Rejected. Pengecekan dilakukan saat simpan, saat submit, dan sekali lagi di approval terakhir (kalau budget line-nya diturunkan sementara itu).
 - Kolom aktual: total kasbon approved, deklarasi dengan kasbon, deklarasi tanpa kasbon, total aktual.
 
 ### 7.8 Kasbon (Advance Request)
 - **Form:** tanggal, WID, area, jenis pekerjaan, sub jenis (hanya kombinasi yang punya Annual Plan di tahun itu), pemohon, jumlah site (opsional), dan baris per jenis biaya (nominal + deskripsi).
 - **Satu kasbon dibuat per jenis biaya** yang diisi. Total = nominal × jumlah site.
-- Nominal harus muat di sisa Budget Plan Detail.
+- Nominal harus muat di sisa Budget Plan Detail (dicek saat simpan dan saat submit).
 - Kode: `ADVREQ-{NNNNN}`.
-- **Status:** Draft → Submitted → Approved / Rejected (bisa diajukan ulang).
-- **Approval:** konfigurasi `advance_request` (semua level, tanpa filter nominal); pemohon tidak boleh approve sendiri; di level terakhir sisa budget dicek ulang.
-- **Approved:** budget detail terpotong lewat outstanding, Finance dapat notifikasi "Kasbon Siap Dibayar".
+- **Status:** Draft → Submitted (budget di-booking) → Approved / Rejected (booking dilepas, bisa diajukan ulang).
+- **Approval:** konfigurasi `advance_request` yang rentang nominalnya mencakup total kasbon (min/maks opsional); pemohon tidak boleh approve sendiri; di level terakhir sisa budget dicek ulang.
+- **Approved:** booking berubah jadi outstanding (nominal sama), Finance dapat notifikasi "Kasbon Siap Dibayar".
 - **Bayar:** Finance/superadmin menandai **Paid** (tanggal dan pembayar tercatat).
-- **Outstanding** = nominal approved − Σ Expense Declaration with advance yang Approved.
-- Detail kasbon menampilkan daftar Expense Declaration-nya dan tombol buat deklarasi (bila Approved + Paid).
+- **Outstanding** = nominal approved − Σ Expense Declaration with advance yang Approved (0 setelah di-settle).
+- **Settle / Tutup Kasbon:** Finance/superadmin (atau `advance_requests.pay`) menutup kasbon Approved + Paid. Sisa yang belum dideklarasikan dicatat **dikembalikan** karyawan (nominal otomatis = outstanding), dengan tanggal pengembalian dan catatan. Setelah itu outstanding = 0, budget-nya dilepas, kasbon berlabel **Closed**, dan tidak bisa dibuat Expense Declaration lagi. Karyawan pemohon dapat notifikasi. (Karyawan tidak bisa "nombok" lewat kasbon karena deklarasi dibatasi sebesar kasbon; kelebihan biaya dibuat sebagai deklarasi tanpa kasbon.)
+- Detail kasbon menampilkan daftar Expense Declaration-nya dan tombol buat deklarasi (bila Approved + Paid dan belum di-settle).
 
 ### 7.9 Expense Declaration
 | | With advance | Without advance |
 |---|---|---|
-| Sumber | Kasbon Approved + Paid | Langsung ke budget |
+| Sumber | Kasbon Approved + Paid yang belum di-settle | Langsung ke budget |
 | Budget | Mengikuti kasbon | Dicari dari WID + area + jenis + tanggal |
 | Jenis biaya | Sama dengan kasbon (kasbon "Other Expense" boleh dipecah ke jenis lain) | Bebas |
 | Batas | Σ deklarasi ≤ nominal kasbon | Sisa Budget Plan Detail |
-| Status awal | **Langsung Approved** (tanpa approval) | Draft → approval `expense_declaration` |
-| Efek | Outstanding kasbon berkurang, aktual naik, sisa budget tetap | Sisa budget berkurang saat Approved |
+| Status awal | **Langsung Approved** (tanpa approval) | Draft → approval `expense_declaration` (sesuai rentang nominal) |
+| Efek | Outstanding kasbon berkurang, aktual naik, sisa budget tetap | Budget di-booking saat submit, terpakai saat Approved, dilepas bila Rejected |
 
 - Field: tanggal, pemohon, info kendaraan, nama site, no PO (tanpa kasbon), baris per jenis biaya.
 - Kode: `EXP{yymm}-{NNNNNNN}`.
@@ -407,7 +413,8 @@ Budget Parent (Account)          total_budget
 | `request_form`, `purchase_order`, `payment_advice`, `advance_request`, `expense_declaration` | Bertingkat (level 1, 2, 3…) |
 | `po_verification`, `gr_verification` | Satu langkah, satu konfigurasi per jenis |
 
-- Field: jenis, level, nama langkah, ditugaskan ke **user** atau **role**, nominal min/maks (opsional), project/non-project/semua.
+- Field: jenis, level, nama langkah, **user approver (wajib, satu orang)**, nominal min/maks (opsional), project/non-project/semua.
+- Penugasan ke role sudah tidak bisa dipilih. Konfigurasi lama yang masih ke role ditandai merah "Ganti ke user"; begitu disimpan ulang dengan user, role-nya dihapus.
 - Konfigurasi di level yang sama tidak boleh tumpang tindih (rentang nominal dan jenis project).
 - Halaman konfigurasi menampilkan rentang nominal yang belum tertutup level 1.
 
@@ -417,7 +424,8 @@ Budget Parent (Account)          total_budget
 | RF | Jenis project + nominal total RF |
 | PO | Jenis project RF + total PO dengan pajak |
 | Termin PA | Nominal termin |
-| Kasbon, Expense Declaration | Tidak ada filter (semua level) |
+| Kasbon | Nominal total kasbon |
+| Expense Declaration | Nominal deklarasi |
 
 ### 8.2 Aturan putaran (round)
 - Submit membuat satu set langkah baru: level 1 *Pending*, sisanya *Waiting*.
@@ -433,8 +441,9 @@ Budget Parent (Account)          total_budget
 ## 9. Modul Orang dan Organisasi
 
 ### 9.1 User
-- **Field:** nama, username (unik), email (unik), telepon (unik), jabatan, departemen (harus departemen aktif), tanda tangan (gambar maks 2 MB), password (min 6), role (minimal 1), status aktif/nonaktif.
-- **Efek simpan:** user otomatis terhubung ke project yang sedang aktif; data karyawan dibuat/diperbarui (NIK `EMP-0001` dst., departemen = pilihan atau tebakan dari role).
+- **Field:** nama, username (unik), email (unik), telepon (unik), jabatan, departemen (harus departemen aktif), tanda tangan (gambar maks 2 MB), password (min 6), role (minimal 1), status aktif/nonaktif, **Akses Project** (centang project yang boleh dibuka).
+- **Akses Project:** superadmin bisa memberi akses ke semua project; admin lain hanya ke project yang dia sendiri punya, dan akses user ke project lain tidak diubah. Saat membuat user tanpa centang, user otomatis dapat akses ke project yang sedang aktif.
+- **Efek simpan:** data karyawan dibuat/diperbarui (NIK `EMP-0001` dst., departemen = pilihan atau tebakan dari role).
 - **Aturan:** hanya superadmin yang boleh memberi/mencabut role superadmin dan mengubah akun superadmin; user tidak bisa menghapus dirinya sendiri.
 - **Fitur:** export Excel, export CSV seeder, hapus massal.
 - Daftar user menandai merah bila departemen kosong atau tidak ada di master.
@@ -443,6 +452,7 @@ Budget Parent (Account)          total_budget
 ### 9.2 Role dan permission
 - Field: slug, nama, halaman awal, menu yang terlihat, daftar permission.
 - Permission dipilih lewat checkbox per grup menu (sumber: `config/menu.php`).
+- Sub-master produk (Product Family/Type/Model, Brand, UOM, Currency) tidak punya permission sendiri: menunya tetap bisa dicentang, tapi izin ubah datanya mengikuti `products.*` (tertulis di bawah menunya).
 - Daftar lengkap di [§12.1](#121-daftar-permission).
 
 ### 9.3 Departemen
@@ -498,7 +508,7 @@ Semua master data di bawah ini **per project**.
 | Master | Field utama | Aturan |
 |---|---|---|
 | Produk | Kode (otomatis `EPRD-001` bila kosong), part number, nama, gambar (maks 3 MB), deskripsi, UOM, family, type, brand, model, mata uang, harga beli, fisik/jasa, aktif | Kode unik di antara produk aktif; hapus = soft delete. Ada riwayat harga dari PO Approved (grafik, min/max, tren) dan export CSV |
-| Product Family / Type / Brand / Model | Nama (unik), deskripsi | Hapus permanen; produk terkait menjadi kosong |
+| Product Family / Type / Brand / Model | Nama (unik), deskripsi | Hapus permanen; produk terkait menjadi kosong. Izin ikut `products.*` |
 | UOM | Nama (unik), deskripsi | Sama |
 | Mata uang | Kode (unik), nama, simbol | Sama |
 | Payment Terms | Lihat [§6.1](#61-payment-terms-top) | |
@@ -529,12 +539,13 @@ Semua master data di bawah ini **per project**.
 - **Notifikasi tersimpan** (lonceng di navbar): submit/approve/reject RF, PO, kasbon, deklarasi, termin; kasbon siap dibayar; dll.
 - **Daftar tugas otomatis** di lonceng: PO/RF menunggu approval, PO perlu verifikasi, RF approved belum PR/PO, termin perlu diproses, PO approved belum GR, GR perlu verifikasi (sesuai role).
 - **Live update:** setiap perubahan data disiarkan lewat Reverb; halaman yang terbuka memuat ulang datanya sendiri.
+- Tombol **Tandai semua dibaca** menandai semua notifikasi tersimpan sebagai dibaca. Daftar tugas otomatis tetap tampil sampai tugasnya selesai.
 - Notifikasi yang sudah dibaca dihapus otomatis setelah 7 hari.
 
 ### 11.5 Custom Reports
 - Jenis laporan: alur procurement (PO + RF + WID + supplier + GR + PA), PO, RF, GR, Payment Advice, WID, stok, karyawan.
 - Pilih kolom, filter tanggal dan status, preview (300 baris) dengan total, export CSV (5.000 baris).
-- Template laporan bisa disimpan.
+- Template laporan bisa disimpan. Defaultnya **pribadi** (hanya terlihat oleh pembuatnya); bisa dicentang **Bagikan ke semua user**. Template hanya bisa dihapus oleh pembuatnya atau superadmin. Template yang dibuat sebelum 2026-11-12 dijadikan "dibagikan" supaya tidak hilang dari user lain.
 
 ### 11.6 Tampilan
 - Menu samping atau menu atas (bisa dipilih user).
@@ -550,35 +561,38 @@ Permission disimpan sebagai daftar di setiap role. `superadmin` dan `admin` sela
 
 | Grup | Permission |
 |---|---|
-| Budget | `budget_parents.*`, `sub_projects.*`, `work_items.*` (view/create/update/delete); `annual_budget_plans.view/create`; legacy `budgets.view/create/update/delete` (berlaku untuk ketiganya; `budgets.view` juga membuka Pengeluaran Departemen) |
+| Budget | `budget_parents.*`, `sub_projects.*`, `work_items.*` (view/create/update/delete); `annual_budget_plans.view/create`; `department_spending.view`; legacy `budgets.view/create/update/delete` (masih berlaku untuk ketiga layar budget dan Pengeluaran Departemen) |
 | Kasbon | `advance_requests.view/create/approve/pay`; `expense_declarations.view/create/approve` |
 | Request Form | `request_forms.view/create/update/delete/submit/approve/reject/create_pr/delete_pr` |
-| Purchase Order | `purchase_orders.view/create/update/delete/verify/submit/approve/reject/print` |
+| Purchase Order | `purchase_orders.view/create/update/delete/verify/submit/approve/reject/print` (`po.verify` lama tetap berlaku sebagai `purchase_orders.verify`) |
 | Goods Receipt | `goods_receipts.view/create/update/delete/verify/print` |
 | Payment | `payment_advices.view/update/delete`; `payment_advice_details.view/update_invoice/submit/approve/reject/mark_paid`; `payment_terms.*` |
 | Gudang | `stocks.view/adjust`; `warehouses.*` |
-| Master | `products.view/create/update/delete/export`; `suppliers.*`, `product_families.*`, `product_types.*`, `brands.*`, `product_models.*`, `currencies.*`, `uoms.*` |
+| Master | `products.view/create/update/delete/export` (juga berlaku untuk Family, Type, Brand, Model, UOM, Currency); `suppliers.*` |
 | HR | `departments.*`, `employees.*`, `hr_attendances.view/manage`, `hr_payroll.view/manage` |
-| Sistem | `users.*`, `roles.*`, `projects.*`, `approval_configs.view/create/delete`, `custom_reports.view/create/export/delete` |
+| Sistem | `users.view/create/update/delete/bulk_delete/export/export_seeder`, `roles.*`, `projects.*`, `approval_configs.view/create/delete`, `custom_reports.view/create/export/delete` |
 
 ### 12.2 Aksi khusus role
 | Aksi | Hanya untuk |
 |---|---|
-| Hapus/unlock RF, cancel/unlock/hapus PO, hapus GR, hapus PA | superadmin |
+| Hapus/unlock RF, cancel/unlock PO, hapus PO Draft, hapus GR Recorded, hapus PA | superadmin |
+| Edit dan submit RF | pembuat RF, admin, superadmin |
 | Kelola project dan konfigurasi approval | superadmin |
-| Tandai kasbon dibayar, kelola termin | finance, superadmin |
+| Tandai kasbon dibayar, settle kasbon, kelola termin | finance, superadmin |
 | Buat PR | logistik, superadmin (atau `request_forms.create_pr`) |
 | Buat PO | procurement, superadmin (atau `purchase_orders.create`) |
 | Melihat semua tab karyawan | karyawan itu sendiri, hrd, ceo, admin, superadmin |
 
 ### 12.3 Hak akses default per role
+Semua role mendapat `request_forms.view/create/submit` dan menu Request Form, di atas daftar di bawah ini.
+
 | Role | Permission bawaan |
 |---|---|
 | superadmin, admin | Semua |
 | admin_project | Budget Parent / Sub Project / WID penuh; RF view/create/update/submit; products.view |
 | general_affair | RF view/create/update/submit; GR view/create/update/verify/print; products.view |
-| procurement | RF view/update/approve/reject; PO penuh; GR view/print; supplier dan payment terms penuh; produk view/create/update/export; atribut master view |
-| logistik | RF view/create/submit/create_pr/delete_pr; GR view/create/update/verify/print; stok view/adjust; gudang penuh; products.view; uoms.view |
+| procurement | RF view/update/approve/reject; PO penuh; GR view/print; supplier dan payment terms penuh; produk view/create/update/export |
+| logistik | RF view/create/submit/create_pr/delete_pr; GR view/create/update/verify/print; stok view/adjust; gudang penuh; products.view |
 | finance | PO view/print; GR view/print; payment advice view/update; semua permission termin; suppliers.view; payment_terms.view |
 | hrd | Departemen, karyawan, absensi, payroll penuh |
 | ceo | View budget; RF view/approve/reject; PO view/approve/reject/print; GR view/print; PA view; termin view/approve/reject/mark_paid; stocks.view; products.view; approval_configs.view |
@@ -624,7 +638,7 @@ Nomor dokumen yang sudah dihapus tidak dipakai ulang.
 ### 13.4 Pengujian
 - Feature test di `tests/Feature` (Budget, Kasbon, MasterData, Payment, PurchaseOrder, RequestForm, dll.).
 - Jalan di database khusus `mangga_test_master` / `mangga_test_tenant`; test menolak jalan di database lain.
-- Perintah: `php artisan test`. Kondisi per 2026-11-10: **357 lolos, 1 dilewati** (ProjectLogoTest, perlu ditulis ulang).
+- Perintah: `php artisan test`. Kondisi per 2026-11-12: **374 lolos, 0 dilewati**.
 
 ### 13.5 Deploy
 Di server (`/Users/mac/apps/mangga`), satu per satu:
@@ -640,51 +654,39 @@ Di server (`/Users/mac/apps/mangga`), satu per satu:
 ---
 
 ## 14. Changelog
-| Tanggal | Perubahan |
-|---|---|
-| 2026-11-12 | PRD pertama ditulis dari kode yang berjalan (as-built). |
-| 2026-11-10 | RF yang masih punya PO non-Cancelled tidak bisa dihapus; harus cancel PO dulu (refund budget terjadi saat cancel). |
-| 2026-11-10 | Upgrade Laravel 10 → 13 digabung ke `master`. |
-| 2026-11-09 | Halaman karyawan dengan tab (Ringkasan, RF, Kasbon Project, ADVEXNPJ, Cuti); tab Kasbon satu baris per kasbon. |
-| 2026-11-09 | Modul ADVEXNPJ (Advance-Expense Declaration Non Project). |
-| 2026-11-09 | Departemen karyawan wajib dari daftar master; Procurement dan GA dipisah. |
-| 2026-11-02 | RF Non Project dibebankan ke departemen; halaman Pengeluaran Departemen. |
-| 2026-10-27 | Aturan approval bergaya Salesforce: reject menyimpan riwayat, ajukan ulang = putaran baru. PO Completed saat diterima penuh dan lunas. |
+Riwayat versi lengkap ada di `docs/prd-history/`.
+
+| Tanggal | Versi | Perubahan |
+|---|---|---|
+| 2026-11-12 | 1.1 | **Keputusan bisnis:** PO hanya boleh dihapus selagi Draft dan belum pernah diajukan, sisanya Cancel. GR Received tidak bisa dihapus. Kasbon dan deklarasi tanpa kasbon mem-booking budget sejak submit. Approval kasbon dan deklarasi mengikuti rentang nominal. Kasbon bisa di-Settle (Closed). Setiap langkah approval wajib ke satu user. RF bisa dibuat semua role, tapi hanya pembuat atau admin yang bisa edit/submit. Sub-master produk ikut izin Products. Akses project diatur di form User. Template laporan pribadi kecuali dibagikan. **Perbaikan:** `erp:sync-stocks` tidak lagi memaksa PO Completed. Edit PO menolak baris yang sudah ada di PO lain dan mengembalikan status item RF. `amount_paid`/`balance_amount` PO ikut pembayaran termin. Tombol "Tandai semua dibaca" berfungsi. Permission user export/bulk delete, `purchase_orders.verify` dan `department_spending.view` bisa diberikan lewat menu Role. Perintah rusak `master:sync-users` dan test usang ProjectLogoTest dihapus. |
+| 2026-11-12 | 1.0 | PRD pertama ditulis dari kode yang berjalan (as-built). |
+| 2026-11-10 | — | RF yang masih punya PO non-Cancelled tidak bisa dihapus; harus cancel PO dulu (refund budget terjadi saat cancel). |
+| 2026-11-10 | — | Upgrade Laravel 10 → 13 digabung ke `master`. |
+| 2026-11-09 | — | Halaman karyawan dengan tab (Ringkasan, RF, Kasbon Project, ADVEXNPJ, Cuti); tab Kasbon satu baris per kasbon. |
+| 2026-11-09 | — | Modul ADVEXNPJ (Advance-Expense Declaration Non Project). |
+| 2026-11-09 | — | Departemen karyawan wajib dari daftar master; Procurement dan GA dipisah. |
+| 2026-11-02 | — | RF Non Project dibebankan ke departemen; halaman Pengeluaran Departemen. |
+| 2026-10-27 | — | Aturan approval bergaya Salesforce: reject menyimpan riwayat, ajukan ulang = putaran baru. PO Completed saat diterima penuh dan lunas. |
 
 ---
 
 ## 15. Lampiran: celah dan pekerjaan terbuka
 Temuan dari pembacaan kode saat menyusun PRD ini. Belum semuanya diverifikasi dengan pengujian; perlu keputusan bisnis atau perbaikan.
 
-**Aturan bisnis yang perlu dikonfirmasi**
-- Sisa budget detail hanya menghitung kasbon/deklarasi berstatus Approved (komentar di kode menyebut belum dikonfirmasi bisnis).
-- Kasbon dan Expense Declaration tidak memakai filter nominal/jenis project di konfigurasi approval.
-- Approver yang ditunjuk lewat **role** tidak mendapat tombol Approve di riwayat approval kasbon/deklarasi dan tidak mendapat notifikasi (backend menerima).
-- Belum ada alur pengembalian sisa kasbon (outstanding negatif/positif tidak ditindaklanjuti).
+Celah dari versi 1.0 yang sudah diputuskan atau diperbaiki di versi 1.1 sudah dihapus dari daftar ini (lihat Changelog).
 
 **Hak akses**
-- Banyak aksi hanya dicek di tampilan atau tidak dicek sama sekali: membuat/submit RF, submit PO, halaman cetak, dashboard, daftar WID per project.
-- Tombol Edit RF di tampilan memakai permission `products.update`.
-- Enam sub-master produk memakai permission `products.*`, bukan permission masing-masing.
-- Beberapa permission dicek di kode tapi tidak bisa diberikan lewat UI role: `users.export`, `users.bulk_delete`, `users.export_seeder`, `po.verify`, `budgets.*`.
-- Permission `projects.*`, `hr_attendances.*`, `hr_payroll.*`, `custom_reports.create/export/delete` tidak dicek di kode.
+- Masih ada halaman yang tidak mengecek permission di server: submit PO, halaman cetak PO/GR, dashboard, daftar WID per project.
+- Permission `projects.*`, `hr_attendances.*`, `hr_payroll.*`, `custom_reports.create/export/delete` ada di menu Role tapi tidak dicek di kode.
+- Notifikasi dan tombol Approve di riwayat approval hanya untuk user yang ditunjuk. Konfigurasi lama yang masih ditujukan ke role (ditandai "Ganti ke user") perlu diganti ke user.
 
 **Data dan perilaku**
-- Hapus PO tidak mengembalikan budget WID dan tidak menghapus Payment Advice.
-- Hapus GR memaksa PO kembali ke Approved walaupun sebelumnya Completed.
-- `erp:sync-stocks` memaksa PO yang punya GR Received menjadi Completed tanpa melihat pembayaran.
-- Edit PO tidak mengecek ulang item RF yang sudah ada di PO aktif lain.
-- `amount_paid` dan `balance_amount` PO tidak diperbarui oleh pembayaran termin.
-- Field RF `rf_type`, pilihan status superadmin dan tab Approval di form RF dikirim tapi diabaikan; `remarks_print` PO divalidasi tapi tidak tersimpan.
+- Field RF `rf_type`, pilihan status superadmin dan tab Approval di form RF dikirim tapi diabaikan.
 - Nomor Payment Advice otomatis memakai angka acak.
 - Tabel `activity_logs` dan `erp_budget_ledgers` tidak dipakai.
-- Perintah `master:sync-users` rusak (memanggil class yang tidak ada).
-- Belum ada UI untuk menghubungkan user ke project selain otomatis saat user dibuat.
-- Template custom report global dan bisa dihapus siapa saja yang punya akses laporan.
-- Notifikasi tugas otomatis tidak bisa ditandai dibaca; tombol "tandai semua dibaca" belum berfungsi.
+- Belum ada retur barang atau penyesuaian stok manual (GR Received tidak bisa dihapus).
 
 **Operasional**
 - Upload invoice/bukti bayar ada di folder publik; perlu dipindah ke penyimpanan privat.
 - Production perlu `SESSION_SECURE_COOKIE=true` dan `APP_DEBUG=false`.
 - PHP server 8.4.26 perlu diperbarui ke ≥ 8.4.27 (tambalan keamanan).
-- ProjectLogoTest perlu ditulis ulang.

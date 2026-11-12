@@ -115,6 +115,44 @@ class UserManagementTest extends ErpTestCase
         $this->assertTrue(Hash::check('newpass1', $target->fresh()->password));
     }
 
+    public function test_project_access_is_set_from_the_user_form(): void
+    {
+        $other = \App\Models\Project::create(['name' => 'Imprima', 'db_name' => 'mangga_test_other_'.uniqid(), 'is_active' => true]);
+        $admin = $this->makeUser('superadmin');
+        $this->actingInProject($admin)
+            ->get(route('erp.users.index'))->assertOk()->assertSee('Akses Project')->assertSee('Imprima');
+
+        // create: only the ticked project
+        $this->post(route('erp.users.store'), $this->validUser(['projects' => [$other->id]]))->assertSessionHasNoErrors();
+        $user = User::where('username', 'rina')->firstOrFail();
+        $this->assertSame([$other->id], $user->projects()->pluck('projects.id')->map(fn ($id) => (int) $id)->all());
+
+        // edit: tick both, then untick everything
+        $form = ['name' => 'Rina', 'username' => 'rina', 'email' => 'rina@test.local', 'roles' => ['procurement'], 'status' => 'active', 'projects_present' => 1];
+        $this->put(route('erp.users.update', $user), $form + ['projects' => [$this->project->id, $other->id]])->assertSessionHasNoErrors();
+        $this->assertSame(2, $user->projects()->count());
+        $this->put(route('erp.users.update', $user), $form)->assertSessionHasNoErrors();
+        $this->assertSame(0, $user->projects()->count());
+    }
+
+    public function test_a_non_superadmin_only_hands_out_their_own_projects(): void
+    {
+        $other = \App\Models\Project::create(['name' => 'Imprima', 'db_name' => 'mangga_test_other_'.uniqid(), 'is_active' => true]);
+        $hr = $this->makeUser('hr_admin', ['users.view', 'users.update']);
+        $target = $this->makeUser('staff', [], ['username' => 'joko', 'email' => 'joko@test.local']);
+        $target->projects()->attach($other->id);
+        Role::firstOrCreate(['slug' => 'procurement'], ['name' => 'Procurement']);
+
+        $this->actingInProject($hr)
+            ->put(route('erp.users.update', $target), [
+                'name' => 'Joko', 'username' => 'joko', 'email' => 'joko@test.local', 'roles' => ['procurement'],
+                'status' => 'active', 'projects_present' => 1, 'projects' => [$other->id],
+            ])->assertSessionHasNoErrors();
+
+        // the project hr_admin is not in stays as it was; their own project was unticked
+        $this->assertSame([$other->id], $target->projects()->pluck('projects.id')->map(fn ($id) => (int) $id)->all());
+    }
+
     public function test_department_left_empty_is_guessed_with_procurement_and_ga_apart(): void
     {
         $this->seedDepartments();

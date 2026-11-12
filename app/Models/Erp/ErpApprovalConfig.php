@@ -23,6 +23,14 @@ class ErpApprovalConfig extends Model
         'is_project'
     ];
 
+    /** Steps whose amount range (each end optional) contains $amount. */
+    public function scopeForAmount($query, float $amount)
+    {
+        return $query
+            ->where(fn ($q) => $q->whereNull('min_amount')->orWhere('min_amount', '<=', $amount))
+            ->where(fn ($q) => $q->whereNull('max_amount')->orWhere('max_amount', '>=', $amount));
+    }
+
     public function role()
     {
         return $this->belongsTo(Role::class);

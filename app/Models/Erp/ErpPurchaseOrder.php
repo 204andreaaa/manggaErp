@@ -167,6 +167,21 @@ class ErpPurchaseOrder extends Model
     }
 
     /**
+     * Why this PO may not be deleted (null = it may). Only a Draft that never went
+     * into approval and has no receipt or payment can be deleted; anything further
+     * along is part of the purchase record and has to be cancelled instead.
+     */
+    public function deleteBlockReason(): ?string
+    {
+        if ($this->status !== 'Draft' || $this->approvals()->exists()
+            || $this->goodsReceipts()->exists() || $this->paymentAdvices()->exists()) {
+            return 'PO hanya bisa dihapus selama masih Draft dan belum pernah diajukan. PO ini harus di-Cancel.';
+        }
+
+        return null;
+    }
+
+    /**
      * Alasan PO tidak boleh di-cancel (null = boleh). PO tidak bisa di-cancel bila sudah
      * ada Goods Receipt, atau ada termin Payment Advice yang sudah diproses (diajukan,
      * disetujui, ditolak, atau dibayar).

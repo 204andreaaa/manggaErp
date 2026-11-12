@@ -215,22 +215,36 @@ class ExpenseDeclarationTest extends ErpTestCase
         $this->assertSame('Submitted', $declaration->fresh()->status);
     }
 
-    public function test_without_advance_final_approval_is_refused_when_budget_was_used_meanwhile(): void
+    public function test_a_submitted_declaration_books_the_budget_so_a_kasbon_cannot_take_it(): void
     {
         $this->declarationWithoutAdvance(['Other Expense' => 6000000]);
         $declaration = ExpenseDeclaration::sole();
         $this->actingInProject($this->requester);
-        $this->post(route('erp.expense-declarations.submit', $declaration));
+        $this->post(route('erp.expense-declarations.submit', $declaration))->assertSessionHas('success');
+        $this->assertEquals(4000000, $this->remaining('Other Expense'), 'submitting books the budget');
 
-        $this->approvedKasbon('Other Expense', 5000000); // 10 jt -> 5 jt left
+        // what is left can be taken by a kasbon; more than that is refused already on save
+        $kasbon = $this->createKasbon('Other Expense', 4000000);
+        $this->submitKasbon($kasbon)->assertSessionHas('success');
+        $this->postKasbon(['Other Expense' => 1000])->assertSessionHasErrors('lines');
 
-        $step = $this->pendingApproval($declaration);
+        // the declaration's own booking does not block its final approval
         $this->actingInProject($this->approver);
-        $this->post(route('erp.expense-declarations.approvals.approve', $step))->assertSessionHas('error');
+        $this->post(route('erp.expense-declarations.approvals.approve', $this->pendingApproval($declaration)))->assertSessionHas('success');
+        $this->assertSame('Approved', $declaration->fresh()->status);
+        $this->assertEquals(0, $this->remaining('Other Expense'));
+    }
 
-        $this->assertSame('Submitted', $declaration->fresh()->status);
-        $this->assertSame('Pending', $step->fresh()->status);
-        $this->assertEquals(5000000, $this->remaining('Other Expense'));
+    public function test_the_declaration_approval_flow_follows_the_amount(): void
+    {
+        \App\Models\Erp\ErpApprovalConfig::where('record_type', 'expense_declaration')->update(['min_amount' => 5000000]);
+
+        $this->declarationWithoutAdvance(['Office' => 1000]);
+        $declaration = ExpenseDeclaration::sole();
+        $this->actingInProject($this->requester);
+        // no step covers a 1.000 declaration any more
+        $this->post(route('erp.expense-declarations.submit', $declaration))->assertSessionHas('error');
+        $this->assertSame('Draft', $declaration->fresh()->status);
     }
 
     public function test_without_advance_reject(): void
@@ -287,7 +301,7 @@ class ExpenseDeclarationTest extends ErpTestCase
         $this->post(route('erp.expense-declarations.approvals.approve', $this->pendingApproval($declaration)))->assertSessionHas('success');
         $this->actingInProject($this->approver2);
         $this->post(route('erp.expense-declarations.approvals.approve', $this->pendingApproval($declaration)))->assertSessionHas('success');
-        $this->assertEquals(50000000, $this->remaining('Office'), 'No cut before the final approval');
+        $this->assertEquals(48000000, $this->remaining('Office'), 'Booked since the resubmit');
         $this->post(route('erp.expense-declarations.approvals.approve', $this->pendingApproval($declaration)))->assertSessionHas('success');
 
         $this->assertSame('Approved', $declaration->fresh()->status);

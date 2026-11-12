@@ -369,6 +369,11 @@
                         <label class="form-label fw-bold">Keterangan / Deskripsi</label>
                         <textarea name="description" id="saveDescInput" class="form-control" rows="2" placeholder="Catatan kegunaan laporan...">{{ $savedReport->description ?? '' }}</textarea>
                     </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="savePublicInput" {{ ($savedReport->is_public ?? false) ? 'checked' : '' }}>
+                        <label class="form-check-label" for="savePublicInput">Bagikan ke semua user</label>
+                        <div class="form-text">Tanpa dicentang, template hanya terlihat oleh Anda.</div>
+                    </div>
                 </div>
                 <div class="modal-footer bg-light">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
@@ -911,6 +916,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const payload = {
             title: title,
             description: description,
+            is_public: document.getElementById('savePublicInput').checked,
             report_type: reportType,
             selected_columns: activeColumns.map(c => c.key),
             date_field: document.getElementById('filterDateField').value,

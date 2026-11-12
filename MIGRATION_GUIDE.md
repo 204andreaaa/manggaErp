@@ -14,9 +14,8 @@ php artisan master:migrate
 # Jalankan setelah backup diverifikasi
 php artisan master:migrate --execute
 
-# Preview lalu sinkronkan akun Mandau ke master
-php artisan master:sync-users 1
-php artisan master:sync-users 1 --execute
+# (master:sync-users sudah dihapus 2026-11-12: akun sudah lama tinggal di master,
+#  akses project diatur dari menu User.)
 
 # Preview migration operasional khusus mandau_db
 php artisan tenant:migrate 1

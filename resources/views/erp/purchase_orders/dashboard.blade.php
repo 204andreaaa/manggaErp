@@ -82,8 +82,8 @@
                           <a href="{{ route('erp.purchase-orders.show', $po) }}" class="btn btn-xs btn-outline-success">
                             {{ $po->po_no }}
                           </a>
-                          @if(auth()->user()->hasRole('superadmin'))
-                            <form action="{{ route('erp.purchase-orders.destroy', $po) }}" method="POST" class="d-inline" onsubmit="return confirm('PERINGATAN KERAS!\n\nMenghapus PO ini akan berakibat:\n1. Dokumen PO ({{ $po->po_no }}) Dihapus Permanen.\n2. Seluruh Item di dalam PO ini ikut terhapus.\n3. Histori Approval PO terhapus.\n4. Status Barang (PR Item) di RF akan dikembalikan menjadi \'Requested\'.\n\nApakah Anda sangat yakin ingin melanjutkan?');">
+                          @if(auth()->user()->hasRole('superadmin') && !$po->deleteBlockReason())
+                            <form action="{{ route('erp.purchase-orders.destroy', $po) }}" method="POST" class="d-inline" onsubmit="return confirm('Hapus PO Draft {{ $po->po_no }}?\n\nPO dan item-nya dihapus permanen, barang di RF kembali menjadi \'Requested\'.');">
                               @csrf
                               @method('DELETE')
                               <button type="submit" class="btn btn-xs btn-outline-danger" title="Delete PO">

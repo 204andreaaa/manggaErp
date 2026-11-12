@@ -166,6 +166,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::resource('advance-requests', \App\Http\Controllers\Erp\AdvanceRequestController::class)->only(['index', 'create', 'store', 'show']);
         Route::post('advance-requests/{advanceRequest}/submit', [\App\Http\Controllers\Erp\AdvanceRequestController::class, 'submit'])->name('advance-requests.submit');
         Route::post('advance-requests/{advanceRequest}/pay', [\App\Http\Controllers\Erp\AdvanceRequestController::class, 'pay'])->name('advance-requests.pay');
+        Route::post('advance-requests/{advanceRequest}/settle', [\App\Http\Controllers\Erp\AdvanceRequestController::class, 'settle'])->name('advance-requests.settle');
         Route::post('advance-requests/approvals/{approval}/approve', [\App\Http\Controllers\Erp\AdvanceRequestController::class, 'approve'])->name('advance-requests.approvals.approve');
         Route::post('advance-requests/approvals/{approval}/reject', [\App\Http\Controllers\Erp\AdvanceRequestController::class, 'reject'])->name('advance-requests.approvals.reject');
 

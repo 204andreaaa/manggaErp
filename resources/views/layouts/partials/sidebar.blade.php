@@ -277,7 +277,7 @@ $isSystemOpen = request()->routeIs('erp.users.*')
                     </a>
                 </li>
                 @endif
-                @if($isSuperAdmin || $u?->hasPermission('budgets.view'))
+                @if($isSuperAdmin || $u?->hasPermission('department_spending.view'))
                 <li class="menu-item {{ request()->routeIs('erp.department-spending.*') ? 'active' : '' }}">
                     <a href="{{ $rl('erp.department-spending.index') }}" class="menu-link">
                         <i class="bx bx-buildings me-2"></i>

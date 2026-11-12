@@ -190,6 +190,7 @@
                                                 data-roles="{{ $rolesAttr }}"
                                                 data-role_names="{{ $roleText }}"
                                                 data-status="{{ $u->status }}"
+                                                data-projects="{{ $u->projects->pluck('id')->implode(',') }}"
                                                 data-warehouse_id="{{ $u->warehouse_id ?? '' }}">
                                                 <i class="bx bx-edit-alt"></i>
                                             </a>
@@ -329,6 +330,22 @@
                         </div>
                     </div>
 
+                    @if($projects->isNotEmpty())
+                    <div class="mt-3">
+                        <label class="form-label">Akses Project</label>
+                        <div class="d-flex flex-wrap gap-3">
+                            @foreach($projects as $p)
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="projects[]" value="{{ $p->id }}" id="add_project_{{ $p->id }}"
+                                        {{ in_array($p->id, (array) old('projects', [$currentProjectId])) ? 'checked' : '' }}>
+                                    <label class="form-check-label" for="add_project_{{ $p->id }}">{{ $p->name }}@unless($p->is_active) <span class="text-muted small">(nonaktif)</span>@endunless</label>
+                                </div>
+                            @endforeach
+                        </div>
+                        <div class="form-text">Project yang boleh dibuka user ini. Kosong = project yang sedang aktif.</div>
+                    </div>
+                    @endif
+
                     <div class="mt-3" id="wrap_add_wh" style="{{ $isWarehouseUser ? '' : 'display:none' }}">
                         <label class="form-label">Warehouse</label>
                         @if ($isWarehouseUser)
@@ -460,6 +477,22 @@
                             </select>
                         </div>
                     </div>
+
+                    @if($projects->isNotEmpty())
+                    <div class="mt-3">
+                        <label class="form-label">Akses Project</label>
+                        <input type="hidden" name="projects_present" value="1">
+                        <div class="d-flex flex-wrap gap-3">
+                            @foreach($projects as $p)
+                                <div class="form-check">
+                                    <input class="form-check-input js-edit-project" type="checkbox" name="projects[]" value="{{ $p->id }}" id="edit_project_{{ $p->id }}">
+                                    <label class="form-check-label" for="edit_project_{{ $p->id }}">{{ $p->name }}@unless($p->is_active) <span class="text-muted small">(nonaktif)</span>@endunless</label>
+                                </div>
+                            @endforeach
+                        </div>
+                        <div class="form-text">Project yang boleh dibuka user ini.</div>
+                    </div>
+                    @endif
 
                     <div class="mt-3" id="wrap_edit_wh" style="display:none">
                         <label class="form-label">Warehouse</label>
@@ -785,6 +818,8 @@
                 $('#edit_phone').val(d.phone || '');
                 $('#edit_position').val(d.position || '');
                 $('#edit_department').val(d.department || '');
+                const projectIds = (d.projects || '').split(',').filter(Boolean);
+                $('.js-edit-project').each(function() { this.checked = projectIds.includes(this.value); });
 
                 @if ($isWarehouseUser)
                     const rolesArr = (d.roles || '').split(',').filter(Boolean);

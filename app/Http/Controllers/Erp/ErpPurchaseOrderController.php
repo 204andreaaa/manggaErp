@@ -336,8 +336,7 @@ class ErpPurchaseOrderController extends Controller
             'transfer_to' => 'nullable|string',
             'payment_terms' => 'nullable|string',
             'other_instructions' => 'nullable|string',
-            'remarks_print' => 'nullable|string',
-            
+
             // Items
             'items' => 'required|array',
             'items.*.request_form_item_id' => 'required|exists:request_form_items,id',
@@ -347,10 +346,23 @@ class ErpPurchaseOrderController extends Controller
             'items.*.remarks' => 'nullable|string',
         ]);
 
+        // Same rules as creating a PO: lines come from this PO's own RF, and a line that is
+        // already on another active (not Cancelled) PO cannot be ordered twice.
+        $orderedIds = collect($data['items'])->where('qty', '>', 0)->pluck('request_form_item_id')->map(fn ($id) => (int) $id)->unique();
+        $foreign = \App\Models\Erp\RequestFormItem::whereIn('id', $orderedIds)->where('request_form_id', '!=', $purchaseOrder->request_form_id)->exists();
+        $onAnotherPo = \App\Models\Erp\RequestFormItem::whereIn('id', $orderedIds)
+            ->whereHas('purchaseOrderItems', fn ($q) => $q->where('purchase_order_id', '!=', $purchaseOrder->id)
+                ->whereHas('purchaseOrder', fn ($po) => $po->where('status', '!=', 'Cancelled')))
+            ->exists();
+        if ($foreign || $onAnotherPo) {
+            return redirect()->back()->with('error', 'Sebagian barang bukan dari RF PO ini atau sudah ada di PO lain yang masih aktif.')->withInput();
+        }
+        $previousIds = $purchaseOrder->items()->pluck('request_form_item_id')->map(fn ($id) => (int) $id);
+
         DB::beginTransaction();
         try {
             $warehouse = ErpWarehouse::find($data['erp_warehouse_id'] ?? null);
-            
+
             $purchaseOrder->update([
                 'supplier_id' => $data['supplier_id'],
                 'erp_warehouse_id' => $data['erp_warehouse_id'] ?? null,
@@ -370,8 +382,7 @@ class ErpPurchaseOrderController extends Controller
                 'transfer_to' => $data['transfer_to'] ?? null,
                 'payment_terms' => $data['payment_terms'] ?? null,
                 'other_instructions' => $data['other_instructions'] ?? null,
-                'remarks_print' => $data['remarks_print'] ?? null,
-                
+
                 // Reset status to Draft and reset verification if PO was edited/rejected
                 'status' => 'Draft',
                 'rejected_date' => null,
@@ -389,8 +400,12 @@ class ErpPurchaseOrderController extends Controller
 
             if (!empty($data['items'])) {
                 foreach ($data['items'] as $itemData) {
+                    // like on create, a line with qty 0 is not ordered
+                    if ($itemData['qty'] <= 0) {
+                        continue;
+                    }
                     $itemTotal = ($itemData['qty'] * $itemData['unit_cost']) + $itemData['tax'];
-                    
+
                     $purchaseOrder->items()->create([
                         'request_form_item_id' => $itemData['request_form_item_id'],
                         'qty' => $itemData['qty'],
@@ -404,6 +419,10 @@ class ErpPurchaseOrderController extends Controller
                     $totalTax += $itemData['tax'];
                 }
             }
+
+            // RF lines now on this PO are Ordered; lines taken off it can be ordered again
+            \App\Models\Erp\RequestFormItem::whereIn('id', $orderedIds)->update(['status' => 'Ordered']);
+            \App\Models\Erp\RequestFormItem::whereIn('id', $previousIds->diff($orderedIds))->update(['status' => 'Requested']);
 
             $purchaseOrder->update([
                 'total_po_amount' => $totalAmount,
@@ -918,38 +937,9 @@ class ErpPurchaseOrderController extends Controller
             return redirect()->back()->with('error', 'Hanya Admin/Superadmin yang berhak menghapus PO.');
         }
 
-        // Collect affected products before deletion
-        $affectedProductIds = [];
-        foreach ($purchaseOrder->items as $item) {
-            $p = $item->requestFormItem?->erpProduct 
-                ?: \App\Models\Erp\ErpProduct::where('product_code', $item->requestFormItem?->product_id_text)
-                    ->orWhere('name', $item->requestFormItem?->product_name)
-                    ->first();
-            if ($p) $affectedProductIds[] = $p->id;
-        }
-
-        // Rollback any received physical stocks associated with this PO's Goods Receipts
-        $purchaseOrder->load('goodsReceipts.items.requestFormItem.erpProduct');
-        $supplierId = $purchaseOrder->supplier_id;
-        foreach ($purchaseOrder->goodsReceipts as $gr) {
-            if ($gr->status === 'Received') {
-                $warehouseId = $gr->warehouse_id ?: ($purchaseOrder->erp_warehouse_id ?: \Illuminate\Support\Facades\DB::table('erp_warehouses')->value('id'));
-                foreach ($gr->items as $grItem) {
-                    $product = $grItem->requestFormItem?->erpProduct;
-                    if ($product && ($product->is_physical ?? true) && $warehouseId && $grItem->received_qty > 0) {
-                        $stock = \App\Models\Erp\ErpStock::where('erp_product_id', $product->id)
-                            ->where('erp_warehouse_id', $warehouseId)
-                            ->where('erp_supplier_id', $supplierId)
-                            ->first();
-                        if ($stock) {
-                            $newQty = max(0, $stock->qty_on_hand - $grItem->received_qty);
-                            $stock->update(['qty_on_hand' => $newQty]);
-                        }
-                    }
-                }
-            }
-            $gr->items()->delete();
-            $gr->delete();
+        // A Draft that never went to approval has no budget cut, receipt or payment to undo.
+        if ($reason = $purchaseOrder->deleteBlockReason()) {
+            return redirect()->back()->with('error', $reason);
         }
 
         // Kembalikan status PR Item (RequestFormItem) ke 'Requested' biar bisa di-PO ulang
@@ -961,16 +951,12 @@ class ErpPurchaseOrderController extends Controller
         }
 
         $purchaseOrder->items()->delete();
-        $purchaseOrder->approvals()->delete();
+        $purchaseOrder->notesAttachments()->delete();
         $purchaseOrder->delete();
-
-        foreach (array_unique($affectedProductIds) as $pId) {
-            \App\Models\Erp\ErpProduct::syncBuyingPriceFromLatestApprovedPo($pId);
-        }
 
         \App\Helpers\NotificationHelper::pushLive('purchase_order', $purchaseOrder->id, 'Deleted');
 
-        return redirect()->route('erp.procurement.dashboard')->with('success', 'PO dihapus. Stok fisik yang pernah diterima telah dikurangi kembali, dan status barang (RF Item) dikembalikan agar dapat dipesan ulang.');
+        return redirect()->route('erp.procurement.dashboard')->with('success', 'PO Draft dihapus. Barang di RF dikembalikan agar dapat dipesan ulang.');
     }
 
     public function verify(ErpPurchaseOrder $purchaseOrder)
@@ -988,7 +974,7 @@ class ErpPurchaseOrderController extends Controller
                 $isAuthorized = true;
             }
         } else {
-            $isAuthorized = ($user->hasRole(['head_procurement', 'procurement']) || $user->hasPermission('po.verify'));
+            $isAuthorized = ($user->hasRole(['head_procurement', 'procurement']) || $user->hasPermission('purchase_orders.verify'));
         }
 
         if (!$isAuthorized) {

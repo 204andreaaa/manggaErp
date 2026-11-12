@@ -100,10 +100,11 @@ abstract class ErpTestCase extends TestCase
     protected function makeUser(string $roleSlug = 'staff', array $permissions = [], array $attributes = []): User
     {
         $role = Role::firstOrCreate(['slug' => $roleSlug], ['name' => Str::headline($roleSlug)]);
-        if ($permissions) {
-            $role->permissions = array_values(array_unique(array_merge($role->permissions ?? [], $permissions)));
-            $role->save();
-        }
+        // like production, every role may raise Request Forms (RoleSeeder / master migration)
+        $role->permissions = array_values(array_unique(array_merge(
+            $role->permissions ?? [], \Database\Seeders\Core\RoleSeeder::RF_FOR_EVERYONE, $permissions
+        )));
+        $role->save();
 
         $user = User::create(array_merge([
             'name' => Str::headline($roleSlug).' '.Str::random(4),

@@ -264,6 +264,7 @@
                                                             </label>
                                                         </div>
 
+                                                        @if(!empty($it['note']))<div class="ms-4 ps-2 small text-muted">{{ $it['note'] }}</div>@endif
                                                         {{-- Granular Actions --}}
                                                         @if(!empty($it['permissions']))
                                                             <div class="ms-4 ps-2 mt-1 d-flex flex-wrap gap-2">
@@ -381,6 +382,7 @@
                                                             </label>
                                                         </div>
 
+                                                        @if(!empty($it['note']))<div class="ms-4 ps-2 small text-muted">{{ $it['note'] }}</div>@endif
                                                         {{-- Granular Actions --}}
                                                         @if(!empty($it['permissions']))
                                                             <div class="ms-4 ps-2 mt-1 d-flex flex-wrap gap-2">

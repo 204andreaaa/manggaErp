@@ -27,6 +27,14 @@ return [
             'icon'        => 'bx bx-task',
             'permissions' => ['work_items.view', 'work_items.create', 'work_items.update', 'work_items.delete'],
         ],
+        [
+            'key'         => 'department_spending',
+            'label'       => 'Pengeluaran Departemen',
+            'route'       => 'erp.department-spending.index',
+            'group'       => 'project',
+            'icon'        => 'bx bx-buildings',
+            'permissions' => ['department_spending.view'],
+        ],
 
         // ================== PROCUREMENT & GA ==================
         [
@@ -143,7 +151,9 @@ return [
             'route'       => 'erp.product-families.index',
             'group'       => 'inventory',
             'icon'        => 'bx bx-category',
-            'permissions' => ['product_families.view', 'product_families.create', 'product_families.update', 'product_families.delete'],
+            // actions follow the Products permissions (products.view/create/update/delete)
+            'permissions' => [],
+            'note'        => 'Izin ubah data mengikuti izin Products.',
         ],
         [
             'key'         => 'product_types',
@@ -151,7 +161,9 @@ return [
             'route'       => 'erp.product-types.index',
             'group'       => 'inventory',
             'icon'        => 'bx bx-purchase-tag',
-            'permissions' => ['product_types.view', 'product_types.create', 'product_types.update', 'product_types.delete'],
+            // actions follow the Products permissions (products.view/create/update/delete)
+            'permissions' => [],
+            'note'        => 'Izin ubah data mengikuti izin Products.',
         ],
         [
             'key'         => 'brands',
@@ -159,7 +171,9 @@ return [
             'route'       => 'erp.brands.index',
             'group'       => 'inventory',
             'icon'        => 'bx bx-bookmark',
-            'permissions' => ['brands.view', 'brands.create', 'brands.update', 'brands.delete'],
+            // actions follow the Products permissions (products.view/create/update/delete)
+            'permissions' => [],
+            'note'        => 'Izin ubah data mengikuti izin Products.',
         ],
         [
             'key'         => 'product_models',
@@ -167,7 +181,9 @@ return [
             'route'       => 'erp.product-models.index',
             'group'       => 'inventory',
             'icon'        => 'bx bx-box',
-            'permissions' => ['product_models.view', 'product_models.create', 'product_models.update', 'product_models.delete'],
+            // actions follow the Products permissions (products.view/create/update/delete)
+            'permissions' => [],
+            'note'        => 'Izin ubah data mengikuti izin Products.',
         ],
         [
             'key'         => 'currencies',
@@ -175,7 +191,9 @@ return [
             'route'       => 'erp.currencies.index',
             'group'       => 'inventory',
             'icon'        => 'bx bx-dollar-circle',
-            'permissions' => ['currencies.view', 'currencies.create', 'currencies.update', 'currencies.delete'],
+            // actions follow the Products permissions (products.view/create/update/delete)
+            'permissions' => [],
+            'note'        => 'Izin ubah data mengikuti izin Products.',
         ],
         [
             'key'         => 'uoms',
@@ -183,7 +201,9 @@ return [
             'route'       => 'erp.uoms.index',
             'group'       => 'inventory',
             'icon'        => 'bx bx-ruler',
-            'permissions' => ['uoms.view', 'uoms.create', 'uoms.update', 'uoms.delete'],
+            // actions follow the Products permissions (products.view/create/update/delete)
+            'permissions' => [],
+            'note'        => 'Izin ubah data mengikuti izin Products.',
         ],
 
         // ================== SYSTEM & SECURITY ==================
@@ -193,7 +213,7 @@ return [
             'route'       => 'erp.users.index',
             'group'       => 'master',
             'icon'        => 'bx bx-user',
-            'permissions' => ['users.view', 'users.create', 'users.update', 'users.delete'],
+            'permissions' => ['users.view', 'users.create', 'users.update', 'users.delete', 'users.bulk_delete', 'users.export', 'users.export_seeder'],
         ],
         [
             'key'         => 'roles',

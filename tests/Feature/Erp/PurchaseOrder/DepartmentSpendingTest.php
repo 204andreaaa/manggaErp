@@ -124,4 +124,18 @@ class DepartmentSpendingTest extends PurchaseOrderTestCase
         $this->get(route('erp.department-spending.index'))->assertForbidden();
         $this->get(route('erp.department-spending.show', $ga))->assertForbidden();
     }
+
+    public function test_department_spending_has_its_own_permission_and_the_old_key_still_works(): void
+    {
+        $this->actingInProject($this->makeUser('controller', ['department_spending.view']))
+            ->get(route('erp.department-spending.index'))->assertOk();
+        $this->actingInProject($this->makeUser('old_viewer', ['budgets.view']))
+            ->get(route('erp.department-spending.index'))->assertOk();
+
+        // the Role page offers the new key
+        $this->actingInProject($this->makeUser('superadmin'))
+            ->get(route('erp.roles.index'))->assertOk()
+            ->assertSee('value="department_spending.view"', false)
+            ->assertSee('value="users.export"', false);
+    }
 }

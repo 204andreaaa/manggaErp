@@ -16,7 +16,7 @@ process.stdin.on('end', () => {
   process.stdout.write(JSON.stringify({
     hookSpecificOutput: {
       hookEventName: 'PostToolUse',
-      additionalContext: `You changed ${rel}. Before finishing this task, update docs/PRD.md so it matches the new behavior (the affected module section, plus a line in the Changelog with today's date), and commit it together with the code change.`,
+      additionalContext: `You changed ${rel}. Before finishing this task, make a new PRD version: copy docs/PRD.md to docs/prd-history/PRD-v<current version>.md, update the affected module section of docs/PRD.md, bump "Versi PRD", add a Changelog row (date, version, summary), and commit it together with the code change (see CLAUDE.md).`,
     },
   }));
 });

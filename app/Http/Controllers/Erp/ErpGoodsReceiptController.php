@@ -255,30 +255,15 @@ class ErpGoodsReceiptController extends Controller
             return redirect()->back()->with('error', 'Hanya Superadmin yang berhak menghapus Goods Receipt (DO).');
         }
 
+        // Goods that were verified as received stay on record (they are in stock and may
+        // already be paid for); only a receipt still waiting for verification can be removed.
+        if ($goodsReceipt->status === 'Received') {
+            return redirect()->back()->with('error', 'Goods Receipt yang sudah diverifikasi (Received) tidak dapat dihapus. Hanya GR yang masih Recorded yang bisa dihapus.');
+        }
+
         DB::beginTransaction();
         try {
             $po = $goodsReceipt->purchaseOrder;
-            $warehouseId = $goodsReceipt->warehouse_id 
-                ?: ($po?->erp_warehouse_id 
-                    ?: \Illuminate\Support\Facades\DB::table('erp_warehouses')->value('id'));
-            $supplierId = $po?->supplier_id;
-
-            if ($goodsReceipt->status === 'Received') {
-                foreach ($goodsReceipt->items as $grItem) {
-                    $product = $grItem->requestFormItem?->erpProduct;
-                    $receivedQty = $grItem->received_qty > 0 ? $grItem->received_qty : $grItem->delivered_qty;
-                    if ($product && ($product->is_physical ?? true) && $warehouseId && $receivedQty > 0) {
-                        $stock = \App\Models\Erp\ErpStock::where('erp_product_id', $product->id)
-                            ->where('erp_warehouse_id', $warehouseId)
-                            ->where('erp_supplier_id', $supplierId)
-                            ->first();
-                        if ($stock) {
-                            $newQty = max(0, $stock->qty_on_hand - $receivedQty);
-                            $stock->update(['qty_on_hand' => $newQty]);
-                        }
-                    }
-                }
-            }
 
             $grItems = $goodsReceipt->items()->with(['requestFormItem', 'purchaseOrderItem'])->get();
 
@@ -297,17 +282,19 @@ class ErpGoodsReceiptController extends Controller
 
             if ($po) {
                 $po->load('items');
-                $isCompleted = $po->is_gr_completed;
-                $po->update([
-                    'gr' => $isCompleted,
-                    'status' => 'Approved'
-                ]);
+                $fullyReceived = $po->is_gr_completed;
+                $changes = ['gr' => $fullyReceived];
+                // a Completed PO only steps back when it is no longer fully received and paid
+                if ($po->status === 'Completed' && !($fullyReceived && $po->payment_closed)) {
+                    $changes['status'] = 'Approved';
+                }
+                $po->update($changes);
             }
 
             DB::commit();
 
             $redirectUrl = $po ? route('erp.purchase-orders.show', $po) : route('erp.procurement.dashboard');
-            return redirect($redirectUrl)->with('success', 'Goods Receipt (DO) berhasil dihapus. Stok fisik telah dikurangi kembali dan PO dikembalikan ke status Approved.');
+            return redirect($redirectUrl)->with('success', 'Goods Receipt (DO) yang belum diverifikasi berhasil dihapus.');
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()->with('error', 'Gagal menghapus Goods Receipt: ' . $e->getMessage());

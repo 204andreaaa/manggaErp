@@ -61,7 +61,7 @@ return [
 
         /*
         | Tenant adalah connection dinamis untuk data operasional. Nilainya
-        | akan ditimpa TenantManager dari record project yang dipilih.
+        | akan ditimpa ErpTenantManager dari record project yang dipilih.
         */
         'tenant' => [
             'driver' => 'mysql',

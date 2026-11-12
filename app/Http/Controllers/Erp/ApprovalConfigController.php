@@ -113,9 +113,8 @@ class ApprovalConfigController extends Controller
             'record_type' => 'required|in:request_form,purchase_order,payment_advice,advance_request,expense_declaration,po_verification,gr_verification',
             'level' => 'required|integer|min:1',
             'name' => 'required|string|max:100',
-            'assign_type' => 'required|in:user,role',
-            'user_id' => 'required_if:assign_type,user|nullable|exists:master.users,id',
-            'role_id' => 'required_if:assign_type,role|nullable|exists:master.roles,id',
+            // Every step is approved by one named person, so a user is required.
+            'user_id' => 'required|exists:master.users,id',
             'min_amount' => 'nullable|numeric|min:0',
             // Min kosong = 0, jadi 'gte:min_amount' tidak dipakai (selalu gagal kalau Min kosong).
             'max_amount' => ['nullable', 'numeric', 'min:0', function ($attribute, $value, $fail) use ($request) {
@@ -139,12 +138,8 @@ class ApprovalConfigController extends Controller
             $data['is_project'] = ($data['is_project'] ?? '') === '' ? null : $data['is_project'];
         }
 
-        if ($data['assign_type'] === 'role') {
-            $data['user_id'] = null;
-        } else {
-            $data['role_id'] = null;
-        }
-        unset($data['assign_type']);
+        // saving an old role-based step turns it into a user step
+        $data['role_id'] = null;
 
         return $data;
     }

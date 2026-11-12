@@ -109,7 +109,7 @@ if ($isGA || $isLogistik) {
                             <i class="bx bx-wallet-alt me-2"></i> Budget Parents
                         </a>
                     </li>
-                    @if($isSuperAdmin || $u?->hasPermission('budgets.view'))
+                    @if($isSuperAdmin || $u?->hasPermission('department_spending.view'))
                     <li>
                         <a class="dropdown-item {{ request()->routeIs('erp.department-spending.*') ? 'active' : '' }}" href="{{ $rl('erp.department-spending.index') }}">
                             <i class="bx bx-buildings me-2"></i> Pengeluaran Departemen

@@ -67,7 +67,8 @@
                 <td class="text-end">IDR {{ number_format($adv->actual_amount, 0, ',', '.') }}</td>
                 <td>{{ $m?->area }}</td>
                 <td><span class="badge bg-label-{{ $statusClass }}">{{ $adv->status }}</span></td>
-                <td><span class="badge bg-label-{{ $adv->payment_status === 'Paid' ? 'success' : 'warning' }}">{{ $adv->payment_status }}</span></td>
+                <td><span class="badge bg-label-{{ $adv->payment_status === 'Paid' ? 'success' : 'warning' }}">{{ $adv->payment_status }}</span>
+                  @if($adv->settled_at)<span class="badge bg-label-dark ms-1">Closed</span>@endif</td>
               </tr>
             @endforeach
           </tbody>

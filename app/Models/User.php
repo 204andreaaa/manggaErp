@@ -113,6 +113,9 @@ class User extends Authenticatable
                 $aliases["{$screen}.{$action}"] = ["budgets.{$action}"];
             }
         }
+        // Older keys that roles may still hold, before these got their own checkbox.
+        $aliases['department_spending.view'] = ['budgets.view'];
+        $aliases['purchase_orders.verify'] = ['po.verify'];
 
         foreach ($this->roles as $role) {
             $perms = $role->permissions ?? [];

@@ -101,7 +101,8 @@
                         <tr>
                             <td class="text-center text-muted fw-semibold">{{ $idx + 1 }}</td>
                             <td>
-                                <div class="fw-bold text-dark">{{ $r->title }}</div>
+                                <div class="fw-bold text-dark">{{ $r->title }}
+                                    <span class="badge bg-label-{{ $r->is_public ? 'info' : 'secondary' }} ms-1">{{ $r->is_public ? 'Dibagikan' : 'Pribadi' }}</span></div>
                                 @if($r->description)
                                     <small class="text-muted">{{ Str::limit($r->description, 50) }}</small>
                                 @endif
@@ -125,9 +126,11 @@
                                     <a href="{{ route('erp.reports.builder', ['report_id' => $r->id]) }}" class="btn btn-primary" title="Buka & Jalankan Report">
                                         <i class="bx bx-play me-1"></i> Buka
                                     </a>
+                                    @if((int) $r->user_id === (int) auth()->id() || auth()->user()->hasRole('superadmin'))
                                     <button type="button" class="btn btn-outline-danger js-delete-report" data-id="{{ $r->id }}" data-title="{{ $r->title }}" title="Hapus Template">
                                         <i class="bx bx-trash"></i>
                                     </button>
+                                    @endif
                                 </div>
                             </td>
                         </tr>

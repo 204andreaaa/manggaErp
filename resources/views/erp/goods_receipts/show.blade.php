@@ -131,8 +131,9 @@
         <span class="badge bg-success px-3 py-2 fs-7"><i class="bx bx-check-circle me-1"></i>{{ $grText['done'] }}</span>
       @endif
 
-      @if(auth()->user()->hasRole('superadmin'))
-        <form action="{{ route('erp.goods-receipts.destroy', $goodsReceipt) }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin menghapus Goods Receipt (DO) ini? Stok fisik yang pernah diterima akan dikurangi kembali dan PO akan dikembalikan ke status Approved.');">
+      {{-- a verified (Received) GR stays on record; only one still waiting for verification can go --}}
+      @if(auth()->user()->hasRole('superadmin') && $goodsReceipt->status !== 'Received')
+        <form action="{{ route('erp.goods-receipts.destroy', $goodsReceipt) }}" method="POST" class="d-inline" onsubmit="return confirm('Hapus Goods Receipt (DO) yang belum diverifikasi ini?');">
           @csrf
           @method('DELETE')
           <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-3">

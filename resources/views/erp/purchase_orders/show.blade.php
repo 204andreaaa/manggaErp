@@ -88,13 +88,16 @@
           </form>
         @endif
 
-        <form action="{{ route('erp.purchase-orders.destroy', $purchaseOrder) }}" method="POST" class="d-inline" onsubmit="return confirm('PERINGATAN KERAS!\n\nMenghapus PO ini akan berakibat:\n1. Dokumen PO ({{ $purchaseOrder->po_no }}) Dihapus Permanen.\n2. {{ $purchaseOrder->items->count() }} Item di dalam PO ini ikut terhapus.\n3. Histori Approval PO terhapus.\n4. Status Barang (PR Item) di RF akan dikembalikan menjadi \'Requested\'.\n\nApakah Anda sangat yakin ingin melanjutkan?');">
+        {{-- only a Draft that never went to approval can be deleted; anything else is cancelled --}}
+        @unless($purchaseOrder->deleteBlockReason())
+        <form action="{{ route('erp.purchase-orders.destroy', $purchaseOrder) }}" method="POST" class="d-inline" onsubmit="return confirm('Hapus PO Draft {{ $purchaseOrder->po_no }}?\n\nPO dan {{ $purchaseOrder->items->count() }} item-nya dihapus permanen, barang di RF kembali menjadi \'Requested\'.');">
           @csrf
           @method('DELETE')
           <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-3">
             <i class="bx bx-trash me-1"></i>Delete
           </button>
         </form>
+        @endunless
 
         @php $cancelBlockReason = $purchaseOrder->status === 'Cancelled' ? null : $purchaseOrder->cancelBlockReason(); @endphp
         @if($cancelBlockReason && !in_array($purchaseOrder->status, ['Cancelled', 'Rejected']))

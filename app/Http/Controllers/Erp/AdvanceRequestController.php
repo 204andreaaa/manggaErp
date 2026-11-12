@@ -188,12 +188,21 @@ class AdvanceRequestController extends Controller
                 return redirect()->back()->with('error', 'Advance Request sudah pernah disubmit.');
             }
 
+            $amount = (float) $advanceRequest->total_amount_advance;
             $configs = ErpApprovalConfig::where('record_type', 'advance_request')
+                ->forAmount($amount)
                 ->orderBy('level')
                 ->get();
 
             if ($configs->isEmpty()) {
                 return redirect()->back()->with('error', 'Approval flow is not configured for this record type.');
+            }
+
+            // Submitting books the budget, so it has to fit now (other kasbon may have
+            // been submitted against the same budget line since this one was saved).
+            $detail = \App\Models\Erp\BudgetPlanDetail::where('id', $advanceRequest->budget_plan_detail_id)->lockForUpdate()->firstOrFail();
+            if ($shortfall = \App\Services\BudgetGuard::detailShortfall($detail, $amount, $advanceRequest->id)) {
+                return redirect()->back()->with('error', "Advance Request {$advanceRequest->code} tidak bisa diajukan. {$shortfall}");
             }
 
             $isFirst = true;
@@ -215,6 +224,7 @@ class AdvanceRequestController extends Controller
             }
 
             $advanceRequest->update(['status' => 'Submitted']);
+            BudgetRollupService::recalculateDetail($advanceRequest->budget_plan_detail_id);
 
             NotificationHelper::pushLive('advance_request', $advanceRequest->id, $advanceRequest->status);
 
@@ -274,12 +284,13 @@ class AdvanceRequestController extends Controller
                 return redirect()->back()->with('error', 'Anda tidak dapat menyetujui Advance Request yang Anda ajukan sendiri.');
             }
 
-            // The last approval is what cuts the budget, so it must still fit right now.
+            // The amount is already booked since submit; checked once more (without its own
+            // booking) in case the budget line itself was lowered in the meantime.
             $isFinalApproval = $advanceRequest
                 && !$advanceRequest->approvals()->where('round', $approval->round)->where('status', 'Waiting')->where('id', '!=', $approval->id)->exists();
             if ($isFinalApproval) {
                 $detail = \App\Models\Erp\BudgetPlanDetail::where('id', $advanceRequest->budget_plan_detail_id)->lockForUpdate()->firstOrFail();
-                if ($shortfall = \App\Services\BudgetGuard::detailShortfall($detail, (float) $advanceRequest->total_amount_advance)) {
+                if ($shortfall = \App\Services\BudgetGuard::detailShortfall($detail, (float) $advanceRequest->total_amount_advance, $advanceRequest->id)) {
                     return redirect()->back()->with('error', "Advance Request {$advanceRequest->code} tidak bisa di-approve. {$shortfall}");
                 }
             }
@@ -397,6 +408,8 @@ class AdvanceRequestController extends Controller
             if ($advanceRequest) {
                 $advanceRequest->approvals()->where('round', $approval->round)->where('status', 'Waiting')->update(['status' => 'Cancelled']);
                 $advanceRequest->update(['status' => 'Rejected']);
+                // releases the budget booked at submit
+                BudgetRollupService::recalculateDetail($advanceRequest->budget_plan_detail_id);
 
                 NotificationHelper::pushLive('advance_request', $advanceRequest->id, $advanceRequest->status);
 
@@ -457,6 +470,60 @@ class AdvanceRequestController extends Controller
             }
 
             return redirect()->back()->with('success', 'Advance Request ditandai sudah dibayar.');
+        });
+    }
+
+    /**
+     * Closes a paid kasbon once the employee is done declaring: the unused part
+     * (the outstanding) is recorded as returned, the outstanding becomes 0 and the
+     * budget it was holding is released. No more declarations can be made on it.
+     */
+    public function settle(Request $request, AdvanceRequest $advanceRequest)
+    {
+        $user = auth()->user();
+        abort_unless($user->hasRole(['finance', 'superadmin']) || $user->hasPermission('advance_requests.pay'), 403);
+
+        $data = $request->validate([
+            'settlement_date' => 'required|date',
+            'settlement_note' => 'nullable|string|max:500',
+        ]);
+
+        return DB::transaction(function () use ($advanceRequest, $user, $data) {
+            $advanceRequest = AdvanceRequest::where('id', $advanceRequest->id)->lockForUpdate()->firstOrFail();
+
+            if (!$advanceRequest->isOpenForSettlement()) {
+                return redirect()->back()->with('error', 'Hanya kasbon Approved yang sudah dibayar dan belum ditutup yang bisa di-settle.');
+            }
+
+            BudgetRollupService::recalculateAdvanceRequest($advanceRequest->id);
+            $returned = max(0, (float) $advanceRequest->fresh()->advance_outstanding);
+
+            $advanceRequest->update([
+                'settled_at' => now(),
+                'settled_by_id' => $user->id,
+                'settlement_amount' => $returned,
+                'settlement_date' => $data['settlement_date'],
+                'settlement_note' => $data['settlement_note'] ?? null,
+            ]);
+
+            BudgetRollupService::recalculateAdvanceRequest($advanceRequest->id);
+            BudgetRollupService::recalculateDetail($advanceRequest->budget_plan_detail_id);
+
+            NotificationHelper::pushLive('advance_request', $advanceRequest->id, $advanceRequest->status);
+
+            if ($advanceRequest->request_by_id) {
+                NotificationHelper::send(
+                    $advanceRequest->request_by_id,
+                    'advance_request_settled',
+                    'Kasbon Ditutup',
+                    "Advance Request {$advanceRequest->code} sudah di-settle. Sisa dikembalikan: Rp ".number_format($returned, 0, ',', '.').'.',
+                    route('erp.advance-requests.show', $advanceRequest),
+                    'advance_request',
+                    $advanceRequest->id
+                );
+            }
+
+            return redirect()->back()->with('success', 'Kasbon di-settle. Sisa Rp '.number_format($returned, 0, ',', '.').' dicatat dikembalikan dan budget-nya dilepas.');
         });
     }
 

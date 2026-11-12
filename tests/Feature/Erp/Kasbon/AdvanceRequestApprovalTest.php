@@ -4,6 +4,7 @@ namespace Tests\Feature\Erp\Kasbon;
 
 use App\Models\Erp\AdvanceRequest;
 use App\Models\Erp\ErpApprovalConfig;
+use App\Services\BudgetRollupService;
 use Tests\ErpTestCase;
 
 /** Kasbon submit -> multi-level approval -> budget cut on final approval -> reject -> pay. */
@@ -28,7 +29,22 @@ class AdvanceRequestApprovalTest extends ErpTestCase
         $approvals = $kasbon->approvals()->orderBy('level')->get();
         $this->assertSame([1, 2], $approvals->pluck('level')->map(fn ($l) => (int) $l)->all());
         $this->assertSame(['Pending', 'Waiting'], $approvals->pluck('status')->all());
-        $this->assertEquals(50000000, $this->remaining('Office'), 'Submitting does not cut the budget');
+        $this->assertEquals(49000000, $this->remaining('Office'), 'Submitting books the budget');
+    }
+
+    public function test_the_approval_flow_follows_the_kasbon_amount(): void
+    {
+        // small kasbon: one step; from 5 jt: a second step
+        ErpApprovalConfig::where('record_type', 'advance_request')->where('level', 1)->update(['max_amount' => null]);
+        ErpApprovalConfig::where('record_type', 'advance_request')->where('level', 2)->update(['min_amount' => 5000000]);
+
+        $small = $this->createKasbon('Office', 1000000);
+        $this->submitKasbon($small)->assertSessionHas('success');
+        $this->assertSame([1], $small->approvals()->pluck('level')->map(fn ($l) => (int) $l)->all());
+
+        $big = $this->createKasbon('Office', 6000000);
+        $this->submitKasbon($big)->assertSessionHas('success');
+        $this->assertSame([1, 2], $big->approvals()->orderBy('level')->pluck('level')->map(fn ($l) => (int) $l)->all());
     }
 
     public function test_submit_without_approval_config_is_refused(): void
@@ -56,15 +72,15 @@ class AdvanceRequestApprovalTest extends ErpTestCase
         $kasbon = $this->createKasbon('Other Expense', 3000000);
         $this->submitKasbon($kasbon);
 
-        // Level 1: moves on to level 2, no cut yet.
+        // Level 1: moves on to level 2; the amount is already booked since submit.
         $this->actingInProject($this->approver);
         $this->post(route('erp.advance-requests.approvals.approve', $this->pendingApproval($kasbon)), ['comments' => 'L1'])
             ->assertSessionHas('success');
         $this->assertSame('Submitted', $kasbon->fresh()->status);
         $this->assertSame(['Approved', 'Pending'], $kasbon->approvals()->orderBy('level')->pluck('status')->all());
-        $this->assertEquals(10000000, $this->remaining('Other Expense'));
+        $this->assertEquals(7000000, $this->remaining('Other Expense'));
 
-        // Level 2 (final): approved and the detail is cut.
+        // Level 2 (final): approved; the booking becomes the outstanding, same amount.
         $this->actingInProject($this->approver2);
         $this->post(route('erp.advance-requests.approvals.approve', $this->pendingApproval($kasbon)), ['comments' => 'L2'])
             ->assertSessionHas('success');
@@ -128,24 +144,41 @@ class AdvanceRequestApprovalTest extends ErpTestCase
         $this->assertSame('Approved', $kasbon->fresh()->status);
     }
 
-    public function test_final_approval_is_refused_when_the_detail_no_longer_covers_it(): void
+    public function test_two_kasbon_waiting_for_approval_cannot_together_exceed_the_budget(): void
     {
         $first = $this->createKasbon('Other Expense', 6000000);
         $second = $this->createKasbon('Other Expense', 6000000);
-        $this->submitKasbon($first);
-        $this->submitKasbon($second);
+        $this->submitKasbon($first)->assertSessionHas('success'); // books 6 of 10 jt
 
-        $this->approveKasbonFully($first); // 10 jt -> 4 jt left
+        $this->submitKasbon($second)->assertSessionHas('error');
+        $this->assertSame('Draft', $second->fresh()->status);
+        $this->assertSame(0, $second->approvals()->count());
+        $this->assertEquals(4000000, $this->remaining('Other Expense'));
 
+        // once the first is rejected its booking is released and the second fits
         $this->actingInProject($this->approver);
-        $this->post(route('erp.advance-requests.approvals.approve', $this->pendingApproval($second)))->assertSessionHas('success');
-        $finalStep = $this->pendingApproval($second);
+        $this->post(route('erp.advance-requests.approvals.reject', $this->pendingApproval($first)), ['reason' => 'no'])->assertSessionHas('success');
+        $this->assertEquals(10000000, $this->remaining('Other Expense'));
+        $this->submitKasbon($second)->assertSessionHas('success');
+        $this->assertEquals(4000000, $this->remaining('Other Expense'));
+    }
+
+    public function test_final_approval_is_refused_when_the_budget_line_was_lowered_meanwhile(): void
+    {
+        $kasbon = $this->createKasbon('Other Expense', 6000000);
+        $this->submitKasbon($kasbon);
+        $this->actingInProject($this->approver);
+        $this->post(route('erp.advance-requests.approvals.approve', $this->pendingApproval($kasbon)))->assertSessionHas('success');
+
+        // someone shrinks the budget line below the booked amount
+        $this->detail('Other Expense')->update(['amount' => 5000000]);
+        BudgetRollupService::recalculateDetail($this->detail('Other Expense')->id);
+
+        $finalStep = $this->pendingApproval($kasbon);
         $this->actingInProject($this->approver2);
         $this->post(route('erp.advance-requests.approvals.approve', $finalStep))->assertSessionHas('error');
-
-        $this->assertSame('Submitted', $second->fresh()->status);
+        $this->assertSame('Submitted', $kasbon->fresh()->status);
         $this->assertSame('Pending', $finalStep->fresh()->status);
-        $this->assertEquals(4000000, $this->remaining('Other Expense'));
     }
 
     public function test_an_already_processed_step_cannot_be_approved_again(): void

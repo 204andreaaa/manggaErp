@@ -115,6 +115,10 @@ class PaymentApprovalAndPaidTest extends ErpTestCase
         $this->post(route('erp.payment-advice-details.approve', $first));
         $this->post(route('erp.payment-advice-details.mark-paid', $first))->assertSessionHas('success');
         $this->assertFalse($pa->fresh()->payment_closed);
+        // the PO shows what was paid out so far and what is left
+        $po = $pa->purchaseOrder->fresh();
+        $this->assertEquals(2_000_000, (float) $po->amount_paid);
+        $this->assertEquals((float) $po->total_po_amount_with_tax - 2_000_000, (float) $po->balance_amount);
 
         $this->actingInProject($this->financeUser);
         $this->post(route('erp.payment-advice-details.submit', $second), ['invoice_no' => 'INV-2'])->assertSessionHas('success');
@@ -126,6 +130,7 @@ class PaymentApprovalAndPaidTest extends ErpTestCase
         $this->post(route('erp.payment-advice-details.mark-paid', $second))->assertSessionHas('success');
         $this->assertTrue($pa->fresh()->payment_closed);
         $this->assertSame('Completed', $pa->fresh()->status);
+        $this->assertEquals(5_000_000, (float) $pa->purchaseOrder->fresh()->amount_paid);
     }
 
     public function test_pa_list_and_detail_show_the_same_status(): void

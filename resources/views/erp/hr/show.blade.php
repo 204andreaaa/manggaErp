@@ -244,7 +244,8 @@
                         <div class="small text-muted">{{ $k->expenseDeclarations->count() ? $k->expenseDeclarations->count().' deklarasi' : 'Belum ada deklarasi' }}</div>
                       </td>
                       <td class="text-nowrap"><span class="badge bg-label-{{ $badge($k->status) }}">{{ $k->status }}</span>
-                        @if($k->payment_status)<div class="mt-1"><span class="badge rounded-pill bg-label-{{ $badge($k->payment_status) }}" style="font-size:.66rem">{{ $k->payment_status }}</span></div>@endif</td>
+                        @if($k->payment_status)<div class="mt-1"><span class="badge rounded-pill bg-label-{{ $badge($k->payment_status) }}" style="font-size:.66rem">{{ $k->payment_status }}</span>
+                          @if($k->settled_at)<span class="badge rounded-pill bg-label-dark" style="font-size:.66rem">Closed</span>@endif</div>@endif</td>
                     </tr>
                   @endforeach
                   @foreach($standaloneDeclarations as $d)

@@ -2,8 +2,9 @@
   <td><span class="badge {{ $badgeClass }}">Step {{ $config->level }}</span></td>
   <td class="fw-semibold">{{ $config->name }}</td>
   <td>
-    @if($config->role_id)
+    @if($config->role_id && !$config->user_id)
       Role: <span class="fw-bold">{{ $config->role->name ?? '-' }}</span>
+      <span class="badge bg-label-danger d-block mt-1" title="Approval sekarang wajib ke satu user">Ganti ke user</span>
     @else
       User: <span class="fw-bold">{{ $config->user->name ?? "-" }}</span>
     @endif

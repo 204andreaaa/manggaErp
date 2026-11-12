@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\Role;
 use App\Models\Employee;
 use App\Models\Department;
+use App\Models\Project;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -58,14 +59,37 @@ class UserController extends Controller
     public function index()
     {
         $me = $this->ensureCanManageUsers('users.view');
-        $query = User::on('master')->with(['roles', 'employee'])->orderBy('id');
+        $query = User::on('master')->with(['roles', 'employee', 'projects'])->orderBy('id');
         $users = $query->get();
 
         $warehouses = collect();
         $allRoles = Role::orderBy('name')->get(['id', 'name', 'slug']);
         $departments = Department::where('status', 'active')->orderBy('name')->get(['id', 'code', 'name']);
+        $projects = $this->manageableProjects($me);
+        $currentProjectId = (int) session('project_id');
 
-        return view('erp.users.index', compact('users', 'warehouses', 'allRoles', 'departments', 'me'));
+        return view('erp.users.index', compact('users', 'warehouses', 'allRoles', 'departments', 'me', 'projects', 'currentProjectId'));
+    }
+
+    /** Projects whose access this admin may hand out: all for a superadmin, otherwise their own. */
+    protected function manageableProjects(User $me)
+    {
+        return $me->hasRole('superadmin')
+            ? Project::orderBy('name')->get(['id', 'name', 'is_active'])
+            : $me->projects()->orderBy('name')->get(['projects.id', 'projects.name', 'projects.is_active']);
+    }
+
+    /**
+     * Sets which projects `$user` may open. Only projects the admin manages are touched;
+     * access to other projects is left as it was.
+     */
+    protected function syncProjectAccess(User $me, User $user, array $selectedIds): void
+    {
+        $manageable = $this->manageableProjects($me)->pluck('id')->map(fn ($id) => (int) $id);
+        $selected = collect($selectedIds)->map(fn ($id) => (int) $id)->intersect($manageable);
+        $untouched = $user->projects()->pluck('projects.id')->map(fn ($id) => (int) $id)->diff($manageable);
+
+        $user->projects()->sync($untouched->merge($selected)->unique()->values()->all());
     }
 
     public function store(Request $request)
@@ -84,7 +108,8 @@ class UserController extends Controller
             'password'     => ['required','confirmed','min:6'],
             'roles'        => ['array','min:1'],
             'roles.*'      => ['string','exists:master.roles,slug'],
-            
+            'projects'     => ['nullable','array'],
+            'projects.*'   => ['integer','exists:master.projects,id'],
             'status'       => ['required', Rule::in(['active','inactive'])],
         ]);
 
@@ -128,14 +153,20 @@ class UserController extends Controller
 
         $customDept = $data['department'] ?? null;
 
-        $user = DB::transaction(function () use ($payload, $roleIds, $customDept) {
+        $projectIds = $request->has('projects') ? ($data['projects'] ?? []) : null;
+
+        $user = DB::transaction(function () use ($me, $payload, $roleIds, $customDept, $projectIds) {
             $user = User::create($payload);
             $user->roles()->sync($roleIds);
 
-            // Auto attach to current active project so user can login & access ERP immediately
-            $projectId = session('project_id') ?? Project::where('is_active', true)->value('id');
-            if ($projectId) {
-                $user->projects()->syncWithoutDetaching([$projectId]);
+            if ($projectIds !== null) {
+                $this->syncProjectAccess($me, $user, $projectIds);
+            } else {
+                // nothing picked: the project being worked in, so the user can log in right away
+                $projectId = session('project_id') ?? Project::where('is_active', true)->value('id');
+                if ($projectId) {
+                    $user->projects()->syncWithoutDetaching([$projectId]);
+                }
             }
 
             $this->syncEmployeeProfile($user, $customDept);
@@ -176,7 +207,8 @@ class UserController extends Controller
             'password'     => ['nullable','confirmed','min:6'],
             'roles'        => ['array','min:1'],
             'roles.*'      => ['string','exists:master.roles,slug'],
-            
+            'projects'     => ['nullable','array'],
+            'projects.*'   => ['integer','exists:master.projects,id'],
             'status'       => ['required', Rule::in(['active','inactive'])],
         ]);
 
@@ -223,9 +255,15 @@ class UserController extends Controller
         $payload['signature_path'] = $signaturePath;
         $customDept = $data['department'] ?? null;
 
-        DB::transaction(function () use ($user, $payload, $roleIds, $customDept) {
+        // the edit form always sends the project list (projects_present), even with nothing ticked
+        $projectIds = $request->boolean('projects_present') ? ($data['projects'] ?? []) : null;
+
+        DB::transaction(function () use ($me, $user, $payload, $roleIds, $customDept, $projectIds) {
             $user->update($payload);
             $user->roles()->sync($roleIds);
+            if ($projectIds !== null) {
+                $this->syncProjectAccess($me, $user, $projectIds);
+            }
             $this->syncEmployeeProfile($user, $customDept);
         });
 

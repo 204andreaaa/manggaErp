@@ -32,12 +32,20 @@ class AdvanceRequest extends Model
         'payment_status',
         'payment_date',
         'paid_by_id',
+        'settled_at',
+        'settled_by_id',
+        'settlement_amount',
+        'settlement_date',
+        'settlement_note',
     ];
 
     protected $casts = [
         'budget_period' => 'date',
         'advance_request_date' => 'date',
         'payment_date' => 'date',
+        'settled_at' => 'datetime',
+        'settlement_date' => 'date',
+        'settlement_amount' => 'decimal:2',
         'amount_per_unit' => 'decimal:2',
         'actual_amount' => 'decimal:2',
         'total_amount_advance' => 'decimal:2',
@@ -61,6 +69,22 @@ class AdvanceRequest extends Model
     public function paidBy()
     {
         return $this->belongsTo(User::class, 'paid_by_id');
+    }
+
+    public function settledBy()
+    {
+        return $this->belongsTo(User::class, 'settled_by_id');
+    }
+
+    public function isSettled(): bool
+    {
+        return $this->settled_at !== null;
+    }
+
+    /** Approved, paid and not yet closed: the employee can still declare against it, or Finance can settle it. */
+    public function isOpenForSettlement(): bool
+    {
+        return $this->status === 'Approved' && $this->payment_status === 'Paid' && !$this->isSettled();
     }
 
     public function approvals()

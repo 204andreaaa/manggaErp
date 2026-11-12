@@ -31,7 +31,7 @@ class ApprovalConfigTest extends ErpTestCase
         $this->get(route('erp.approval-configs.index'))->assertOk()->assertSee('Site Manager Step');
     }
 
-    public function test_create_user_and_role_steps(): void
+    public function test_every_step_is_assigned_to_one_user(): void
     {
         $this->actingInProject($this->makeUser('superadmin'));
         $approver = $this->makeUser('staff');
@@ -48,17 +48,30 @@ class ApprovalConfigTest extends ErpTestCase
             'role_id' => null, 'min_amount' => 0, 'max_amount' => 5000000, 'is_project' => 1,
         ], 'tenant');
 
+        // A role alone is no longer accepted: a step needs a named person.
+        $this->from(route('erp.approval-configs.index'))->post(route('erp.approval-configs.store'), [
+            'record_type' => 'request_form', 'level' => 1, 'name' => 'Role only',
+            'assign_type' => 'role', 'role_id' => $finance->id,
+        ])->assertSessionHasErrors('user_id');
+
         // Single-step verification types are forced to level 1 with no amount/project filter.
         $this->post(route('erp.approval-configs.store'), [
             'record_type' => 'gr_verification', 'level' => 3, 'name' => 'GR check',
-            'assign_type' => 'role', 'role_id' => $finance->id, 'user_id' => $approver->id,
-            'min_amount' => 100, 'max_amount' => 200, 'is_project' => '0',
+            'user_id' => $approver->id, 'min_amount' => 100, 'max_amount' => 200, 'is_project' => '0',
         ])->assertSessionHasNoErrors();
 
         $this->assertDatabaseHas('erp_approval_configs', [
-            'record_type' => 'gr_verification', 'level' => 1, 'role_id' => $finance->id, 'user_id' => null,
+            'record_type' => 'gr_verification', 'level' => 1, 'role_id' => null, 'user_id' => $approver->id,
             'min_amount' => null, 'max_amount' => null, 'is_project' => null,
         ], 'tenant');
+
+        // Saving an old role-based step turns it into a user step.
+        $legacy = ErpApprovalConfig::create(['record_type' => 'advance_request', 'level' => 1, 'name' => 'Old', 'role_id' => $finance->id]);
+        $this->get(route('erp.approval-configs.index'))->assertSee('Ganti ke user');
+        $this->put(route('erp.approval-configs.update', $legacy), [
+            'record_type' => 'advance_request', 'level' => 1, 'name' => 'Old', 'user_id' => $approver->id,
+        ])->assertSessionHasNoErrors();
+        $this->assertSame([$approver->id, null], [$legacy->fresh()->user_id, $legacy->fresh()->role_id]);
     }
 
     public function test_create_rejects_invalid_input_and_conflicting_steps(): void

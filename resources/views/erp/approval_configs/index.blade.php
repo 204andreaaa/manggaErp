@@ -332,32 +332,17 @@
             <input type="text" name="name" class="form-control" required placeholder="e.g. Finance Approval">
           </div>
 
-          <div class="row">
-            <div class="col-md-4 mb-3">
-              <label class="form-label fw-bold">Assign To <span class="text-danger">*</span></label>
-              <select name="assign_type" id="assignTypeSelect" class="form-select">
-                <option value="user">Specific User</option>
-                <option value="role">Role (anyone with this role)</option>
-              </select>
-            </div>
-            <div class="col-md-8 mb-3" id="assignUserCol">
-              <label class="form-label">User</label>
-              <select name="user_id" id="userIdSelect" class="form-select">
-                <option value="">-- Select User --</option>
-                @foreach($users as $u)
-                  <option value="{{ $u->id }}">{{ $u->name }}</option>
-                @endforeach
-              </select>
-            </div>
-            <div class="col-md-8 mb-3 d-none" id="assignRoleCol">
-              <label class="form-label">Role</label>
-              <select name="role_id" id="roleIdSelect" class="form-select">
-                <option value="">-- Select Role --</option>
-                @foreach($roles as $r)
-                  <option value="{{ $r->id }}">{{ $r->name }}</option>
-                @endforeach
-              </select>
-            </div>
+          {{-- Every step goes to one named person, so only a user can be picked. --}}
+          <input type="hidden" name="assign_type" value="user">
+          <div class="mb-3">
+            <label class="form-label fw-bold">Approver (User) <span class="text-danger">*</span></label>
+            <select name="user_id" id="userIdSelect" class="form-select" required>
+              <option value="">-- Select User --</option>
+              @foreach($users as $u)
+                <option value="{{ $u->id }}">{{ $u->name }}</option>
+              @endforeach
+            </select>
+            <div class="form-text">Setiap langkah approval ditujukan ke satu akun user.</div>
           </div>
 
           <div id="conditionsSection">
@@ -416,17 +401,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const isProjectCol = document.getElementById('isProjectCol');
     const addConfigModal = document.getElementById('addConfigModal');
 
-    const assignTypeSelect = document.getElementById('assignTypeSelect');
-    const assignUserCol = document.getElementById('assignUserCol');
-    const assignRoleCol = document.getElementById('assignRoleCol');
     const userIdSelect = document.getElementById('userIdSelect');
-    const roleIdSelect = document.getElementById('roleIdSelect');
-
-    function updateAssignFields() {
-        const isRole = assignTypeSelect.value === 'role';
-        assignUserCol.classList.toggle('d-none', isRole);
-        assignRoleCol.classList.toggle('d-none', !isRole);
-    }
 
     function updateModalFields() {
         if (!recordTypeSelect) return;
@@ -472,8 +447,6 @@ document.addEventListener('DOMContentLoaded', function() {
         formMethod.value = 'POST';
         modalTitle.innerHTML = '<i class="bx bx-cog me-2"></i>Add Approval / Verification Configuration';
         submitBtn.textContent = 'Save Configuration';
-        assignTypeSelect.value = 'user';
-        updateAssignFields();
         updateModalFields();
     }
 
@@ -491,14 +464,8 @@ document.addEventListener('DOMContentLoaded', function() {
             levelInput.value = config.level;
             nameInput.value = config.name;
 
-            if (config.role_id) {
-                assignTypeSelect.value = 'role';
-                roleIdSelect.value = config.role_id;
-            } else {
-                assignTypeSelect.value = 'user';
-                userIdSelect.value = config.user_id;
-            }
-            updateAssignFields();
+            // a legacy role-based step has no user yet; the admin must pick one to save it
+            userIdSelect.value = config.user_id ?? '';
 
             document.querySelector('select[name="is_project"]').value = (config.is_project === null || config.is_project === undefined) ? '' : (config.is_project ? '1' : '0');
             document.querySelector('input[name="min_amount"]').value = config.min_amount ?? '';
@@ -513,9 +480,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (recordTypeSelect) {
         recordTypeSelect.addEventListener('change', updateModalFields);
-    }
-    if (assignTypeSelect) {
-        assignTypeSelect.addEventListener('change', updateAssignFields);
     }
     if (addConfigModal) {
         addConfigModal.addEventListener('hidden.bs.modal', resetForm);

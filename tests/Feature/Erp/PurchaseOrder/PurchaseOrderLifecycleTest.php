@@ -87,6 +87,35 @@ class PurchaseOrderLifecycleTest extends PurchaseOrderTestCase
         $this->assertCount(1, $po->fresh()->items);
     }
 
+    public function test_editing_a_po_releases_dropped_lines_and_refuses_lines_on_another_po(): void
+    {
+        $po = $this->draftPo();
+        [$pipa, $lem] = $this->rf->items->all();
+
+        // drop the "Lem" line: it can be ordered again
+        $this->actingInProject($this->buyer)->put(route('erp.purchase-orders.update', $po), $this->updatePayload([
+            ['request_form_item_id' => $pipa->id, 'qty' => 10, 'unit_cost' => 100_000, 'tax' => 0],
+        ]))->assertRedirect(route('erp.purchase-orders.show', $po));
+        $this->assertSame('Ordered', $pipa->fresh()->status);
+        $this->assertSame('Requested', $lem->fresh()->status);
+
+        // another PO takes "Lem"; the first PO may not put it back
+        $second = $this->createPoViaHttp($this->buyer, $this->rf, [], [
+            ['request_form_item_id' => $lem->id, 'qty' => 5, 'unit_cost' => 20_000, 'tax' => 0, 'remarks' => null],
+        ]);
+        $this->actingInProject($this->buyer)->put(route('erp.purchase-orders.update', $po), $this->updatePayload([
+            ['request_form_item_id' => $pipa->id, 'qty' => 10, 'unit_cost' => 100_000, 'tax' => 0],
+            ['request_form_item_id' => $lem->id, 'qty' => 5, 'unit_cost' => 20_000, 'tax' => 0],
+        ]))->assertSessionHas('error');
+        $this->assertCount(1, $po->fresh()->items);
+
+        // and a line from a different RF is refused too
+        $otherRf = $this->makeApprovedRf([['name' => 'Kabel', 'qty' => 1, 'unit_cost' => 1_000, 'wid' => 'WID-001']]);
+        $this->put(route('erp.purchase-orders.update', $second), $this->updatePayload([
+            ['request_form_item_id' => $otherRf->items[0]->id, 'qty' => 1, 'unit_cost' => 1_000, 'tax' => 0],
+        ]))->assertSessionHas('error');
+    }
+
     public function test_submitted_po_cannot_be_edited_and_staff_cannot_edit_at_all(): void
     {
         $po = $this->draftPo();
@@ -235,6 +264,22 @@ class PurchaseOrderLifecycleTest extends PurchaseOrderTestCase
         foreach ($this->rf->items as $item) {
             $this->assertSame('Requested', $item->fresh()->status);
         }
+    }
+
+    public function test_a_po_that_went_to_approval_cannot_be_deleted_only_cancelled(): void
+    {
+        $po = $this->approvedPo();
+
+        $this->actingInProject($this->admin)
+            ->get(route('erp.purchase-orders.show', $po))->assertOk()->assertDontSee('<i class="bx bx-trash me-1"></i>Delete', false);
+        $this->delete(route('erp.purchase-orders.destroy', $po))->assertSessionHas('error');
+
+        $this->assertNotNull($po->fresh());
+        $this->assertEquals(8_900_000, $this->wid->fresh()->remaining_budget);
+
+        // cancelling is the way out, and it gives the budget back
+        $this->post(route('erp.purchase-orders.cancel', $po))->assertSessionHas('success');
+        $this->assertEquals(10_000_000, $this->wid->fresh()->remaining_budget);
     }
 
     public function test_po_verification_config_blocks_submit_until_the_verifier_verifies(): void

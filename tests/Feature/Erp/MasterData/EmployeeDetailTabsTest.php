@@ -80,16 +80,22 @@ class EmployeeDetailTabsTest extends ErpTestCase
 
     public function test_others_only_get_the_tabs_they_have_permission_for(): void
     {
+        // every role may see Request Forms (request_forms.view is given to all), so the RF tab shows;
+        // kasbon still needs its own permission
         $this->actingInProject($this->makeUser('hr_viewer', ['employees.view']))
             ->get(route('erp.hr.employees.show', $this->employee))
             ->assertOk()
             ->assertSee('id="tab-advexnpj"', false)->assertSee('ADVEXNPJ-00001')
-            ->assertDontSee('id="tab-rf"', false)->assertDontSee('RF-OWN-001')
+            ->assertSee('id="tab-rf"', false)->assertSee('RF-OWN-001')
             ->assertDontSee('id="tab-kasbon"', false)->assertDontSee($this->kasbonCode);
 
-        $this->actingInProject($this->makeUser('rf_viewer', ['employees.view', 'request_forms.view']))
+        // a role that had request_forms.view taken away does not get the RF tab
+        $this->makeUser('no_rf_viewer');
+        \App\Models\Role::where('slug', 'no_rf_viewer')->update(['permissions' => json_encode(['employees.view'])]);
+        $viewer = \App\Models\User::whereHas('roles', fn ($q) => $q->where('slug', 'no_rf_viewer'))->firstOrFail();
+        $this->actingInProject($viewer)
             ->get(route('erp.hr.employees.show', $this->employee))
-            ->assertOk()->assertSee('id="tab-rf"', false)->assertSee('RF-OWN-001')->assertDontSee('id="tab-kasbon"', false);
+            ->assertOk()->assertDontSee('id="tab-rf"', false)->assertDontSee('RF-OWN-001');
     }
 
     public function test_someone_else_without_permission_cannot_open_the_page(): void

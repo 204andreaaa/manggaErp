@@ -20,7 +20,7 @@ class DepartmentSpendingController extends Controller
 
     public function index(Request $request)
     {
-        abort_unless(auth()->user()->hasPermission('budgets.view'), 403);
+        abort_unless(auth()->user()->hasPermission('department_spending.view'), 403);
         $year = $this->year($request);
 
         $rfs = $this->requestForms($year)->where('status', 'Approved')
@@ -54,7 +54,7 @@ class DepartmentSpendingController extends Controller
 
     public function show(Request $request, Department $department)
     {
-        abort_unless(auth()->user()->hasPermission('budgets.view'), 403);
+        abort_unless(auth()->user()->hasPermission('department_spending.view'), 403);
         $year = $this->year($request);
 
         $requestForms = $this->requestForms($year)->where('department_id', $department->id)

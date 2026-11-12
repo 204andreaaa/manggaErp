@@ -276,6 +276,19 @@ class ErpPaymentAdviceController extends Controller
             'status' => $isClosed ? 'Completed' : ($paymentAdvice->approval_status === 'Approved' ? 'Approved' : $paymentAdvice->status)
         ]);
 
+        // The PO shows what was actually paid out on it (paid termins of all its payment
+        // advices) and what is still to pay.
+        if ($po = $paymentAdvice->purchaseOrder) {
+            $paid = (float) ErpPaymentAdviceDetail::whereIn('erp_payment_advice_id', $po->paymentAdvices()->select('id'))
+                ->whereNotNull('date_paid')
+                ->where('approval_status', '!=', 'Cancelled')
+                ->sum('payment_amount_with_tax');
+            $po->update([
+                'amount_paid' => $paid,
+                'balance_amount' => max(0, (float) $po->total_po_amount_with_tax - $paid),
+            ]);
+        }
+
         if ($isClosed && $paymentAdvice->purchaseOrder) {
             $paymentAdvice->purchaseOrder->update(['payment_closed' => true]);
             // Completed bila barang juga sudah diterima semua (urutan bebas)

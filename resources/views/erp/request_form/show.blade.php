@@ -65,17 +65,20 @@
         </form>
       @endif
 
-      @if(in_array($rf->status, ['Draft', 'Rejected'], true) && auth()->user()->hasPermission('products.update'))
+      @php $canManageRf = $rf->isManageableBy(auth()->user()); @endphp
+      @if(in_array($rf->status, ['Draft', 'Rejected'], true) && $canManageRf)
         <a href="{{ route('erp.request-form.edit', $rf) }}" class="btn btn-sm btn-outline-primary">
           <i class="bx bx-edit me-1"></i>Edit RF
         </a>
       @endif
 
+      @if(auth()->user()->hasPermission('request_forms.create'))
       <a href="{{ route('erp.request-form.clone', $rf) }}" class="btn btn-sm btn-outline-primary">
         <i class="bx bx-copy-alt me-1"></i>Clone
       </a>
+      @endif
 
-      @if($rf->status !== 'Approved')
+      @if($rf->status !== 'Approved' && $canManageRf)
         <form action="{{ route('erp.approvals.submit', $rf) }}" method="POST" class="d-inline">
           @csrf
           <button class="btn btn-sm btn-primary" {{ $rf->approvals->count() > 0 && $rf->status !== 'Rejected' ? 'disabled' : '' }}>
@@ -200,7 +203,7 @@
             @else
               <div class="mb-3">
                 <label class="form-label fw-semibold small text-uppercase text-muted">Departemen</label>
-                @if($rf->department_id && auth()->user()->hasPermission('budgets.view'))
+                @if($rf->department_id && auth()->user()->hasPermission('department_spending.view'))
                   <a href="{{ route('erp.department-spending.show', $rf->department_id) }}" class="form-control bg-white text-decoration-none">{{ $rf->department_name }}</a>
                 @else
                   <input class="form-control bg-white" value="{{ $rf->department_name ?: '-' }}" readonly>
@@ -421,7 +424,7 @@
                 </div>
                 <h6 class="fw-bold mb-0 text-primary">Approval History & Workflow</h6>
               </div>
-              @if($rf->status !== 'Approved')
+              @if($rf->status !== 'Approved' && $rf->isManageableBy(auth()->user()))
                 <form action="{{ route('erp.approvals.submit', $rf) }}" method="POST" class="d-inline">
                   @csrf
                   <button class="btn btn-sm btn-primary" {{ $rf->approvals->count() > 0 && $rf->status !== 'Rejected' ? 'disabled' : '' }}>

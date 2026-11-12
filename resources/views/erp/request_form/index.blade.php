@@ -22,9 +22,11 @@
           <span class="input-group-text"><i class="bx bx-search"></i></span>
           <input type="text" id="dtSearch" class="form-control form-control-sm" placeholder="Search RF...">
         </div>
+        @if(auth()->user()->hasPermission('request_forms.create'))
         <button class="btn btn-primary btn-sm px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalChooseType">
           <i class="bx bx-plus me-1"></i>+ Create Request Form
         </button>
+        @endif
       </div>
     </div>
   </div>

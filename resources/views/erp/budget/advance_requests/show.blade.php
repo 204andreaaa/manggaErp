@@ -11,8 +11,14 @@
   $budgetParent = $monthly?->annualBudgetPlan?->budgetParent;
   $money = fn ($v) => 'IDR '.number_format((float) $v, 0, ',', '.');
   $statusClass = match($advanceRequest->status) { 'Approved' => 'success', 'Rejected' => 'danger', 'Submitted' => 'info', default => 'secondary' };
-  $canDeclare = $advanceRequest->status === 'Approved' && $advanceRequest->payment_status === 'Paid' && auth()->user()->hasPermission('expense_declarations.create');
+  $canDeclare = $advanceRequest->isOpenForSettlement() && auth()->user()->hasPermission('expense_declarations.create');
   $canPay = $advanceRequest->status === 'Approved' && $advanceRequest->payment_status === 'Unpaid' && auth()->user()->hasRole(['finance','superadmin']);
+  $canSettle = $advanceRequest->isOpenForSettlement() && (auth()->user()->hasRole(['finance','superadmin']) || auth()->user()->hasPermission('advance_requests.pay'));
+  $settlement = $advanceRequest->isSettled()
+    ? '<span class="badge bg-label-dark">Closed</span> '.e($advanceRequest->settlement_date?->format('Y/m/d') ?? '')
+      .' <span class="text-muted small">dikembalikan '.e($money($advanceRequest->settlement_amount)).($advanceRequest->settledBy ? ', oleh '.e($advanceRequest->settledBy->name) : '').'</span>'
+      .($advanceRequest->settlement_note ? '<div class="small text-muted">'.e($advanceRequest->settlement_note).'</div>' : '')
+    : '<span class="text-muted">Belum</span>';
 
   $left = [
     ['Account ID', e($budgetParent->name ?? '-')],
@@ -27,6 +33,7 @@
     ['Advance Outstanding', e($money($advanceRequest->advance_outstanding))],
     ['Payment Status', '<span class="badge bg-label-'.($advanceRequest->payment_status === 'Paid' ? 'success' : 'warning').'">'.e($advanceRequest->payment_status).'</span>'],
     ['Payment Date', e($advanceRequest->payment_date?->format('Y/m/d') ?? '').($advanceRequest->paidBy ? ' <span class="text-muted small">oleh '.e($advanceRequest->paidBy->name).'</span>' : '')],
+    ['Settlement', $settlement],
   ];
   $right = [
     ['Area', e($monthly?->area ?? '-')],
@@ -69,10 +76,35 @@
         @if($canPay)
           <form method="POST" action="{{ route('erp.advance-requests.pay', $advanceRequest) }}">@csrf<button class="btn btn-success btn-sm" onclick="return confirm('Tandai kasbon ini sudah dibayar?')"><i class="bx bx-dollar-circle me-1"></i>Mark as Paid</button></form>
         @endif
+        @if($canSettle)
+          <button type="button" class="btn btn-dark btn-sm" data-bs-toggle="modal" data-bs-target="#settleModal"><i class="bx bx-lock-alt me-1"></i>Settle / Tutup Kasbon</button>
+        @endif
       </div>
     </div>
     @include('erp.budget.partials.sf-fields', ['left' => $left, 'right' => $right])
   </div>
+
+  @if($canSettle)
+  <div class="modal fade" id="settleModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <form method="POST" action="{{ route('erp.advance-requests.settle', $advanceRequest) }}" class="modal-content">
+        @csrf
+        <div class="modal-header"><h5 class="modal-title"><i class="bx bx-lock-alt me-1"></i>Settle Kasbon {{ $advanceRequest->code }}</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body">
+          <div class="alert alert-info small mb-3">
+            Sisa kasbon yang belum dideklarasikan <b>{{ $money(max(0, (float) $advanceRequest->advance_outstanding)) }}</b> dicatat sudah dikembalikan karyawan.
+            Setelah di-settle, kasbon ditutup, budget-nya dilepas, dan tidak bisa dibuat Expense Declaration lagi.
+          </div>
+          <label class="form-label">Tanggal pengembalian <span class="text-danger">*</span></label>
+          <input type="date" name="settlement_date" class="form-control mb-3" value="{{ now()->toDateString() }}" required>
+          <label class="form-label">Catatan</label>
+          <textarea name="settlement_note" class="form-control" rows="2" maxlength="500" placeholder="mis. dikembalikan tunai ke kasir"></textarea>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button><button class="btn btn-dark">Settle</button></div>
+      </form>
+    </div>
+  </div>
+  @endif
 
   <div class="sf-card" style="--sf-accent: #6fb1ad">
     <div class="sf-card-head">
@@ -86,7 +118,7 @@
     @if($advanceRequest->expenseDeclarations->isEmpty())
       <div class="sf-empty">
         No records to display
-        @unless($canDeclare)<span class="ms-1">(Expense Declaration bisa dibuat setelah kasbon Approved dan sudah dibayar.)</span>@endunless
+        @unless($canDeclare || $advanceRequest->isSettled())<span class="ms-1">(Expense Declaration bisa dibuat setelah kasbon Approved dan sudah dibayar.)</span>@endunless
       </div>
     @else
       <div class="table-responsive">

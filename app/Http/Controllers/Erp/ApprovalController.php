@@ -14,6 +14,8 @@ class ApprovalController extends Controller
 {
     public function submit(RequestForm $requestForm)
     {
+        abort_unless($requestForm->isManageableBy(auth()->user()), 403, 'Hanya pembuat RF atau admin yang dapat mengajukan Request Form ini.');
+
         if ($requestForm->items()->count() === 0) {
             return redirect()->back()->with('error', 'Request Form tidak bisa disubmit karena belum ada item (RF Line) yang ditambahkan.');
         }

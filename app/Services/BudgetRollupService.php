@@ -58,7 +58,11 @@ class BudgetRollupService
      * deklarasinya masuk, potongan hanya pindah dari outstanding ke expense.
      * Butuh advance_outstanding yang sudah dihitung ulang lebih dulu.
      */
-    public static function detailRemaining(BudgetPlanDetail $detail): float
+    // Booking: kasbon dan deklarasi tanpa kasbon memesan budget sejak di-submit, supaya dua
+    // pengajuan yang menunggu approval tidak bisa bersama-sama melewati budget. Booking lepas
+    // sendiri saat Rejected. Outstanding kasbon yang sudah di-settle = 0. $exceptAdvanceId /
+    // $exceptDeclarationId mengeluarkan dokumen yang sedang diperiksa dari booking-nya sendiri.
+    public static function detailRemaining(BudgetPlanDetail $detail, ?int $exceptAdvanceId = null, ?int $exceptDeclarationId = null): float
     {
         $actualExpense = $detail->expenseDeclarations()->where('status', 'Approved')->sum('converted_amount_idr');
         $outstanding = $detail->advanceRequests()
@@ -66,7 +70,18 @@ class BudgetRollupService
             ->where('advance_outstanding', '>', 0)
             ->sum('advance_outstanding');
 
-        return (float) $detail->total_expense_plan - (float) $actualExpense - (float) $outstanding;
+        $bookedAdvances = $detail->advanceRequests()
+            ->where('status', 'Submitted')
+            ->when($exceptAdvanceId, fn ($q) => $q->where('id', '!=', $exceptAdvanceId))
+            ->sum('total_amount_advance');
+        $bookedDeclarations = $detail->expenseDeclarations()
+            ->where('record_type', 'without_advance')
+            ->where('status', 'Submitted')
+            ->when($exceptDeclarationId, fn ($q) => $q->where('id', '!=', $exceptDeclarationId))
+            ->sum('converted_amount_idr');
+
+        return (float) $detail->total_expense_plan - (float) $actualExpense - (float) $outstanding
+            - (float) $bookedAdvances - (float) $bookedDeclarations;
     }
 
     public static function recalculateMonthly(int $monthlyId): void
@@ -108,7 +123,10 @@ class BudgetRollupService
                 ->where('status', 'Approved')
                 ->sum('converted_amount_idr');
 
-            $advanceRequest->advance_outstanding = (float) $advanceRequest->actual_amount - (float) $declaredApproved;
+            // a settled kasbon is closed: whatever was left came back, so nothing is outstanding
+            $advanceRequest->advance_outstanding = $advanceRequest->settled_at
+                ? 0
+                : (float) $advanceRequest->actual_amount - (float) $declaredApproved;
             $advanceRequest->save();
         });
     }

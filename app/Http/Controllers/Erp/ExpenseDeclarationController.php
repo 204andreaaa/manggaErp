@@ -46,6 +46,7 @@ class ExpenseDeclarationController extends Controller
         $advanceRequests = AdvanceRequest::with(['budgetPlanDetail.monthlyBudgetPlan.annualBudgetPlan', 'work', 'expenseDeclarations'])
             ->where('status', 'Approved')
             ->where('payment_status', 'Paid')
+            ->whereNull('settled_at')
             ->latest()
             ->get();
 
@@ -215,12 +216,23 @@ class ExpenseDeclarationController extends Controller
                 return redirect()->back()->with('error', 'Expense Declaration sudah pernah disubmit.');
             }
 
+            $amount = (float) $expenseDeclaration->converted_amount_idr;
             $configs = ErpApprovalConfig::where('record_type', 'expense_declaration')
+                ->forAmount($amount)
                 ->orderBy('level')
                 ->get();
 
             if ($configs->isEmpty()) {
                 return redirect()->back()->with('error', 'Approval flow is not configured for this record type.');
+            }
+
+            // Submitting books the budget (only declarations without a kasbon spend budget
+            // of their own), so it has to fit now.
+            if ($expenseDeclaration->record_type === 'without_advance') {
+                $detail = BudgetPlanDetail::where('id', $expenseDeclaration->budget_plan_detail_id)->lockForUpdate()->firstOrFail();
+                if ($shortfall = BudgetGuard::detailShortfall($detail, $amount, null, $expenseDeclaration->id)) {
+                    return redirect()->back()->with('error', "Expense Declaration {$expenseDeclaration->code} tidak bisa diajukan. {$shortfall}");
+                }
             }
 
             $isFirst = true;
@@ -242,6 +254,7 @@ class ExpenseDeclarationController extends Controller
             }
 
             $expenseDeclaration->update(['status' => 'Submitted']);
+            BudgetRollupService::recalculateDetail($expenseDeclaration->budget_plan_detail_id);
 
             NotificationHelper::pushLive('expense_declaration', $expenseDeclaration->id, $expenseDeclaration->status);
 
@@ -306,7 +319,7 @@ class ExpenseDeclarationController extends Controller
                 && !$declaration->approvals()->where('round', $approval->round)->where('status', 'Waiting')->where('id', '!=', $approval->id)->exists();
             if ($isFinalApproval && $declaration->record_type === 'without_advance') {
                 $detail = BudgetPlanDetail::where('id', $declaration->budget_plan_detail_id)->lockForUpdate()->firstOrFail();
-                if ($shortfall = BudgetGuard::detailShortfall($detail, (float) $declaration->converted_amount_idr)) {
+                if ($shortfall = BudgetGuard::detailShortfall($detail, (float) $declaration->converted_amount_idr, null, $declaration->id)) {
                     return redirect()->back()->with('error', "Expense Declaration {$declaration->code} tidak bisa di-approve. {$shortfall}");
                 }
             }
@@ -411,6 +424,8 @@ class ExpenseDeclarationController extends Controller
             if ($declaration) {
                 $declaration->approvals()->where('round', $approval->round)->where('status', 'Waiting')->update(['status' => 'Cancelled']);
                 $declaration->update(['status' => 'Rejected']);
+                // releases the budget booked at submit
+                BudgetRollupService::recalculateDetail($declaration->budget_plan_detail_id);
 
                 NotificationHelper::pushLive('expense_declaration', $declaration->id, $declaration->status);
 
@@ -464,6 +479,11 @@ class ExpenseDeclarationController extends Controller
             if (!$advanceRequest || $advanceRequest->status !== 'Approved' || $advanceRequest->payment_status !== 'Paid') {
                 throw ValidationException::withMessages([
                     'advance_request_id' => 'Kasbon yang dipilih harus berstatus Approved dan sudah Paid.',
+                ]);
+            }
+            if ($advanceRequest->isSettled()) {
+                throw ValidationException::withMessages([
+                    'advance_request_id' => "Kasbon {$advanceRequest->code} sudah di-settle (ditutup), tidak bisa dideklarasikan lagi.",
                 ]);
             }
         } else {

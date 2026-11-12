@@ -2,7 +2,6 @@
 
 namespace App\Console\Commands;
 
-use App\Services\TenantManager;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 

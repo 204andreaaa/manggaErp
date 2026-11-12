@@ -83,6 +83,13 @@ class RequestForm extends Model
         return $this->hasMany(ErpPurchaseOrder::class, 'request_form_id');
     }
 
+    /** Only the person who made the RF (or an admin) edits and submits it. */
+    public function isManageableBy(?\App\Models\User $user): bool
+    {
+        return $user !== null
+            && ((int) $this->created_by_id === (int) $user->id || $user->hasRole(['admin', 'superadmin']));
+    }
+
     /**
      * Why this RF may not be deleted (null = it may). Once a PO exists the RF is part of
      * the purchase record, so every PO has to be cancelled first; cancelling is what

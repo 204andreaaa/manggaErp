@@ -43,9 +43,14 @@ class SyncErpStocksCommand extends Command
                 $syncedCount = 0;
                 foreach ($receivedGrs as $gr) {
                     $po = $gr->purchaseOrder;
-                    if ($po && (!$po->gr || $po->status !== 'Completed')) {
-                        $po->update(['gr' => true, 'status' => 'Completed']);
-                        $this->line("  -> Updated PO {$po->po_no} status to Completed & GR checked.");
+                    // Same rule as the app: the GR flag follows what was received, and a PO
+                    // is Completed only when it is fully received AND fully paid.
+                    if ($po) {
+                        $po->load('items');
+                        $po->update(['gr' => $po->is_gr_completed]);
+                        if ($po->markCompletedIfDone()) {
+                            $this->line("  -> PO {$po->po_no} fully received and paid: Completed.");
+                        }
                     }
 
                     $warehouseId = $gr->warehouse_id ?: $gr->purchaseOrder?->erp_warehouse_id;

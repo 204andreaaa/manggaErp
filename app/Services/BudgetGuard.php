@@ -14,9 +14,9 @@ use Illuminate\Validation\ValidationException;
  */
 class BudgetGuard
 {
-    public static function detailShortfall(BudgetPlanDetail $detail, float $amount): ?string
+    public static function detailShortfall(BudgetPlanDetail $detail, float $amount, ?int $exceptAdvanceId = null, ?int $exceptDeclarationId = null): ?string
     {
-        $remaining = BudgetRollupService::detailRemaining($detail);
+        $remaining = BudgetRollupService::detailRemaining($detail, $exceptAdvanceId, $exceptDeclarationId);
         if ($amount <= $remaining + 0.005) {
             return null;
         }

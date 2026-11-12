@@ -23,10 +23,16 @@ class CustomReportController extends Controller
         });
     }
 
+    /** Templates are private to their maker unless shared with everyone. */
+    private function visibleReports()
+    {
+        return CustomReport::on('master')->where(fn ($q) => $q->where('user_id', auth()->id())->orWhere('is_public', true));
+    }
+
     public function index()
     {
         $reportTypes  = ReportSchemaService::getReportTypes();
-        $savedReports = CustomReport::on('master')->with('user')->latest()->get();
+        $savedReports = $this->visibleReports()->with('user')->latest()->get();
 
         return view('erp.reports.index', compact('reportTypes', 'savedReports'));
     }
@@ -42,7 +48,7 @@ class CustomReportController extends Controller
 
         $savedReport = null;
         if ($request->has('report_id')) {
-            $savedReport = CustomReport::on('master')->find($request->query('report_id'));
+            $savedReport = $this->visibleReports()->find($request->query('report_id'));
             if ($savedReport) {
                 $reportType = $savedReport->report_type;
             }
@@ -144,9 +150,11 @@ class CustomReportController extends Controller
             'date_range_preset' => 'nullable|string',
             'date_from'         => 'nullable|date',
             'date_to'           => 'nullable|date',
+            'is_public'         => 'nullable|boolean',
         ]);
 
         $data['user_id'] = auth()->id();
+        $data['is_public'] = (bool) ($data['is_public'] ?? false);
 
         $report = CustomReport::on('master')->create($data);
 
@@ -159,6 +167,9 @@ class CustomReportController extends Controller
 
     public function destroy(CustomReport $customReport)
     {
+        // a shared template can be used by everyone but only removed by its maker (or a superadmin)
+        abort_unless((int) $customReport->user_id === (int) auth()->id() || auth()->user()->hasRole('superadmin'), 403);
+
         $customReport->delete();
         return response()->json(['success' => true, 'message' => 'Template laporan berhasil dihapus.']);
     }

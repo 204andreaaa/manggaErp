@@ -293,46 +293,55 @@ class GoodsReceiptTest extends PurchaseOrderTestCase
         $this->assertSame($this->logistik->id, $gr->fresh()->verified_by_id);
     }
 
-    public function test_superadmin_deletes_a_received_gr_and_stock_is_reversed(): void
+    public function test_a_received_gr_cannot_be_deleted(): void
     {
         $gr = $this->recordGr([[0, 10], [1, 1]]);
         $this->post(route('erp.goods-receipts.receive', $gr));
         $this->assertTrue($this->po->fresh()->gr);
 
         $this->delete(route('erp.goods-receipts.destroy', $gr))->assertSessionHas('error');
-        $this->assertNotNull($gr->fresh());
 
         $this->actingInProject($this->makeUser('superadmin'))
-            ->delete(route('erp.goods-receipts.destroy', $gr))
-            ->assertRedirect(route('erp.purchase-orders.show', $this->po));
+            ->get(route('erp.goods-receipts.show', $gr))->assertOk()->assertDontSee('Hapus Goods Receipt (DO) yang belum diverifikasi ini?');
+        $this->delete(route('erp.goods-receipts.destroy', $gr))->assertSessionHas('error');
 
-        $this->assertNull(ErpGoodsReceipt::find($gr->id));
-        $this->assertEquals(0, ErpStock::sole()->qty_on_hand);
-        $po = $this->po->fresh();
-        $this->assertFalse($po->gr);
-        $this->assertSame('Approved', $po->status);
-        $this->assertEquals(10, $this->poItem(0)->fresh()->remaining_qty);
-
-        // RF lines are no longer received: back to Ordered (still on the PO), never an invalid status
-        foreach ($this->rf->items as $rfItem) {
-            $this->assertSame('Ordered', $rfItem->fresh()->status);
-        }
+        // the receipt, the stock and the PO are untouched
+        $this->assertNotNull($gr->fresh());
+        $this->assertEquals(10, ErpStock::sole()->qty_on_hand);
+        $this->assertTrue($this->po->fresh()->gr);
     }
 
-    public function test_deleting_one_of_two_grs_only_reopens_the_lines_it_received(): void
+    public function test_superadmin_deletes_a_recorded_gr_and_the_lines_open_again(): void
     {
         $first = $this->recordGr([[0, 4], [1, 1]]);
         $this->post(route('erp.goods-receipts.receive', $first));
         $second = $this->recordGr([[0, 6], [1, 0]]);
-        $this->post(route('erp.goods-receipts.receive', $second));
+        $this->assertTrue($this->po->fresh()->items->every(fn ($i) => $i->remaining_qty <= 0), 'a recorded GR already counts against the PO');
 
         $this->actingInProject($this->makeUser('superadmin'))
             ->delete(route('erp.goods-receipts.destroy', $second))
-            ->assertSessionHas('success');
+            ->assertRedirect(route('erp.purchase-orders.show', $this->po))->assertSessionHas('success');
 
-        $this->assertSame('Ordered', $this->rf->items[0]->fresh()->status);
+        $this->assertNull(ErpGoodsReceipt::find($second->id));
+        $this->assertEquals(4, ErpStock::sole()->qty_on_hand, 'stock from the verified GR stays');
         $this->assertSame('Completed', $this->rf->items[1]->fresh()->status, 'line 1 is still fully received by the first GR');
         $this->assertEquals(6, $this->poItem(0)->fresh()->remaining_qty);
-        $this->assertFalse($this->po->fresh()->gr);
+        $po = $this->po->fresh();
+        $this->assertFalse($po->gr);
+        $this->assertSame('Approved', $po->status);
+    }
+
+    public function test_deleting_a_recorded_gr_keeps_a_completed_po_completed_when_still_received_and_paid(): void
+    {
+        $first = $this->recordGr([[0, 10], [1, 1]]);
+        $this->post(route('erp.goods-receipts.receive', $first));
+        $this->po->update(['payment_closed' => true, 'status' => 'Completed']);
+        // a stray zero-qty receipt someone recorded by mistake
+        $stray = ErpGoodsReceipt::create(['do_no' => 'GR-STRAY', 'erp_purchase_order_id' => $this->po->id, 'status' => 'Recorded']);
+
+        $this->actingInProject($this->makeUser('superadmin'))
+            ->delete(route('erp.goods-receipts.destroy', $stray))->assertSessionHas('success');
+
+        $this->assertSame('Completed', $this->po->fresh()->status);
     }
 }

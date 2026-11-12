@@ -106,7 +106,7 @@
                     <a href="{{ route('erp.purchase-orders.show', $po) }}" class="btn btn-xs btn-primary me-1" title="Detail PO">
                       <i class="bx bx-show me-1"></i>View Detail
                     </a>
-                    @if(auth()->user()->hasRole('superadmin'))
+                    @if(auth()->user()->hasRole('superadmin') && !$po->deleteBlockReason())
                       <form action="{{ route('erp.purchase-orders.destroy', $po) }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin menghapus PO ini?');">
                         @csrf
                         @method('DELETE')

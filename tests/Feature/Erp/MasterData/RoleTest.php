@@ -15,6 +15,18 @@ class RoleTest extends ErpTestCase
         $this->get(route('erp.roles.index'))->assertOk()->assertSee('Site Engineer Role');
     }
 
+    public function test_product_sub_masters_have_no_permissions_of_their_own(): void
+    {
+        $this->actingInProject($this->makeUser('superadmin'));
+
+        // Brand, UOM & co. follow the Products permissions, so the role form offers no separate boxes
+        $this->get(route('erp.roles.index'))->assertOk()
+            ->assertSee('Izin ubah data mengikuti izin Products.')
+            ->assertDontSee('value="brands.update"', false)
+            ->assertDontSee('value="uoms.create"', false)
+            ->assertSee('value="products.update"', false);
+    }
+
     public function test_create_role_with_menus_and_permissions(): void
     {
         $this->actingInProject($this->makeUser('superadmin'));

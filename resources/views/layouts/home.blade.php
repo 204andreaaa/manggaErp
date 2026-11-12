@@ -765,6 +765,20 @@
             </li>`;
         }
 
+        // "Tandai semua dibaca": marks the stored notifications as read. Task reminders
+        // (waiting approvals etc.) stay until the task itself is done.
+        document.addEventListener('click', function (e) {
+            if (!e.target.closest('#markAllReadBtn')) return;
+            e.preventDefault();
+            fetch('/notifications/mark-all-read', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            }).finally(() => fetchNavbarNotifications());
+        });
+
         function handleNotifClick(id, url) {
             fetch(`/notifications/${id}/read`, {
                 method: 'POST',

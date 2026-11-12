@@ -8,6 +8,9 @@ use Illuminate\Support\Facades\DB;
 
 class RoleSeeder extends Seeder
 {
+    /** Request Form access every role gets (also back-filled by a master migration). */
+    public const RF_FOR_EVERYONE = ['request_forms.view', 'request_forms.create', 'request_forms.submit'];
+
     public function run(): void
     {
         // 1. Clean legacy roles if any
@@ -103,8 +106,7 @@ class RoleSeeder extends Seeder
                     'goods_receipts.view', 'goods_receipts.print',
                     'suppliers.view', 'suppliers.create', 'suppliers.update', 'suppliers.delete',
                     'payment_terms.view', 'payment_terms.create', 'payment_terms.update', 'payment_terms.delete',
-                    'products.view', 'products.create', 'products.update', 'products.export',
-                    'product_families.view', 'product_types.view', 'brands.view', 'product_models.view', 'currencies.view', 'uoms.view'
+                    'products.view', 'products.create', 'products.update', 'products.export'
                 ],
             ],
             'logistik' => [
@@ -114,7 +116,7 @@ class RoleSeeder extends Seeder
                     'goods_receipts.view', 'goods_receipts.create', 'goods_receipts.update', 'goods_receipts.verify', 'goods_receipts.print',
                     'stocks.view', 'stocks.adjust',
                     'warehouses.view', 'warehouses.create', 'warehouses.update', 'warehouses.delete',
-                    'products.view', 'uoms.view'
+                    'products.view'
                 ],
             ],
             'finance' => [
@@ -148,6 +150,12 @@ class RoleSeeder extends Seeder
                 ],
             ],
         ];
+
+        // Every employee may raise a Request Form; only its maker (or an admin) edits/submits it.
+        foreach ($roleConfigs as $slug => $conf) {
+            $roleConfigs[$slug]['menu_keys'] = array_values(array_unique(array_merge($conf['menu_keys'], ['request_forms'])));
+            $roleConfigs[$slug]['permissions'] = array_values(array_unique(array_merge($conf['permissions'], self::RF_FOR_EVERYONE)));
+        }
 
         foreach ($rolesData as $slug => $data) {
             $conf = $roleConfigs[$slug] ?? ['menu_keys' => [], 'permissions' => []];
