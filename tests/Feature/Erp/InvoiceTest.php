@@ -149,7 +149,7 @@ class InvoiceTest extends ErpTestCase
         $this->get(route('erp.invoices.show', $invoice))->assertForbidden();
 
         $this->actingInProject($this->makeUser('ceo', ['invoices.view']));
-        $this->get(route('erp.invoices.show', $invoice))->assertOk()->assertDontSee('New Payment Detail');
+        $this->get(route('erp.invoices.show', $invoice))->assertOk()->assertDontSee('Catat Pembayaran')->assertDontSee('Tambah Rincian');
         $this->post(route('erp.invoices.details.store', $invoice), ['amount' => 100])->assertForbidden();
         $this->post(route('erp.invoices.store'), ['invoice_number' => 'X', 'invoice_date' => '2026-11-10'])->assertForbidden();
     }
