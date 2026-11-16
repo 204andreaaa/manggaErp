@@ -17,7 +17,7 @@ $isAdminProject = $isSuperAdmin || $u?->hasRole(['admin_project', 'project_admin
     || $u?->canSeeMenu('expense_declarations');
 $isGA           = $isSuperAdmin || $u?->hasRole(['ga', 'general_affair']) || $u?->canSeeMenu('goods_receipts');
 $isProcurement  = $isSuperAdmin || $u?->hasRole('procurement') || $u?->hasPermission('purchase_orders.create') || $u?->canSeeMenu('suppliers') || $u?->canSeeMenu('payment_terms');
-$isFinance      = $isSuperAdmin || $u?->hasRole('finance') || $u?->canSeeMenu('payment_advices') || $u?->canSeeMenu('payment_advice_details');
+$isFinance      = $isSuperAdmin || $u?->hasRole('finance') || $u?->canSeeMenu('payment_advices') || $u?->canSeeMenu('payment_advice_details') || $u?->canSeeMenu('invoices');
 $isLogistik     = $isSuperAdmin || $u?->hasRole(['logistik', 'warehouse']) || $u?->canSeeMenu('stocks') || $u?->canSeeMenu('warehouses');
 $isHRIS         = $isSuperAdmin || $u?->hasRole(['hrd', 'hr_manager']) || $u?->canSeeMenu('employees') || $u?->canSeeMenu('departments') || $u?->canSeeMenu('hr_attendances') || $u?->canSeeMenu('hr_payroll');
 $isCEO          = $isSuperAdmin || $u?->hasRole('ceo');
@@ -211,11 +211,18 @@ if ($isGA || $isLogistik) {
             {{-- Finance --}}
             @if($isFinance)
             <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle {{ request()->routeIs('erp.payment-advices.*') || request()->routeIs('erp.payment-advice-details.*') ? 'active' : '' }}" 
+                <a class="nav-link dropdown-toggle {{ request()->routeIs('erp.payment-advices.*') || request()->routeIs('erp.payment-advice-details.*') || request()->routeIs('erp.invoices.*') ? 'active' : '' }}"
                    href="javascript:void(0)" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
                     <i class="bx bx-credit-card me-1 text-success"></i> Finance
                 </a>
                 <ul class="dropdown-menu shadow-sm">
+                    @if($isSuperAdmin || $u?->canSeeMenu('invoices'))
+                    <li>
+                        <a class="dropdown-item {{ request()->routeIs('erp.invoices.*') ? 'active' : '' }}" href="{{ $rl('erp.invoices.index') }}">
+                            <i class="bx bx-receipt me-2"></i> Invoice (Tagihan Customer)
+                        </a>
+                    </li>
+                    @endif
                     <li>
                         <a class="dropdown-item {{ request()->routeIs('erp.payment-advices.*') ? 'active' : '' }}" href="{{ $rl('erp.payment-advices.index') }}">
                             <i class="bx bx-money me-2"></i> Payment Advice (PA)

@@ -6,8 +6,8 @@
 | **Sistem** | Mangga ERP — ERP multi-project untuk procurement, budget project, kasbon, pembayaran supplier, gudang dan HR |
 | **Repo** | `204andreaaa/manggaErp` (branch utama `master`) |
 | **Versi kode** | Laravel 13, PHP 8.2+ (server: PHP 8.4) |
-| **Versi PRD** | 1.1 |
-| **Terakhir diperbarui** | 2026-11-12 |
+| **Versi PRD** | 1.2 |
+| **Terakhir diperbarui** | 2026-11-16 |
 | **Status** | Belum production (masih tahap uji internal) |
 
 > **Cara dokumen ini dirawat.** PRD ini ditulis dari kode yang berjalan, bukan dari rencana. Setiap perubahan perilaku sistem (function, aturan, field, status, hak akses, halaman) menghasilkan **PRD versi baru**: versi yang lama disalin dulu ke `docs/prd-history/PRD-v<versi>.md`, lalu dokumen ini diperbarui, nomor versinya dinaikkan, dan satu baris ditambahkan di [Changelog](#14-changelog) — semuanya di commit yang sama dengan perubahan kodenya. Di repo ini ada hook Claude Code (`.claude/settings.json` → `.claude/hooks/prd-reminder.cjs`) yang mengingatkan hal ini setiap kali file di `app/`, `routes/`, `database/`, `config/` atau `resources/views/` diubah.
@@ -19,7 +19,7 @@
 3. [Arsitektur dan teknologi](#3-arsitektur-dan-teknologi)
 4. [Alur bisnis utama](#4-alur-bisnis-utama)
 5. [Modul Procurement](#5-modul-procurement) — RF, PR, PO, GR, Stok, Pengeluaran Departemen
-6. [Modul Keuangan](#6-modul-keuangan) — Payment Advice, Payment Terms
+6. [Modul Keuangan](#6-modul-keuangan) — Payment Advice, Payment Terms, Invoice (tagihan ke customer)
 7. [Modul Budget Project dan Kasbon](#7-modul-budget-project-dan-kasbon)
 8. [Mesin Approval](#8-mesin-approval)
 9. [Modul Orang dan Organisasi](#9-modul-orang-dan-organisasi) — User, Role, Departemen, Karyawan, ADVEXNPJ
@@ -322,6 +322,39 @@ Pinjaman/klaim karyawan di luar project dicatat di halaman karyawan, tanpa appro
 
 **Hapus PA:** superadmin.
 
+### 6.3 Invoice (tagihan ke customer)
+**Tujuan:** mencatat tagihan perusahaan ke customer (piutang, uang masuk) beserta pembayarannya, dengan rincian per WID. Meniru objek "Invoice" di Salesforce. Tanpa approval.
+
+> **Asumsi tahap 1 (dibuat tanpa konfirmasi tim Finance, 2026-11-16).** Belum dibuat: master Customer (customer masih teks bebas), pajak (PPN/PPh), arti centang "Update WID" di Salesforce, upload bukti bayar, invoice dalam USD, tautan ke Revenue Plan WID. Lihat [Lampiran](#15-lampiran-celah-dan-pekerjaan-terbuka).
+
+**Invoice**
+| Field | Aturan |
+|---|---|
+| Invoice Id | Otomatis `INV-00001` |
+| Invoice Number | Wajib, maks 120, unik (mis. `MDU04871/IJE-MANDAU/XI/2026`) |
+| Invoice Date | Wajib |
+| Invoice Due Date | Opsional, tidak boleh sebelum Invoice Date. Lewat jatuh tempo dan belum lunas ditandai merah |
+| Company | Pilihan dari master perusahaan |
+| Customer | Teks bebas (opsional) |
+| TOP | Teks bebas (mis. "DP 30%", "TERMIN 1 - 95%", "FP 100%") |
+| Remarks | Opsional |
+| Invoice Amount | **Otomatis** = Σ rincian |
+| Amount Payment Detail | **Otomatis** = Σ pembayaran |
+| Belum Dibayar | **Otomatis** = Invoice Amount − Amount Payment Detail |
+| Invoice Status | **Otomatis**: New (belum ada bayar) → Partial Paid → Paid (lunas) |
+| Partial Payment Date | **Otomatis** = tanggal pembayaran pertama |
+| Final Payment Date | **Otomatis** = tanggal pembayaran terakhir saat lunas |
+
+**Invoice Detail** (rincian, normalnya per WID): kode otomatis `INVDET-00001`, WID (opsional, ditautkan ke halaman WID), project code, terms (mis. "DP I"), amount (wajib), tanggal PO customer, tanggal dokumen diterima, keterangan. Bisa ditambah dan dihapus; penghapusan ditolak bila nilai invoice jadi lebih kecil dari yang sudah dibayar.
+
+**Payment Detail** (pembayaran masuk): tanggal bayar, amount, metode (Bank Transfer / Cash / Giro / Cek / Lainnya), referensi, catatan. Tidak bisa dicatat sebelum ada rincian, dan tidak boleh melebihi sisa tagihan. Menghapus pembayaran menghitung ulang status.
+
+**Halaman:** daftar invoice (ringkasan total ditagih / sudah dibayar / belum dibayar, filter perusahaan & status, cari nomor/customer/TOP), form invoice, detail invoice (gaya Salesforce: field, Invoices Details, Payment Detail).
+
+**Hapus invoice:** permission `invoices.delete`, hanya bila belum ada pembayaran.
+
+**Hak akses:** `invoices.view/create/update/delete`. Finance mendapat semuanya, CEO `invoices.view` (migrasi master `2026_11_16_000001`). Menu: Finance → Invoice (Tagihan Customer).
+
 ---
 
 ## 7. Modul Budget Project dan Kasbon
@@ -566,7 +599,7 @@ Permission disimpan sebagai daftar di setiap role. `superadmin` dan `admin` sela
 | Request Form | `request_forms.view/create/update/delete/submit/approve/reject/create_pr/delete_pr` |
 | Purchase Order | `purchase_orders.view/create/update/delete/verify/submit/approve/reject/print` (`po.verify` lama tetap berlaku sebagai `purchase_orders.verify`) |
 | Goods Receipt | `goods_receipts.view/create/update/delete/verify/print` |
-| Payment | `payment_advices.view/update/delete`; `payment_advice_details.view/update_invoice/submit/approve/reject/mark_paid`; `payment_terms.*` |
+| Payment | `payment_advices.view/update/delete`; `payment_advice_details.view/update_invoice/submit/approve/reject/mark_paid`; `payment_terms.*`; `invoices.view/create/update/delete` (tagihan ke customer) |
 | Gudang | `stocks.view/adjust`; `warehouses.*` |
 | Master | `products.view/create/update/delete/export` (juga berlaku untuk Family, Type, Brand, Model, UOM, Currency); `suppliers.*` |
 | HR | `departments.*`, `employees.*`, `hr_attendances.view/manage`, `hr_payroll.view/manage` |
@@ -593,9 +626,9 @@ Semua role mendapat `request_forms.view/create/submit` dan menu Request Form, di
 | general_affair | RF view/create/update/submit; GR view/create/update/verify/print; products.view |
 | procurement | RF view/update/approve/reject; PO penuh; GR view/print; supplier dan payment terms penuh; produk view/create/update/export |
 | logistik | RF view/create/submit/create_pr/delete_pr; GR view/create/update/verify/print; stok view/adjust; gudang penuh; products.view |
-| finance | PO view/print; GR view/print; payment advice view/update; semua permission termin; suppliers.view; payment_terms.view |
+| finance | Invoice penuh; PO view/print; GR view/print; payment advice view/update; semua permission termin; suppliers.view; payment_terms.view |
 | hrd | Departemen, karyawan, absensi, payroll penuh |
-| ceo | View budget; RF view/approve/reject; PO view/approve/reject/print; GR view/print; PA view; termin view/approve/reject/mark_paid; stocks.view; products.view; approval_configs.view |
+| ceo | invoices.view; view budget; RF view/approve/reject; PO view/approve/reject/print; GR view/print; PA view; termin view/approve/reject/mark_paid; stocks.view; products.view; approval_configs.view |
 
 ---
 
@@ -615,6 +648,7 @@ Semua role mendapat `request_forms.view/create/submit` dan menu Request Form, di
 | Annual Plan | `{tahun}-NNNN` | Tahunan |
 | Monthly Plan / Detail | `BP-YYYY-MM-NNNNN` / `BPD-YYYY-MM-NNNNN` | — |
 | Kasbon | `ADVREQ-NNNNN` | Tidak reset |
+| Invoice customer / rinciannya | `INV-NNNNN` / `INVDET-NNNNN` | Tidak reset |
 | Expense Declaration | `EXP{yymm}-NNNNNNN` | Bulanan |
 | ADVEXNPJ | `ADVEXNPJ-NNNNN` | Tidak reset |
 | Produk / Supplier / Gudang | `EPRD-NNN` / `SUP-NNN` / `WHNNN` | — |
@@ -624,7 +658,7 @@ Nomor dokumen yang sudah dihapus tidak dipakai ulang.
 
 ### 13.2 Tabel utama
 - **Master:** users, roles, role_user, projects, project_user, companies, departments, employees, notifications, custom_reports, activity_logs.
-- **Tenant:** request_forms, request_form_items, erp_notes_attachments, erp_purchase_requests (+items), erp_purchase_orders (+items), erp_goods_receipts (+items), erp_stocks, erp_payment_advices, erp_payment_advice_details, erp_payment_terms, erp_approvals, erp_approval_configs, erp_budget_parents, erp_sub_projects, erp_work_items, erp_annual_budget_plans, erp_monthly_budget_plans, erp_budget_plan_details, erp_advance_requests, erp_expense_declarations, erp_employee_advances, erp_products, product_families, product_types, brands, product_models, uoms, currencies, erp_suppliers (+contacts, attachments), erp_warehouses.
+- **Tenant:** request_forms, request_form_items, erp_notes_attachments, erp_purchase_requests (+items), erp_purchase_orders (+items), erp_goods_receipts (+items), erp_stocks, erp_payment_advices, erp_payment_advice_details, erp_payment_terms, erp_approvals, erp_approval_configs, erp_budget_parents, erp_sub_projects, erp_work_items, erp_annual_budget_plans, erp_monthly_budget_plans, erp_budget_plan_details, erp_advance_requests, erp_expense_declarations, erp_employee_advances, erp_invoices, erp_invoice_details, erp_invoice_payments, erp_products, product_families, product_types, brands, product_models, uoms, currencies, erp_suppliers (+contacts, attachments), erp_warehouses.
 
 ### 13.3 Perintah operasional
 | Perintah | Fungsi |
@@ -638,7 +672,7 @@ Nomor dokumen yang sudah dihapus tidak dipakai ulang.
 ### 13.4 Pengujian
 - Feature test di `tests/Feature` (Budget, Kasbon, MasterData, Payment, PurchaseOrder, RequestForm, dll.).
 - Jalan di database khusus `mangga_test_master` / `mangga_test_tenant`; test menolak jalan di database lain.
-- Perintah: `php artisan test`. Kondisi per 2026-11-12: **374 lolos, 0 dilewati**.
+- Perintah: `php artisan test`. Kondisi per 2026-11-16: **380 lolos, 0 dilewati**.
 
 ### 13.5 Deploy
 Di server (`/Users/mac/apps/mangga`), satu per satu:
@@ -658,6 +692,7 @@ Riwayat versi lengkap ada di `docs/prd-history/`.
 
 | Tanggal | Versi | Perubahan |
 |---|---|---|
+| 2026-11-16 | 1.2 | Modul baru **Invoice (tagihan ke customer)**: invoice, rincian per WID, pembayaran masuk; nilai dan status (New / Partial Paid / Paid) dihitung otomatis. Permission `invoices.*` (Finance penuh, CEO lihat). Dibuat dari asumsi tanpa konfirmasi Finance. |
 | 2026-11-12 | 1.1 | **Keputusan bisnis:** PO hanya boleh dihapus selagi Draft dan belum pernah diajukan, sisanya Cancel. GR Received tidak bisa dihapus. Kasbon dan deklarasi tanpa kasbon mem-booking budget sejak submit. Approval kasbon dan deklarasi mengikuti rentang nominal. Kasbon bisa di-Settle (Closed). Setiap langkah approval wajib ke satu user. RF bisa dibuat semua role, tapi hanya pembuat atau admin yang bisa edit/submit. Sub-master produk ikut izin Products. Akses project diatur di form User. Template laporan pribadi kecuali dibagikan. **Perbaikan:** `erp:sync-stocks` tidak lagi memaksa PO Completed. Edit PO menolak baris yang sudah ada di PO lain dan mengembalikan status item RF. `amount_paid`/`balance_amount` PO ikut pembayaran termin. Tombol "Tandai semua dibaca" berfungsi. Permission user export/bulk delete, `purchase_orders.verify` dan `department_spending.view` bisa diberikan lewat menu Role. Perintah rusak `master:sync-users` dan test usang ProjectLogoTest dihapus. |
 | 2026-11-12 | 1.0 | PRD pertama ditulis dari kode yang berjalan (as-built). |
 | 2026-11-10 | — | RF yang masih punya PO non-Cancelled tidak bisa dihapus; harus cancel PO dulu (refund budget terjadi saat cancel). |
@@ -674,6 +709,15 @@ Riwayat versi lengkap ada di `docs/prd-history/`.
 Temuan dari pembacaan kode saat menyusun PRD ini. Belum semuanya diverifikasi dengan pengujian; perlu keputusan bisnis atau perbaikan.
 
 Celah dari versi 1.0 yang sudah diputuskan atau diperbaiki di versi 1.1 sudah dihapus dari daftar ini (lihat Changelog).
+
+**Invoice customer — perlu dikonfirmasi ke Finance**
+- Perlu master Customer, atau cukup teks bebas?
+- Daftar perusahaan penagih (MANDAU, MIG, …). Master perusahaan saat ini berisi Mandau dan IOH.
+- Arti centang "Update WID" di Invoice Detail Salesforce (apakah menambah realisasi pendapatan WID?).
+- Isi Payment Detail yang sebenarnya (bukti transfer, rekening penerima, potongan).
+- Pajak: nilai invoice sebelum/sesudah PPN, potongan PPh dari customer.
+- Status selain New / Partial Paid / Paid (mis. Cancelled), invoice dalam USD.
+- Siapa yang membuat dan boleh melihat invoice selain Finance.
 
 **Hak akses**
 - Masih ada halaman yang tidak mengecek permission di server: submit PO, halaman cetak PO/GR, dashboard, daftar WID per project.

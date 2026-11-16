@@ -120,8 +120,9 @@ class RoleSeeder extends Seeder
                 ],
             ],
             'finance' => [
-                'menu_keys'   => ['purchase_orders', 'goods_receipts', 'payment_advices', 'payment_advice_details', 'suppliers', 'payment_terms'],
+                'menu_keys'   => ['invoices', 'purchase_orders', 'goods_receipts', 'payment_advices', 'payment_advice_details', 'suppliers', 'payment_terms'],
                 'permissions' => [
+                    'invoices.view', 'invoices.create', 'invoices.update', 'invoices.delete',
                     'purchase_orders.view', 'purchase_orders.print',
                     'goods_receipts.view', 'goods_receipts.print',
                     'payment_advices.view', 'payment_advices.update',
@@ -139,8 +140,9 @@ class RoleSeeder extends Seeder
                 ],
             ],
             'ceo' => [
-                'menu_keys'   => ['budget_parents', 'sub_projects', 'work_items', 'request_forms', 'purchase_orders', 'goods_receipts', 'payment_advices', 'payment_advice_details', 'stocks', 'products', 'approval_configs'],
+                'menu_keys'   => ['budget_parents', 'sub_projects', 'work_items', 'request_forms', 'purchase_orders', 'goods_receipts', 'payment_advices', 'payment_advice_details', 'invoices', 'stocks', 'products', 'approval_configs'],
                 'permissions' => [
+                    'invoices.view',
                     'budget_parents.view', 'sub_projects.view', 'work_items.view',
                     'request_forms.view', 'request_forms.approve', 'request_forms.reject',
                     'purchase_orders.view', 'purchase_orders.approve', 'purchase_orders.reject', 'purchase_orders.print',

@@ -1,0 +1,156 @@
+<?php
+
+namespace Tests\Feature\Erp;
+
+use App\Models\Company;
+use App\Models\Erp\ErpBudgetParent;
+use App\Models\Erp\ErpSubProject;
+use App\Models\Erp\ErpWorkItem;
+use App\Models\Erp\Invoice;
+use App\Models\User;
+use Tests\ErpTestCase;
+
+/**
+ * Customer invoices: the amount is the sum of the lines per WID, the status follows
+ * the payments received (New -> Partial Paid -> Paid).
+ */
+class InvoiceTest extends ErpTestCase
+{
+    private User $finance;
+    private ErpWorkItem $wid;
+    private Company $company;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->finance = $this->makeUser('finance', ['invoices.view', 'invoices.create', 'invoices.update', 'invoices.delete']);
+        $this->company = Company::firstOrCreate(['code' => 'MANDAU'], ['name' => 'Mandau', 'short_name' => 'MANDAU', 'is_active' => true]);
+        $parent = ErpBudgetParent::create(['budget_code' => 'BP-INV', 'name' => 'Account', 'total_budget' => 1_000_000, 'remaining_budget' => 0, 'status' => 'Active']);
+        $sub = ErpSubProject::create(['budget_parent_id' => $parent->id, 'sub_project_code' => 'SP-INV', 'name' => 'Sub']);
+        $this->wid = ErpWorkItem::create(['sub_project_id' => $sub->id, 'wid_code' => 'WID-INV-001', 'name' => 'Tower A', 'allocated_budget' => 1_000_000, 'remaining_budget' => 1_000_000]);
+    }
+
+    private function createInvoice(array $overrides = []): Invoice
+    {
+        $this->actingInProject($this->finance)
+            ->post(route('erp.invoices.store'), array_merge([
+                'invoice_number' => 'MDU04871/IJE-MANDAU/XI/2026', 'invoice_date' => '2026-11-10', 'due_date' => '2026-12-11',
+                'company_id' => $this->company->id, 'customer_name' => 'Indosat', 'top' => 'FP 100%',
+            ], $overrides))->assertSessionHasNoErrors();
+
+        return Invoice::latest('id')->firstOrFail();
+    }
+
+    private function addDetail(Invoice $invoice, float $amount, array $overrides = [])
+    {
+        return $this->post(route('erp.invoices.details.store', $invoice), array_merge([
+            'work_item_id' => $this->wid->id, 'amount' => $amount, 'terms' => 'DP I',
+        ], $overrides));
+    }
+
+    private function pay(Invoice $invoice, float $amount, string $date = '2026-11-20')
+    {
+        return $this->post(route('erp.invoices.payments.store', $invoice), ['payment_date' => $date, 'amount' => $amount, 'method' => 'Bank Transfer']);
+    }
+
+    public function test_invoice_amount_comes_from_its_lines_and_status_from_the_payments(): void
+    {
+        $invoice = $this->createInvoice();
+        $this->assertSame('INV-00001', $invoice->code);
+        $this->assertSame('MANDAU', $invoice->company_name);
+        $this->assertSame('New', $invoice->status);
+
+        $this->addDetail($invoice, 6_306_000)->assertSessionHas('success');
+        $this->addDetail($invoice, 6_306_000)->assertSessionHas('success');
+        $invoice->refresh();
+        $this->assertEquals(12_612_000, (float) $invoice->invoice_amount);
+        $this->assertSame(['INVDET-00001', 'INVDET-00002'], $invoice->details()->orderBy('id')->pluck('code')->all());
+
+        $this->pay($invoice, 5_000_000, '2026-11-20')->assertSessionHas('success');
+        $invoice->refresh();
+        $this->assertSame('Partial Paid', $invoice->status);
+        $this->assertEquals(7_612_000, (float) $invoice->outstanding);
+        $this->assertSame('2026-11-20', $invoice->partial_payment_date->toDateString());
+        $this->assertNull($invoice->final_payment_date);
+
+        $this->pay($invoice, 7_612_000, '2026-12-01')->assertSessionHas('success');
+        $invoice->refresh();
+        $this->assertSame('Paid', $invoice->status);
+        $this->assertEquals(0, (float) $invoice->outstanding);
+        $this->assertSame('2026-12-01', $invoice->final_payment_date->toDateString());
+
+        // deleting a payment reopens it
+        $this->delete(route('erp.invoice-payments.destroy', $invoice->payments()->latest('id')->first()))->assertSessionHas('success');
+        $this->assertSame('Partial Paid', $invoice->fresh()->status);
+    }
+
+    public function test_payments_cannot_exceed_what_is_billed(): void
+    {
+        $invoice = $this->createInvoice();
+        $this->pay($invoice, 1_000)->assertSessionHasErrors('amount'); // nothing billed yet
+
+        $this->addDetail($invoice, 1_000_000);
+        $this->pay($invoice, 1_000_001)->assertSessionHasErrors('amount');
+        $this->pay($invoice, 1_000_000)->assertSessionHas('success');
+        $this->assertSame('Paid', $invoice->fresh()->status);
+    }
+
+    public function test_lines_and_invoices_already_paid_for_are_protected(): void
+    {
+        $invoice = $this->createInvoice();
+        $this->addDetail($invoice, 600_000);
+        $this->addDetail($invoice, 400_000);
+        $this->pay($invoice, 500_000);
+        [$first, $second] = $invoice->details()->orderBy('id')->get()->all();
+
+        // dropping the 600k line would leave 400k billed against 500k paid
+        $this->delete(route('erp.invoice-details.destroy', $first))->assertSessionHas('error');
+        $this->delete(route('erp.invoices.destroy', $invoice))->assertSessionHas('error');
+        $this->assertNotNull($invoice->fresh());
+
+        // dropping the 400k line still covers what was paid
+        $this->delete(route('erp.invoice-details.destroy', $second))->assertSessionHas('success');
+        $this->assertEquals(600_000, (float) $invoice->fresh()->invoice_amount);
+    }
+
+    public function test_invoice_number_is_unique_and_due_date_not_before_invoice_date(): void
+    {
+        $this->createInvoice();
+        $this->post(route('erp.invoices.store'), [
+            'invoice_number' => 'MDU04871/IJE-MANDAU/XI/2026', 'invoice_date' => '2026-11-10', 'due_date' => '2026-11-01',
+        ])->assertSessionHasErrors(['invoice_number', 'due_date']);
+    }
+
+    public function test_pages_render_and_list_filters_by_status(): void
+    {
+        $paid = $this->createInvoice(['invoice_number' => 'INV-PAID']);
+        $this->addDetail($paid, 100);
+        $this->pay($paid, 100);
+        $this->createInvoice(['invoice_number' => 'INV-OPEN']);
+
+        $this->get(route('erp.invoices.index'))->assertOk()->assertSee('INV-PAID')->assertSee('INV-OPEN');
+        $this->get(route('erp.invoices.index', ['status' => 'Paid']))->assertOk()->assertSee('INV-PAID')->assertDontSee('INV-OPEN');
+        $this->get(route('erp.invoices.create'))->assertOk();
+        $this->get(route('erp.invoices.show', $paid))->assertOk()->assertSee('WID-INV-001')->assertSee('Tower A');
+        $this->get(route('erp.invoices.edit', $paid))->assertOk();
+
+        $this->put(route('erp.invoices.update', $paid), [
+            'invoice_number' => 'INV-PAID', 'invoice_date' => '2026-11-10', 'remarks' => 'diubah',
+        ])->assertRedirect(route('erp.invoices.show', $paid));
+        $this->assertSame('diubah', $paid->fresh()->remarks);
+    }
+
+    public function test_access_follows_the_invoice_permissions(): void
+    {
+        $invoice = $this->createInvoice();
+
+        $this->actingInProject($this->makeUser('staff'));
+        $this->get(route('erp.invoices.index'))->assertForbidden();
+        $this->get(route('erp.invoices.show', $invoice))->assertForbidden();
+
+        $this->actingInProject($this->makeUser('ceo', ['invoices.view']));
+        $this->get(route('erp.invoices.show', $invoice))->assertOk()->assertDontSee('New Payment Detail');
+        $this->post(route('erp.invoices.details.store', $invoice), ['amount' => 100])->assertForbidden();
+        $this->post(route('erp.invoices.store'), ['invoice_number' => 'X', 'invoice_date' => '2026-11-10'])->assertForbidden();
+    }
+}

@@ -25,6 +25,14 @@ Logika semuanya sudah lolos test otomatis; yang dicek di sini adalah tampilan da
 - [ ] GR yang sudah Received → tombol hapus tidak ada.
 - [ ] Bayar satu termin → di PO, "Sudah dibayar" dan "Sisa tagihan" berubah.
 
+## Invoice customer (PRD v1.2)
+- [ ] Finance → **Invoice (Tagihan Customer)** → New Invoice → isi nomor, tanggal, perusahaan, customer, TOP → Save.
+- [ ] Tambah 2 rincian per WID → Invoice Amount = jumlah keduanya, link WID bisa diklik.
+- [ ] Catat pembayaran sebagian → status **Partial Paid**, Partial Payment Date terisi.
+- [ ] Catat sisa pembayaran → status **Paid**, Final Payment Date terisi; tombol Delete invoice hilang.
+- [ ] Coba bayar lebih dari sisa tagihan → ditolak.
+- [ ] Daftar invoice: filter status/perusahaan dan kotak total jalan.
+
 ## Lain-lain
 - [ ] Lonceng notifikasi → **Tandai semua dibaca** → notifikasi biasa jadi terbaca.
 - [ ] Custom Report → simpan template tanpa centang "Bagikan" → login user lain, template tidak terlihat.

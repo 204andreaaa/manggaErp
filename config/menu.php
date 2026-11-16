@@ -80,6 +80,14 @@ return [
 
         // ================== FINANCE & ACCOUNTING ==================
         [
+            'key'         => 'invoices',
+            'label'       => 'Invoices (Tagihan Customer)',
+            'route'       => 'erp.invoices.index',
+            'group'       => 'finance',
+            'icon'        => 'bx bx-receipt',
+            'permissions' => ['invoices.view', 'invoices.create', 'invoices.update', 'invoices.delete'],
+        ],
+        [
             'key'         => 'payment_advices',
             'label'       => 'Payment Advices (PA)',
             'route'       => 'erp.payment-advices.index',

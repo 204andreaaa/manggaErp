@@ -193,6 +193,13 @@ Route::middleware(['auth', 'active'])->group(function () {
         // Dedicated ERP Payment Terms
         Route::resource('payment-terms', \App\Http\Controllers\Erp\ErpPaymentTermController::class)->except(['create', 'show', 'edit']);
 
+        // Customer invoices (tagihan ke customer)
+        Route::resource('invoices', \App\Http\Controllers\Erp\InvoiceController::class);
+        Route::post('invoices/{invoice}/details', [\App\Http\Controllers\Erp\InvoiceController::class, 'storeDetail'])->name('invoices.details.store');
+        Route::delete('invoice-details/{detail}', [\App\Http\Controllers\Erp\InvoiceController::class, 'destroyDetail'])->name('invoice-details.destroy');
+        Route::post('invoices/{invoice}/payments', [\App\Http\Controllers\Erp\InvoiceController::class, 'storePayment'])->name('invoices.payments.store');
+        Route::delete('invoice-payments/{payment}', [\App\Http\Controllers\Erp\InvoiceController::class, 'destroyPayment'])->name('invoice-payments.destroy');
+
         // Inventory Stocks
         Route::post('stocks/datatable', [\App\Http\Controllers\Erp\ErpStockController::class, 'datatable'])->name('stocks.datatable');
         Route::get('stocks', [\App\Http\Controllers\Erp\ErpStockController::class, 'index'])->name('stocks.index');

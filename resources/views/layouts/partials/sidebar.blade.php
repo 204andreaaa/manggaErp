@@ -20,7 +20,7 @@ $isAdminProject = $isSuperAdmin || $u?->canSeeMenu('work_items') || $u?->canSeeM
     || $u?->canSeeMenu('expense_declarations');
 $isGA           = $isSuperAdmin || $u?->canSeeMenu('goods_receipts');
 $isProcurement  = $isSuperAdmin || $u?->hasRole('procurement') || $u?->hasPermission('purchase_orders.create') || $u?->canSeeMenu('suppliers') || $u?->canSeeMenu('payment_terms');
-$isFinance      = $isSuperAdmin || $u?->canSeeMenu('payment_advices') || $u?->canSeeMenu('payment_advice_details');
+$isFinance      = $isSuperAdmin || $u?->canSeeMenu('payment_advices') || $u?->canSeeMenu('payment_advice_details') || $u?->canSeeMenu('invoices');
 $isLogistik     = $isSuperAdmin || $u?->canSeeMenu('stocks') || $u?->canSeeMenu('warehouses');
 $isHRIS         = $isSuperAdmin || $u?->canSeeMenu('departments') || $u?->canSeeMenu('employees') || $u?->canSeeMenu('hr_attendances') || $u?->canSeeMenu('hr_payroll');
 $isCEO          = $isSuperAdmin || $u?->hasRole('ceo');
@@ -99,7 +99,8 @@ $isProcurementOpen = request()->routeIs('erp.procurement.dashboard')
     || request()->routeIs('erp.payment-terms.*');
 
 $isFinanceOpen = request()->routeIs('erp.payment-advices.*')
-    || request()->routeIs('erp.payment-advice-details.*');
+    || request()->routeIs('erp.payment-advice-details.*')
+    || request()->routeIs('erp.invoices.*');
 
 $isLogistikOpen = request()->routeIs('erp.stocks.*')
     || request()->routeIs('erp.warehouses.*');
@@ -412,6 +413,14 @@ $isSystemOpen = request()->routeIs('erp.users.*')
                 <div class="text-truncate">Finance</div>
             </a>
             <ul class="menu-sub">
+                @if($isSuperAdmin || $u?->canSeeMenu('invoices'))
+                <li class="menu-item {{ request()->routeIs('erp.invoices.*') ? 'active' : '' }}">
+                    <a href="{{ $rl('erp.invoices.index') }}" class="menu-link">
+                        <i class="bx bx-receipt me-2"></i>
+                        <div class="text-truncate">Invoice (Tagihan Customer)</div>
+                    </a>
+                </li>
+                @endif
                 @if($isSuperAdmin || $u?->canSeeMenu('payment_advices'))
                 <li class="menu-item {{ request()->routeIs('erp.payment-advices.*') || request()->routeIs('erp.payment-advice-details.*') ? 'active' : '' }}">
                     <a href="{{ $rl('erp.payment-advices.index') }}" class="menu-link">
