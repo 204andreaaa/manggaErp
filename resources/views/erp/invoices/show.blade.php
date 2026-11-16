@@ -13,7 +13,8 @@
   $paidPct = $inv->invoice_amount > 0 ? min(100, round($inv->amount_paid / $inv->invoice_amount * 100)) : 0;
   $statusIcon = match ($inv->status) { 'Paid' => 'bx-check-circle', 'Partial Paid' => 'bx-time-five', default => 'bx-file' };
   $cards = [
-    ['bx-receipt', 'primary', 'Nilai Invoice', $money($inv->invoice_amount), $inv->details->count().' rincian WID'],
+    ['bx-receipt', 'primary', 'Nilai Invoice', $money($inv->invoice_amount),
+      $inv->details->count().' rincian WID'.($inv->invoice_amount_usd > 0 ? ' · + USD '.number_format((float) $inv->invoice_amount_usd, 2, ',', '.') : '')],
     ['bx-wallet', 'success', 'Sudah Dibayar', $money($inv->amount_paid), $inv->payments->count().' kali pembayaran'],
     ['bx-hourglass', $inv->outstanding > 0 ? ($inv->isOverdue() ? 'danger' : 'warning') : 'success', 'Belum Dibayar', $money($inv->outstanding),
       $inv->outstanding <= 0 ? 'Lunas' : ($inv->isOverdue() ? 'Lewat jatuh tempo '.$date($inv->due_date) : 'Jatuh tempo '.$date($inv->due_date))],
@@ -138,7 +139,7 @@
         @else
           <div class="table-responsive">
             <table class="table table-hover hr-table mb-0">
-              <thead><tr><th>WID</th><th>Terms</th><th>PO / Dokumen</th><th class="text-end">Nominal</th><th></th></tr></thead>
+              <thead><tr><th>Work Id</th><th>Account / Project</th><th>Terms</th><th>Received Doc</th><th class="text-end">Amount</th><th></th></tr></thead>
               <tbody>
                 @foreach($inv->details as $d)
                   <tr>
@@ -147,11 +148,12 @@
                         <a href="{{ route('erp.work-items.show', $d->workItem) }}" class="inv-wid"><i class="bx bx-hard-hat"></i>{{ $d->workItem->wid_code }}</a>
                         <div class="small text-muted mt-1">{{ $d->workItem->name }}</div>
                       @else <span class="text-muted">Tanpa WID</span> @endif
-                      @if($d->project_code)<div class="small text-muted">Project {{ $d->project_code }}</div>@endif
                     </td>
-                    <td>{{ $d->terms ?: '-' }}<div class="small text-muted hr-code">{{ $d->code }}</div></td>
-                    <td class="small">PO {{ $date($d->po_date) }}<div class="text-muted">Dok. {{ $date($d->received_doc_date) }}</div></td>
-                    <td class="text-end fw-semibold text-nowrap">{{ $money($d->amount) }}</td>
+                    <td class="small">{{ $d->budgetParent?->name ?? '-' }}<div class="text-muted">{{ $d->subProject?->sub_project_code ?? $d->project_code ?? '-' }}</div></td>
+                    <td>{{ $d->terms ?: '-' }}<div class="small text-muted hr-code">{{ $d->code }}</div>
+                      @if($d->update_wid)<span class="badge bg-label-info rounded-pill" style="font-size:.66rem">Update WID</span>@endif</td>
+                    <td class="small text-nowrap">{{ $date($d->received_doc_date) }}</td>
+                    <td class="text-end fw-semibold text-nowrap">{{ $d->currency === 'USD' ? 'USD '.number_format((float) $d->amount, 2, ',', '.') : $money($d->amount) }}</td>
                     <td class="text-end">
                       @if($canUpdate)
                         <form method="POST" action="{{ route('erp.invoice-details.destroy', $d) }}" onsubmit="return confirm('Hapus rincian {{ $d->code }}?')">
@@ -163,7 +165,12 @@
                   </tr>
                 @endforeach
               </tbody>
-              <tfoot><tr><th colspan="3" class="text-end">Total</th><th class="text-end text-nowrap">{{ $money($inv->invoice_amount) }}</th><th></th></tr></tfoot>
+              <tfoot>
+                <tr><th colspan="4" class="text-end">Total IDR</th><th class="text-end text-nowrap">{{ $money($inv->invoice_amount) }}</th><th></th></tr>
+                @if($inv->invoice_amount_usd > 0)
+                  <tr><th colspan="4" class="text-end">Total USD</th><th class="text-end text-nowrap">USD {{ number_format((float) $inv->invoice_amount_usd, 2, ',', '.') }}</th><th></th></tr>
+                @endif
+              </tfoot>
             </table>
           </div>
         @endif
@@ -214,26 +221,63 @@
       @csrf
       <div class="modal-header"><h5 class="modal-title"><i class="bx bx-list-plus me-1 text-primary"></i>Tambah Rincian</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
       <div class="modal-body row g-3">
-        <div class="col-md-7">
-          <label class="form-label">WID</label>
-          <select name="work_item_id" class="form-select">
-            <option value="">-- Tanpa WID --</option>
-            @foreach($workItems as $w)
-              <option value="{{ $w->id }}">{{ $w->wid_code }} — {{ $w->name }}</option>
+        <div class="col-12"><div class="small text-muted"><i class="bx bx-info-circle me-1"></i>Pilih Account → Project → Work Id, atau langsung pilih Work Id dan dua lainnya terisi sendiri.</div></div>
+        <div class="col-md-4">
+          <label class="form-label">Account <span class="text-danger">*</span></label>
+          <select name="budget_parent_id" id="invAccount" class="form-select">
+            <option value="">-- Semua --</option>
+            @foreach($budgetParents as $bp)
+              <option value="{{ $bp->id }}">{{ $bp->name }}</option>
             @endforeach
           </select>
         </div>
-        <div class="col-md-5">
-          <label class="form-label">Nominal <span class="text-danger">*</span></label>
-          <div class="input-group"><span class="input-group-text">Rp</span><input type="number" name="amount" class="form-control" min="1" step="0.01" required></div>
+        <div class="col-md-4">
+          <label class="form-label">Project Code <span class="text-danger">*</span></label>
+          <select name="sub_project_id" id="invProject" class="form-select">
+            <option value="">-- Semua --</option>
+            @foreach($subProjects as $sp)
+              <option value="{{ $sp->id }}" data-account="{{ $sp->budget_parent_id }}">{{ $sp->sub_project_code }} — {{ $sp->name }}</option>
+            @endforeach
+          </select>
         </div>
-        <div class="col-md-4"><label class="form-label">Terms</label><input type="text" name="terms" class="form-control" maxlength="100" placeholder="mis. DP I"></div>
-        <div class="col-md-4"><label class="form-label">Project Code</label><input type="text" name="project_code" class="form-control" maxlength="80"></div>
-        <div class="col-md-4"><label class="form-label">Tanggal PO Customer</label><input type="date" name="po_date" class="form-control"></div>
-        <div class="col-md-4"><label class="form-label">Dokumen Diterima</label><input type="date" name="received_doc_date" class="form-control"></div>
-        <div class="col-md-8"><label class="form-label">Keterangan</label><input type="text" name="description" class="form-control" maxlength="500"></div>
+        <div class="col-md-4">
+          <label class="form-label">Work Id <span class="text-danger">*</span></label>
+          <select name="work_item_id" id="invWid" class="form-select" required>
+            <option value="">-- Pilih WID --</option>
+            @foreach($workItems as $w)
+              <option value="{{ $w->id }}" data-project="{{ $w->sub_project_id }}" data-account="{{ $w->subProject?->budget_parent_id }}">{{ $w->wid_code }} — {{ $w->name }}</option>
+            @endforeach
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Terms <span class="text-danger">*</span></label>
+          <input type="text" name="terms" class="form-control" maxlength="100" list="invTerms" required placeholder="mis. Final Payment">
+          <datalist id="invTerms">@foreach(\App\Models\Erp\InvoiceDetail::TERM_SUGGESTIONS as $t)<option value="{{ $t }}">@endforeach</datalist>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Currency <span class="text-danger">*</span></label>
+          <select name="currency" class="form-select" required>
+            @foreach(\App\Models\Erp\InvoiceDetail::CURRENCIES as $code => $label)<option value="{{ $code }}">{{ $label }}</option>@endforeach
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Amount <span class="text-danger">*</span></label>
+          <input type="number" name="amount" class="form-control" min="1" step="0.01" required>
+        </div>
+        <div class="col-md-4"><label class="form-label">Received Doc</label><input type="date" name="received_doc_date" class="form-control"></div>
+        <div class="col-md-8 d-flex align-items-end">
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" name="update_wid" value="1" id="invUpdateWid">
+            <label class="form-check-label" for="invUpdateWid">Update WID</label>
+            <div class="form-text mt-0">Disimpan sebagai tanda saja; pengaruhnya ke WID menunggu konfirmasi Finance.</div>
+          </div>
+        </div>
       </div>
-      <div class="modal-footer"><button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Batal</button><button class="btn btn-primary">Simpan</button></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Batal</button>
+        <button class="btn btn-outline-primary" name="save_new" value="1">Simpan & Tambah Lagi</button>
+        <button class="btn btn-primary">Simpan</button>
+      </div>
     </form>
   </div>
 </div>
@@ -261,5 +305,36 @@
     </form>
   </div>
 </div>
+<script>
+  // Account -> Project -> Work Id: each list only shows what belongs to the one above,
+  // and picking a Work Id directly fills in its Project and Account.
+  document.addEventListener('DOMContentLoaded', function () {
+    const account = document.getElementById('invAccount');
+    const project = document.getElementById('invProject');
+    const wid = document.getElementById('invWid');
+    const filter = () => {
+      [...project.options].forEach(o => { if (o.value) o.hidden = !!account.value && o.dataset.account !== account.value; });
+      [...wid.options].forEach(o => {
+        if (!o.value) return;
+        o.hidden = (!!project.value && o.dataset.project !== project.value) || (!!account.value && o.dataset.account !== account.value);
+      });
+      if (project.selectedOptions[0]?.hidden) project.value = '';
+      if (wid.selectedOptions[0]?.hidden) wid.value = '';
+    };
+    account.addEventListener('change', filter);
+    project.addEventListener('change', () => {
+      const a = project.selectedOptions[0]?.dataset.account;
+      if (a) account.value = a;
+      filter();
+    });
+    wid.addEventListener('change', () => {
+      const o = wid.selectedOptions[0];
+      if (o?.value) { account.value = o.dataset.account || ''; project.value = o.dataset.project || ''; filter(); }
+    });
+    @if(session('reopen_detail') || $errors->has('work_item_id') || $errors->has('terms') || $errors->has('currency'))
+      bootstrap.Modal.getOrCreateInstance(document.getElementById('detailModal')).show();
+    @endif
+  });
+</script>
 @endif
 @endsection

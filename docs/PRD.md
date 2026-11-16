@@ -6,7 +6,7 @@
 | **Sistem** | Mangga ERP — ERP multi-project untuk procurement, budget project, kasbon, pembayaran supplier, gudang dan HR |
 | **Repo** | `204andreaaa/manggaErp` (branch utama `master`) |
 | **Versi kode** | Laravel 13, PHP 8.2+ (server: PHP 8.4) |
-| **Versi PRD** | 1.2 |
+| **Versi PRD** | 1.3 |
 | **Terakhir diperbarui** | 2026-11-16 |
 | **Status** | Belum production (masih tahap uji internal) |
 
@@ -325,7 +325,7 @@ Pinjaman/klaim karyawan di luar project dicatat di halaman karyawan, tanpa appro
 ### 6.3 Invoice (tagihan ke customer)
 **Tujuan:** mencatat tagihan perusahaan ke customer (piutang, uang masuk) beserta pembayarannya, dengan rincian per WID. Meniru objek "Invoice" di Salesforce. Tanpa approval.
 
-> **Asumsi tahap 1 (dibuat tanpa konfirmasi tim Finance, 2026-11-16).** Belum dibuat: master Customer (customer masih teks bebas), pajak (PPN/PPh), arti centang "Update WID" di Salesforce, upload bukti bayar, invoice dalam USD, tautan ke Revenue Plan WID. Lihat [Lampiran](#15-lampiran-celah-dan-pekerjaan-terbuka).
+> **Asumsi tahap 1 (dibuat tanpa konfirmasi tim Finance, 2026-11-16).** Form rincian sudah disamakan dengan form "New Invoice Detail" Salesforce. Belum dibuat: master Customer (customer masih teks bebas), pajak (PPN/PPh), efek centang "Update WID", upload bukti bayar, pelunasan invoice USD, tautan ke Revenue Plan WID. Lihat [Lampiran](#15-lampiran-celah-dan-pekerjaan-terbuka).
 
 **Invoice**
 | Field | Aturan |
@@ -338,14 +338,28 @@ Pinjaman/klaim karyawan di luar project dicatat di halaman karyawan, tanpa appro
 | Customer | Teks bebas (opsional) |
 | TOP | Teks bebas (mis. "DP 30%", "TERMIN 1 - 95%", "FP 100%") |
 | Remarks | Opsional |
-| Invoice Amount | **Otomatis** = Σ rincian |
+| Invoice Amount | **Otomatis** = Σ rincian bermata uang IDR |
+| Invoice Amount USD | **Otomatis** = Σ rincian bermata uang USD (ditampilkan terpisah, tidak ikut hitungan pembayaran) |
 | Amount Payment Detail | **Otomatis** = Σ pembayaran |
 | Belum Dibayar | **Otomatis** = Invoice Amount − Amount Payment Detail |
 | Invoice Status | **Otomatis**: New (belum ada bayar) → Partial Paid → Paid (lunas) |
 | Partial Payment Date | **Otomatis** = tanggal pembayaran pertama |
 | Final Payment Date | **Otomatis** = tanggal pembayaran terakhir saat lunas |
 
-**Invoice Detail** (rincian, normalnya per WID): kode otomatis `INVDET-00001`, WID (opsional, ditautkan ke halaman WID), project code, terms (mis. "DP I"), amount (wajib), tanggal PO customer, tanggal dokumen diterima, keterangan. Bisa ditambah dan dihapus; penghapusan ditolak bila nilai invoice jadi lebih kecil dari yang sudah dibayar.
+**Invoice Detail** (rincian per WID; satu invoice bisa menagih beberapa WID sekaligus). Field mengikuti form Salesforce:
+| Field | Aturan |
+|---|---|
+| Invoice Detail Id | Otomatis `INVDET-00001` |
+| Account | **Wajib** (Budget Parent) |
+| Project Code | **Wajib** (Sub Project) |
+| Work Id | **Wajib**. Pilihan Account → Project → Work Id saling menyaring; memilih Work Id langsung mengisi Account dan Project-nya. Server selalu mengambil Account/Project dari WID dan menolak pasangan yang tidak cocok |
+| Terms | **Wajib**, teks dengan saran (DP I, DP II, Termin I, Termin II, Final Payment) sampai daftar pilihan Salesforce yang sebenarnya diketahui |
+| Currency | **Wajib**: IDR atau USD |
+| Amount | Wajib, > 0 |
+| Received Doc | Tanggal, opsional |
+| Update WID | Centang; **saat ini hanya disimpan sebagai tanda**, belum mengubah apa pun di WID |
+
+Tombol **Simpan & Tambah Lagi** (seperti "Save & New") langsung membuka form rincian berikutnya. Rincian bisa dihapus; penghapusan rincian IDR ditolak bila nilai invoice jadi lebih kecil dari yang sudah dibayar.
 
 **Payment Detail** (pembayaran masuk): tanggal bayar, amount, metode (Bank Transfer / Cash / Giro / Cek / Lainnya), referensi, catatan. Tidak bisa dicatat sebelum ada rincian, dan tidak boleh melebihi sisa tagihan. Menghapus pembayaran menghitung ulang status.
 
@@ -672,7 +686,7 @@ Nomor dokumen yang sudah dihapus tidak dipakai ulang.
 ### 13.4 Pengujian
 - Feature test di `tests/Feature` (Budget, Kasbon, MasterData, Payment, PurchaseOrder, RequestForm, dll.).
 - Jalan di database khusus `mangga_test_master` / `mangga_test_tenant`; test menolak jalan di database lain.
-- Perintah: `php artisan test`. Kondisi per 2026-11-16: **380 lolos, 0 dilewati**.
+- Perintah: `php artisan test`. Kondisi per 2026-11-16: **382 lolos, 0 dilewati**.
 
 ### 13.5 Deploy
 Di server (`/Users/mac/apps/mangga`), satu per satu:
@@ -692,6 +706,7 @@ Riwayat versi lengkap ada di `docs/prd-history/`.
 
 | Tanggal | Versi | Perubahan |
 |---|---|---|
+| 2026-11-16 | 1.3 | Form rincian invoice disamakan dengan Salesforce: Account, Project Code dan Work Id wajib (saling menyaring, diambil dari WID), Terms dan Currency (IDR/USD) wajib, centang Update WID (tanda saja), tombol Simpan & Tambah Lagi. Invoice punya total USD terpisah. Tampilan halaman invoice diperbarui. |
 | 2026-11-16 | 1.2 | Modul baru **Invoice (tagihan ke customer)**: invoice, rincian per WID, pembayaran masuk; nilai dan status (New / Partial Paid / Paid) dihitung otomatis. Permission `invoices.*` (Finance penuh, CEO lihat). Dibuat dari asumsi tanpa konfirmasi Finance. |
 | 2026-11-12 | 1.1 | **Keputusan bisnis:** PO hanya boleh dihapus selagi Draft dan belum pernah diajukan, sisanya Cancel. GR Received tidak bisa dihapus. Kasbon dan deklarasi tanpa kasbon mem-booking budget sejak submit. Approval kasbon dan deklarasi mengikuti rentang nominal. Kasbon bisa di-Settle (Closed). Setiap langkah approval wajib ke satu user. RF bisa dibuat semua role, tapi hanya pembuat atau admin yang bisa edit/submit. Sub-master produk ikut izin Products. Akses project diatur di form User. Template laporan pribadi kecuali dibagikan. **Perbaikan:** `erp:sync-stocks` tidak lagi memaksa PO Completed. Edit PO menolak baris yang sudah ada di PO lain dan mengembalikan status item RF. `amount_paid`/`balance_amount` PO ikut pembayaran termin. Tombol "Tandai semua dibaca" berfungsi. Permission user export/bulk delete, `purchase_orders.verify` dan `department_spending.view` bisa diberikan lewat menu Role. Perintah rusak `master:sync-users` dan test usang ProjectLogoTest dihapus. |
 | 2026-11-12 | 1.0 | PRD pertama ditulis dari kode yang berjalan (as-built). |
@@ -713,10 +728,12 @@ Celah dari versi 1.0 yang sudah diputuskan atau diperbaiki di versi 1.1 sudah di
 **Invoice customer — perlu dikonfirmasi ke Finance**
 - Perlu master Customer, atau cukup teks bebas?
 - Daftar perusahaan penagih (MANDAU, MIG, …). Master perusahaan saat ini berisi Mandau dan IOH.
-- Arti centang "Update WID" di Invoice Detail Salesforce (apakah menambah realisasi pendapatan WID?).
+- Arti centang "Update WID" di Invoice Detail Salesforce (apakah menambah realisasi pendapatan WID?). Saat ini hanya disimpan.
+- Daftar pilihan Terms yang sebenarnya (baru diketahui "Final Payment" dan "DP I").
+- Rincian USD: dibayar dalam USD atau dikonversi ke IDR? Saat ini total USD hanya ditampilkan, tidak ikut status pembayaran.
 - Isi Payment Detail yang sebenarnya (bukti transfer, rekening penerima, potongan).
 - Pajak: nilai invoice sebelum/sesudah PPN, potongan PPh dari customer.
-- Status selain New / Partial Paid / Paid (mis. Cancelled), invoice dalam USD.
+- Status selain New / Partial Paid / Paid (mis. Cancelled).
 - Siapa yang membuat dan boleh melihat invoice selain Finance.
 
 **Hak akses**

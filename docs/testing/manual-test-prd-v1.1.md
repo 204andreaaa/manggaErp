@@ -28,6 +28,9 @@ Logika semuanya sudah lolos test otomatis; yang dicek di sini adalah tampilan da
 ## Invoice customer (PRD v1.2)
 - [ ] Finance → **Invoice (Tagihan Customer)** → New Invoice → isi nomor, tanggal, perusahaan, customer, TOP → Save.
 - [ ] Tambah 2 rincian per WID → Invoice Amount = jumlah keduanya, link WID bisa diklik.
+- [ ] Di form rincian: pilih Account → daftar Project & Work Id menyempit; pilih Work Id langsung → Account & Project terisi sendiri.
+- [ ] Klik **Simpan & Tambah Lagi** → form rincian terbuka lagi.
+- [ ] Tambah rincian Currency **USD** → muncul "Total USD" terpisah, Invoice Amount (IDR) tidak berubah.
 - [ ] Catat pembayaran sebagian → status **Partial Paid**, Partial Payment Date terisi.
 - [ ] Catat sisa pembayaran → status **Paid**, Final Payment Date terisi; tombol Delete invoice hilang.
 - [ ] Coba bayar lebih dari sisa tagihan → ditolak.

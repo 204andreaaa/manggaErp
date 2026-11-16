@@ -44,8 +44,40 @@ class InvoiceTest extends ErpTestCase
     private function addDetail(Invoice $invoice, float $amount, array $overrides = [])
     {
         return $this->post(route('erp.invoices.details.store', $invoice), array_merge([
-            'work_item_id' => $this->wid->id, 'amount' => $amount, 'terms' => 'DP I',
+            'work_item_id' => $this->wid->id, 'amount' => $amount, 'terms' => 'DP I', 'currency' => 'IDR',
         ], $overrides));
+    }
+
+    public function test_a_line_needs_its_work_id_terms_and_currency_and_takes_account_and_project_from_the_wid(): void
+    {
+        $invoice = $this->createInvoice();
+
+        $this->addDetail($invoice, 1_000, ['work_item_id' => null, 'terms' => '', 'currency' => 'EUR'])
+            ->assertSessionHasErrors(['work_item_id', 'terms', 'currency']);
+
+        // an Account that is not the WID's own is refused
+        $otherParent = ErpBudgetParent::create(['budget_code' => 'BP-OTHER', 'name' => 'Other', 'total_budget' => 1, 'remaining_budget' => 0, 'status' => 'Active']);
+        $this->addDetail($invoice, 1_000, ['budget_parent_id' => $otherParent->id])->assertSessionHasErrors('work_item_id');
+
+        $this->addDetail($invoice, 1_000, ['update_wid' => 1, 'save_new' => 1])
+            ->assertSessionHas('success')->assertSessionHas('reopen_detail', true);
+        $detail = $invoice->details()->sole();
+        $this->assertSame($this->wid->subProject->budget_parent_id, (int) $detail->budget_parent_id);
+        $this->assertSame($this->wid->sub_project_id, (int) $detail->sub_project_id);
+        $this->assertSame('SP-INV', $detail->project_code);
+        $this->assertTrue($detail->update_wid);
+    }
+
+    public function test_usd_lines_get_their_own_total_and_do_not_count_towards_the_idr_amount(): void
+    {
+        $invoice = $this->createInvoice();
+        $this->addDetail($invoice, 1_000_000);
+        $this->addDetail($invoice, 2_500, ['currency' => 'USD']);
+
+        $invoice->refresh();
+        $this->assertEquals(1_000_000, (float) $invoice->invoice_amount);
+        $this->assertEquals(2_500, (float) $invoice->invoice_amount_usd);
+        $this->get(route('erp.invoices.show', $invoice))->assertOk()->assertSee('Total USD')->assertSee('USD 2.500,00');
     }
 
     private function pay(Invoice $invoice, float $amount, string $date = '2026-11-20')

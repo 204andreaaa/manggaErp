@@ -22,7 +22,7 @@ class Invoice extends Model
 
     protected $fillable = [
         'code', 'invoice_number', 'invoice_date', 'company_id', 'company_name', 'customer_name',
-        'top', 'remarks', 'due_date', 'status', 'invoice_amount', 'amount_paid', 'outstanding',
+        'top', 'remarks', 'due_date', 'status', 'invoice_amount', 'invoice_amount_usd', 'amount_paid', 'outstanding',
         'partial_payment_date', 'final_payment_date', 'created_by_id', 'updated_by_id',
     ];
 
@@ -32,6 +32,7 @@ class Invoice extends Model
         'partial_payment_date' => 'date',
         'final_payment_date' => 'date',
         'invoice_amount' => 'decimal:2',
+        'invoice_amount_usd' => 'decimal:2',
         'amount_paid' => 'decimal:2',
         'outstanding' => 'decimal:2',
     ];
@@ -51,15 +52,21 @@ class Invoice extends Model
         return $this->belongsTo(User::class, 'created_by_id');
     }
 
-    /** Recomputes amount, paid, outstanding, status and the payment dates from the lines and payments. */
+    /**
+     * Recomputes amount, paid, outstanding, status and the payment dates from the lines and
+     * payments. Payments and status work on the IDR amount; USD lines get their own total
+     * (Salesforce's "Invoice Amount USD") until it is known how USD invoices are settled.
+     */
     public function recalculate(): void
     {
-        $amount = (float) $this->details()->sum('amount');
+        $amount = (float) $this->details()->where('currency', 'IDR')->sum('amount');
+        $amountUsd = (float) $this->details()->where('currency', 'USD')->sum('amount');
         $paid = (float) $this->payments()->sum('amount');
         $fullyPaid = $amount > 0 && $paid >= $amount - 0.005;
 
         $this->update([
             'invoice_amount' => $amount,
+            'invoice_amount_usd' => $amountUsd,
             'amount_paid' => $paid,
             'outstanding' => max(0, $amount - $paid),
             'status' => $fullyPaid ? 'Paid' : ($paid > 0 ? 'Partial Paid' : 'New'),

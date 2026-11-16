@@ -78,11 +78,14 @@ class InvoiceController extends Controller
     public function show(Invoice $invoice)
     {
         $this->authorizeTo('view');
-        $invoice->load(['details.workItem', 'details.createdBy', 'payments.createdBy', 'createdBy']);
+        $invoice->load(['details.workItem', 'details.subProject', 'details.budgetParent', 'details.createdBy', 'payments.createdBy', 'createdBy']);
 
         return view('erp.invoices.show', [
             'invoice' => $invoice,
-            'workItems' => ErpWorkItem::orderBy('wid_code')->get(['id', 'wid_code', 'name']),
+            // Account -> Project -> Work Id, filtered step by step in the form
+            'budgetParents' => \App\Models\Erp\ErpBudgetParent::orderBy('name')->get(['id', 'budget_code', 'name']),
+            'subProjects' => \App\Models\Erp\ErpSubProject::orderBy('sub_project_code')->get(['id', 'budget_parent_id', 'sub_project_code', 'name']),
+            'workItems' => ErpWorkItem::with('subProject:id,budget_parent_id')->orderBy('wid_code')->get(['id', 'sub_project_id', 'wid_code', 'name']),
         ]);
     }
 
@@ -122,15 +125,33 @@ class InvoiceController extends Controller
     {
         $this->authorizeTo('update');
 
+        // Like the Salesforce form: Account, Project and Work Id are all required. The WID
+        // decides the other two, so a picked Account/Project must be the WID's own.
         $data = $request->validate([
-            'work_item_id' => ['nullable', Rule::exists('erp_work_items', 'id')],
-            'project_code' => ['nullable', 'string', 'max:80'],
-            'terms' => ['nullable', 'string', 'max:100'],
+            'budget_parent_id' => ['nullable', 'integer'],
+            'sub_project_id' => ['nullable', 'integer'],
+            'work_item_id' => ['required', Rule::exists('erp_work_items', 'id')->whereNull('deleted_at')],
+            'terms' => ['required', 'string', 'max:100'],
+            'currency' => ['required', Rule::in(array_keys(InvoiceDetail::CURRENCIES))],
             'amount' => ['required', 'numeric', 'min:1', 'max:999999999999'],
-            'po_date' => ['nullable', 'date'],
             'received_doc_date' => ['nullable', 'date'],
+            'update_wid' => ['nullable', 'boolean'],
+            'po_date' => ['nullable', 'date'],
             'description' => ['nullable', 'string', 'max:500'],
         ]);
+
+        $wid = ErpWorkItem::with('subProject')->findOrFail($data['work_item_id']);
+        $subProject = $wid->subProject;
+        if (!$subProject
+            || (!empty($data['sub_project_id']) && (int) $data['sub_project_id'] !== (int) $subProject->id)
+            || (!empty($data['budget_parent_id']) && (int) $data['budget_parent_id'] !== (int) $subProject->budget_parent_id)) {
+            throw ValidationException::withMessages(['work_item_id' => "Work Id {$wid->wid_code} bukan bagian dari Account / Project yang dipilih."]);
+        }
+
+        $data['sub_project_id'] = $subProject->id;
+        $data['budget_parent_id'] = $subProject->budget_parent_id;
+        $data['project_code'] = $subProject->sub_project_code;
+        $data['update_wid'] = $request->boolean('update_wid');
 
         DB::connection('tenant')->transaction(function () use ($invoice, $data) {
             $invoice->details()->create($data + [
@@ -142,7 +163,10 @@ class InvoiceController extends Controller
 
         NotificationHelper::pushLive('invoice', $invoice->id, 'updated');
 
-        return redirect()->back()->with('success', 'Rincian invoice ditambahkan.');
+        // "Save & New" brings the form straight back for the next line
+        return redirect()->back()
+            ->with('success', 'Rincian invoice ditambahkan.')
+            ->with('reopen_detail', $request->boolean('save_new'));
     }
 
     public function destroyDetail(InvoiceDetail $detail)
@@ -150,9 +174,9 @@ class InvoiceController extends Controller
         $this->authorizeTo('update');
         $invoice = $detail->invoice;
 
-        // the invoice may not end up worth less than what the customer already paid
-        $remaining = (float) $invoice->details()->where('id', '!=', $detail->id)->sum('amount');
-        if ($remaining < (float) $invoice->amount_paid - 0.005) {
+        // the invoice may not end up worth less than what the customer already paid (payments are in IDR)
+        $remaining = (float) $invoice->details()->where('currency', 'IDR')->where('id', '!=', $detail->id)->sum('amount');
+        if ($detail->currency === 'IDR' && $remaining < (float) $invoice->amount_paid - 0.005) {
             return redirect()->back()->with('error', 'Rincian tidak bisa dihapus: nilai invoice akan lebih kecil dari yang sudah dibayar customer.');
         }
 
