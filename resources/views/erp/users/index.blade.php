@@ -90,9 +90,9 @@
                             <th>EMAIL</th>
                             <th>PHONE</th>
                             <th>POSITION</th>
+                            <th>DEPARTMENT</th>
                             <th>SIGNATURE</th>
                             <th>ROLES</th>
-                            <th>WAREHOUSE</th>
                             <th>STATUS</th>
                             <th>CREATED</th>
                             <th>UPDATED</th>
@@ -129,16 +129,14 @@
                                 <td>{{ $u->username }}</td>
                                 <td>{{ $u->email }}</td>
                                 <td>{{ $u->phone ?? '-' }}</td>
+                                <td class="fw-semibold">{{ $u->position ?: '-' }}</td>
                                 <td>
-                                    <div class="fw-semibold">{{ $u->position ?? '-' }}</div>
-                                    <div class="text-muted small" style="font-size:0.75rem;">
-                                        @php $userDept = $u->employee?->department; @endphp
-                                        @if($userDept && $departments->contains('name', $userDept))
-                                            <i class="bx bx-sitemap me-1 text-primary"></i>{{ $userDept }}
-                                        @else
-                                            <span class="text-danger" title="Departemen belum diisi / tidak ada di master. User ini belum bisa membuat RF Non Project."><i class="bx bx-error-circle me-1"></i>{{ $userDept ?: 'Departemen belum diisi' }}</span>
-                                        @endif
-                                    </div>
+                                    @php $userDept = $u->employee?->department; @endphp
+                                    @if($userDept && $departments->contains('name', $userDept))
+                                        {{ $userDept }}
+                                    @else
+                                        <span class="text-danger small" title="Departemen belum diisi / tidak ada di master. User ini belum bisa membuat RF Non Project."><i class="bx bx-error-circle me-1"></i>{{ $userDept ?: 'Belum diisi' }}</span>
+                                    @endif
                                 </td>
                                 <td class="text-center">
                                     @php
@@ -164,8 +162,13 @@
                                     @endif
                                 </td>
 
-                                <td>{{ $roleText ?: '-' }}</td>
-                                <td>{{ $u->warehouse?->warehouse_name ?? '-' }}</td>
+                                <td>
+                                    @forelse($roleNames as $roleName)
+                                        <span class="badge bg-label-primary d-block text-start mb-1">{{ $roleName }}</span>
+                                    @empty
+                                        -
+                                    @endforelse
+                                </td>
                                 <td class="txt-nowrap">
                                     @if ($u->status === 'active')
                                         <span class="badge bg-success">Active</span>
@@ -710,7 +713,8 @@
 
             $('#f_role').on('change', function() {
                 const v = this.value;
-                table.column(8).search(v ? v : '', true, false).draw();
+                // role names like "General Affair (GA)" contain regex characters
+                table.column(9).search(v ? $.fn.dataTable.util.escapeRegex(v) : '', true, false).draw();
             });
 
             $('#f_status').on('change', function() {
