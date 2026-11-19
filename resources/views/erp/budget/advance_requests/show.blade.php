@@ -12,8 +12,8 @@
   $money = fn ($v) => 'IDR '.number_format((float) $v, 0, ',', '.');
   $statusClass = match($advanceRequest->status) { 'Approved' => 'success', 'Rejected' => 'danger', 'Submitted' => 'info', default => 'secondary' };
   $canDeclare = $advanceRequest->isOpenForSettlement() && auth()->user()->hasPermission('expense_declarations.create');
-  $canPay = $advanceRequest->status === 'Approved' && $advanceRequest->payment_status === 'Unpaid' && auth()->user()->hasRole(['finance','superadmin']);
-  $canSettle = $advanceRequest->isOpenForSettlement() && (auth()->user()->hasRole(['finance','superadmin']) || auth()->user()->hasPermission('advance_requests.pay'));
+  $canPay = $advanceRequest->status === 'Approved' && $advanceRequest->payment_status === 'Unpaid' && auth()->user()->hasPermission('advance_requests.pay');
+  $canSettle = $advanceRequest->isOpenForSettlement() && auth()->user()->hasPermission('advance_requests.pay');
   $settlement = $advanceRequest->isSettled()
     ? '<span class="badge bg-label-dark">Closed</span> '.e($advanceRequest->settlement_date?->format('Y/m/d') ?? '')
       .' <span class="text-muted small">dikembalikan '.e($money($advanceRequest->settlement_amount)).($advanceRequest->settledBy ? ', oleh '.e($advanceRequest->settledBy->name) : '').'</span>'

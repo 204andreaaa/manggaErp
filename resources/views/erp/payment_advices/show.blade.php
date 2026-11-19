@@ -257,7 +257,7 @@
               @php
                 $unallocatedHeader = max(0, $paymentAdvice->total_invoice_amount_with_tax - $paymentAdvice->details->sum('payment_amount_with_tax'));
               @endphp
-              @if(!$paymentAdvice->payment_closed && (auth()->user()->hasRole('finance') || auth()->user()->hasRole('superadmin')))
+              @if(!$paymentAdvice->payment_closed && auth()->user()->hasPermission('payment_advices.update'))
                 @if($unallocatedHeader > 0)
                   <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#addTerminModal">
                     <i class="bx bx-plus me-1"></i>+ Add / Custom Termin
@@ -317,13 +317,13 @@
                       <td>
                         <div class="d-flex align-items-center gap-1">
                           <a href="{{ route('erp.payment-advice-details.show', $pad) }}" class="btn btn-sm btn-icon btn-label-primary rounded-circle" data-bs-toggle="tooltip" title="Lihat Detail Termin"><i class="bx bx-show"></i></a>
-                          @if($pad->approval_status === 'Rejected' && auth()->user()->hasRole(['finance', 'superadmin']))
+                          @if($pad->approval_status === 'Rejected' && auth()->user()->hasPermission('payment_advice_details.submit'))
                             <form action="{{ route('erp.payment-advice-details.submit', $pad) }}" method="POST" class="d-inline" onsubmit="return confirm('Ajukan ulang termin ini untuk approval? Approval akan dimulai lagi dari level 1.');">
                               @csrf
                               <button type="submit" class="btn btn-sm btn-outline-primary rounded-pill px-2 py-0" data-bs-toggle="tooltip" title="Ajukan ulang termin yang ditolak"><i class="bx bx-paper-plane me-1"></i>Ajukan Ulang</button>
                             </form>
                           @endif
-                          @if((auth()->user()->hasRole('finance') || auth()->user()->hasRole('superadmin')) && ($pad->approval_status === 'Draft' || empty($pad->approval_status)))
+                          @if(auth()->user()->hasPermission('payment_advices.update') && ($pad->approval_status === 'Draft' || empty($pad->approval_status)))
                             <form action="{{ route('erp.payment-advice-details.destroy', $pad) }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin menghapus termin ini untuk menyesuaikan jadwal custom?');">
                               @csrf
                               @method('DELETE')

@@ -135,6 +135,9 @@ class SupplierTest extends ErpTestCase
 
         $this->actingInProject($this->makeUser('procurement'));
         $this->postJson(route('erp.suppliers.store'), ['name' => 'By procurement'])->assertOk();
+        $this->deleteJson(route('erp.suppliers.destroy', $supplier))->assertForbidden(); // staff may not delete
+
+        $this->actingInProject($this->makeUser('head_procurement'));
         $this->deleteJson(route('erp.suppliers.destroy', $supplier))->assertOk();
         $this->assertDatabaseHas('erp_suppliers', ['name' => 'By procurement'], 'tenant');
     }

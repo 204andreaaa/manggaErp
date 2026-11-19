@@ -88,7 +88,7 @@
             <i class="bx bx-lock-alt me-1"></i>Terkunci (Antrean)
           </button>
         @else
-          @if(auth()->user()->hasRole(['finance', 'superadmin']))
+          @if(auth()->user()->hasPermission('payment_advice_details.submit'))
             <button type="button" class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#submitApprovalModal">
               <i class="bx bx-paper-plane me-1"></i>{{ $paymentAdviceDetail->approval_status === 'Rejected' ? 'Ajukan Ulang' : 'Submit for Approval' }}
             </button>
@@ -205,7 +205,7 @@
                     <td class="py-2">
                       <div class="d-flex align-items-center flex-wrap gap-2">
                         <span class="fw-bold text-dark">{{ $paymentAdviceDetail->invoice_no ?: '-' }}</span>
-                        @if(in_array($paymentAdviceDetail->approval_status, ['Draft', 'Rejected'], true) && (auth()->user()->hasRole('finance') || auth()->user()->hasRole('superadmin')))
+                        @if(in_array($paymentAdviceDetail->approval_status, ['Draft', 'Rejected'], true) && auth()->user()->hasPermission('payment_advice_details.update_invoice'))
                           <button type="button" class="btn btn-xs btn-outline-primary rounded-pill px-2.5 py-0.5" data-bs-toggle="modal" data-bs-target="#editInvoiceModal">
                             <i class="bx bx-edit me-1"></i>Input / Edit
                           </button>

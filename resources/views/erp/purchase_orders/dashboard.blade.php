@@ -4,7 +4,7 @@
 
 @section('content')
 @php
-    $canCreatePo = auth()->user()->hasRole(['procurement', 'superadmin']) || auth()->user()->hasPermission('purchase_orders.create');
+    $canCreatePo = auth()->user()->hasPermission('purchase_orders.create');
 @endphp
 <div class="container-xxl flex-grow-1 container-p-y">
   <h4 class="fw-bold py-3 mb-2">Procurement Dashboard</h4>

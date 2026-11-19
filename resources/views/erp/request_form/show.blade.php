@@ -89,10 +89,10 @@
       
       @php
         $authUser = auth()->user();
-        $canCreatePr = $rf->status === 'Approved' && ($authUser->hasRole(['logistik', 'superadmin']) || $authUser->hasPermission('request_forms.create_pr'));
+        $canCreatePr = $rf->status === 'Approved' && $authUser->hasPermission('request_forms.create_pr');
         // Sama dengan syarat halaman Create PO: masih ada item RF yang belum masuk PO aktif (selain Cancelled)
         $canCreatePo = $rf->status === 'Approved'
-          && ($authUser->hasRole(['procurement', 'superadmin']) || $authUser->hasPermission('purchase_orders.create'))
+          && $authUser->hasPermission('purchase_orders.create')
           && $rf->items()->whereDoesntHave('purchaseOrderItems', fn ($q) => $q->whereHas('purchaseOrder', fn ($po) => $po->where('status', '!=', 'Cancelled')))->exists();
       @endphp
       
@@ -608,7 +608,7 @@
               </div>
 
               @php
-                $canDeletePr = $authUser->hasRole(['logistik', 'superadmin']) || $authUser->hasPermission('request_forms.delete_pr');
+                $canDeletePr = $authUser->hasPermission('request_forms.delete_pr');
               @endphp
 
               @if($canCreatePr)

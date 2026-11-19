@@ -98,7 +98,7 @@ class ErpPaymentAdviceController extends Controller
 
     public function store(Request $request)
     {
-        abort_unless(auth()->user()->hasRole(['finance', 'superadmin']) || auth()->user()->hasPermission('payment_advices.update'), 403, 'Hanya tim Finance yang berhak membuat Payment Advice.');
+        abort_unless(auth()->user()->hasPermission('payment_advices.update'), 403, 'Hanya tim Finance yang berhak membuat Payment Advice.');
 
         $data = $request->validate([
             'erp_purchase_order_id' => 'required|exists:erp_purchase_orders,id',
@@ -166,7 +166,7 @@ class ErpPaymentAdviceController extends Controller
 
     public function storeDetail(Request $request, ErpPaymentAdvice $paymentAdvice)
     {
-        abort_unless(auth()->user()->hasRole(['finance', 'superadmin']) || auth()->user()->hasPermission('payment_advices.update'), 403, 'Hanya tim Finance yang berhak menambah termin pembayaran.');
+        abort_unless(auth()->user()->hasPermission('payment_advices.update'), 403, 'Hanya tim Finance yang berhak menambah termin pembayaran.');
 
         if ($paymentAdvice->status === 'Cancelled') {
             return redirect()->back()->with('error', 'Payment Advice ini sudah di-cancel (PO dibatalkan).');
@@ -227,7 +227,7 @@ class ErpPaymentAdviceController extends Controller
 
     public function destroyDetail(ErpPaymentAdviceDetail $paymentAdviceDetail)
     {
-        if (!auth()->user()->hasRole('superadmin') && !auth()->user()->hasRole('finance')) {
+        if (!auth()->user()->hasPermission('payment_advices.update')) {
             return redirect()->back()->with('error', 'Anda tidak memiliki hak akses untuk menghapus termin pembayaran.');
         }
 
@@ -331,7 +331,7 @@ class ErpPaymentAdviceController extends Controller
 
     public function updateInvoice(Request $request, ErpPaymentAdviceDetail $paymentAdviceDetail)
     {
-        abort_unless(auth()->user()->hasRole(['finance', 'superadmin']), 403, 'Hanya tim Finance yang berhak mengedit data invoice.');
+        abort_unless(auth()->user()->hasPermission('payment_advice_details.update_invoice'), 403, 'Hanya tim Finance yang berhak mengedit data invoice.');
 
         $request->validate([
             'invoice_no' => 'required|string|max:100',
@@ -362,7 +362,7 @@ class ErpPaymentAdviceController extends Controller
 
     public function submitDetail(Request $request, ErpPaymentAdviceDetail $paymentAdviceDetail)
     {
-        abort_unless(auth()->user()->hasRole(['finance', 'superadmin']), 403, 'Hanya tim Finance yang berhak mengajukan tagihan untuk approval.');
+        abort_unless(auth()->user()->hasPermission('payment_advice_details.submit'), 403, 'Hanya tim Finance yang berhak mengajukan tagihan untuk approval.');
 
         if ($paymentAdviceDetail->approval_status === 'Cancelled') {
             return redirect()->back()->with('error', 'Termin ini sudah di-cancel (PO dibatalkan).');
@@ -713,7 +713,7 @@ class ErpPaymentAdviceController extends Controller
     public function markPaidDetail(Request $request, ErpPaymentAdviceDetail $paymentAdviceDetail)
     {
         $user = auth()->user();
-        if (!$user->hasRole('superadmin') && !$user->hasRole('finance')) {
+        if (!$user->hasPermission('payment_advice_details.mark_paid')) {
             return redirect()->back()->with('error', 'Hanya Tim Finance / Superadmin yang berhak memproses pembayaran termin.');
         }
 

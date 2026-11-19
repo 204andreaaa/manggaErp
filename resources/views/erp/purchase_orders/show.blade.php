@@ -72,7 +72,7 @@
       </a>
 
       {{-- Edit Button (Only for Procurement / Admin / Superadmin in Draft/Rejected) --}}
-      @if(($purchaseOrder->status === 'Draft' || $purchaseOrder->status === 'Rejected') && auth()->user()->hasRole(['procurement', 'admin', 'superadmin']))
+      @if(($purchaseOrder->status === 'Draft' || $purchaseOrder->status === 'Rejected') && auth()->user()->hasPermission('purchase_orders.update'))
         <a href="{{ route('erp.purchase-orders.edit', $purchaseOrder) }}" class="btn btn-outline-warning btn-sm rounded-pill px-3">
           <i class="bx bx-edit me-1"></i>Edit
         </a>
@@ -145,7 +145,7 @@
 
       {{-- Submit for Approval Button (Procurement / Admin only) --}}
       @php
-        $canSubmitPo = in_array($purchaseOrder->status, ['Draft', 'Rejected'], true) && auth()->user()->hasRole(['procurement', 'admin', 'superadmin']);
+        $canSubmitPo = in_array($purchaseOrder->status, ['Draft', 'Rejected'], true) && auth()->user()->hasPermission('purchase_orders.submit');
         $isReadyToSubmit = !$isVerificationActive || (bool) $purchaseOrder->verified_by_id;
       @endphp
       @if($canSubmitPo)
@@ -168,7 +168,7 @@
 
       {{-- Goods Receipt Button (Only for Logistik / GA / Warehouse / Superadmin or goods_receipts.create permission) --}}
       @php
-        $canCreateGr = auth()->user()->hasRole(['logistik', 'warehouse', 'ga', 'superadmin']) || auth()->user()->hasPermission('goods_receipts.create');
+        $canCreateGr = auth()->user()->hasPermission('goods_receipts.create');
       @endphp
       @if(($purchaseOrder->status === 'Approved' || $purchaseOrder->status === 'Completed') && !$purchaseOrder->is_gr_completed && $canCreateGr)
         <a href="{{ route('erp.goods-receipts.create', $purchaseOrder) }}" class="btn btn-success btn-sm rounded-pill px-3">
@@ -673,7 +673,7 @@
       <div class="tab-pane fade" id="tab-do" role="tabpanel">
         <div class="d-flex align-items-center justify-content-between mb-3">
           <h6 class="fw-bold mb-0 text-primary"><i class="bx bx-truck me-1"></i>Goods Receipt & Delivery Orders</h6>
-          @if(($purchaseOrder->status === 'Approved' || $purchaseOrder->status === 'Completed') && !$purchaseOrder->is_gr_completed && (auth()->user()->hasRole(['logistik', 'warehouse', 'ga', 'superadmin']) || auth()->user()->hasPermission('goods_receipts.create')))
+          @if(($purchaseOrder->status === 'Approved' || $purchaseOrder->status === 'Completed') && !$purchaseOrder->is_gr_completed && auth()->user()->hasPermission('goods_receipts.create'))
             <a href="{{ route('erp.goods-receipts.create', $purchaseOrder) }}" class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm">
               <i class="bx bx-plus me-1"></i>New Goods Receipt
             </a>

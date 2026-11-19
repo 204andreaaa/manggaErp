@@ -4,6 +4,7 @@ namespace Database\Seeders\Core;
 
 use Illuminate\Database\Seeder;
 use App\Models\Role;
+use Database\Seeders\Launch\RolePermissionSeeder;
 use Illuminate\Support\Facades\DB;
 
 class RoleSeeder extends Seeder
@@ -80,78 +81,14 @@ class RoleSeeder extends Seeder
                 'menu_keys'   => $allKeys,
                 'permissions' => $allPermissions,
             ],
-            'admin_project' => [
-                'menu_keys'   => ['budget_parents', 'sub_projects', 'work_items', 'request_forms', 'products'],
-                'permissions' => [
-                    'budget_parents.view', 'budget_parents.create', 'budget_parents.update', 'budget_parents.delete',
-                    'sub_projects.view', 'sub_projects.create', 'sub_projects.update', 'sub_projects.delete',
-                    'work_items.view', 'work_items.create', 'work_items.update', 'work_items.delete',
-                    'request_forms.view', 'request_forms.create', 'request_forms.update', 'request_forms.submit',
-                    'products.view'
-                ],
-            ],
-            'general_affair' => [
-                'menu_keys'   => ['request_forms', 'goods_receipts', 'products'],
-                'permissions' => [
-                    'request_forms.view', 'request_forms.create', 'request_forms.update', 'request_forms.submit',
-                    'goods_receipts.view', 'goods_receipts.create', 'goods_receipts.update', 'goods_receipts.verify', 'goods_receipts.print',
-                    'products.view'
-                ],
-            ],
-            'procurement' => [
-                'menu_keys'   => ['request_forms', 'purchase_orders', 'goods_receipts', 'suppliers', 'payment_terms', 'products', 'product_families', 'product_types', 'brands', 'product_models', 'currencies', 'uoms'],
-                'permissions' => [
-                    'request_forms.view', 'request_forms.update', 'request_forms.approve', 'request_forms.reject',
-                    'purchase_orders.view', 'purchase_orders.create', 'purchase_orders.update', 'purchase_orders.delete', 'purchase_orders.verify', 'purchase_orders.submit', 'purchase_orders.approve', 'purchase_orders.reject', 'purchase_orders.print',
-                    'goods_receipts.view', 'goods_receipts.print',
-                    'suppliers.view', 'suppliers.create', 'suppliers.update', 'suppliers.delete',
-                    'payment_terms.view', 'payment_terms.create', 'payment_terms.update', 'payment_terms.delete',
-                    'products.view', 'products.create', 'products.update', 'products.export'
-                ],
-            ],
-            'logistik' => [
-                'menu_keys'   => ['request_forms', 'goods_receipts', 'stocks', 'warehouses', 'products', 'uoms'],
-                'permissions' => [
-                    'request_forms.view', 'request_forms.create', 'request_forms.submit', 'request_forms.create_pr', 'request_forms.delete_pr',
-                    'goods_receipts.view', 'goods_receipts.create', 'goods_receipts.update', 'goods_receipts.verify', 'goods_receipts.print',
-                    'stocks.view', 'stocks.adjust',
-                    'warehouses.view', 'warehouses.create', 'warehouses.update', 'warehouses.delete',
-                    'products.view'
-                ],
-            ],
-            'finance' => [
-                'menu_keys'   => ['invoices', 'purchase_orders', 'goods_receipts', 'payment_advices', 'payment_advice_details', 'suppliers', 'payment_terms'],
-                'permissions' => [
-                    'invoices.view', 'invoices.create', 'invoices.update', 'invoices.delete',
-                    'purchase_orders.view', 'purchase_orders.print',
-                    'goods_receipts.view', 'goods_receipts.print',
-                    'payment_advices.view', 'payment_advices.update',
-                    'payment_advice_details.view', 'payment_advice_details.update_invoice', 'payment_advice_details.submit', 'payment_advice_details.approve', 'payment_advice_details.reject', 'payment_advice_details.mark_paid',
-                    'suppliers.view', 'payment_terms.view'
-                ],
-            ],
-            'hrd' => [
-                'menu_keys'   => ['departments', 'employees', 'hr_attendances', 'hr_payroll'],
-                'permissions' => [
-                    'departments.view', 'departments.create', 'departments.update', 'departments.delete',
-                    'employees.view', 'employees.create', 'employees.update', 'employees.delete',
-                    'hr_attendances.view', 'hr_attendances.manage',
-                    'hr_payroll.view', 'hr_payroll.manage',
-                ],
-            ],
-            'ceo' => [
-                'menu_keys'   => ['budget_parents', 'sub_projects', 'work_items', 'request_forms', 'purchase_orders', 'goods_receipts', 'payment_advices', 'payment_advice_details', 'invoices', 'stocks', 'products', 'approval_configs'],
-                'permissions' => [
-                    'invoices.view',
-                    'budget_parents.view', 'sub_projects.view', 'work_items.view',
-                    'request_forms.view', 'request_forms.approve', 'request_forms.reject',
-                    'purchase_orders.view', 'purchase_orders.approve', 'purchase_orders.reject', 'purchase_orders.print',
-                    'goods_receipts.view', 'goods_receipts.print',
-                    'payment_advices.view', 'payment_advice_details.view', 'payment_advice_details.approve', 'payment_advice_details.reject', 'payment_advice_details.mark_paid',
-                    'stocks.view', 'products.view', 'approval_configs.view'
-                ],
-            ],
         ];
+
+        // Division roles and the CEO follow the standard matrix of the launch seeder.
+        foreach (array_keys($rolesData) as $slug) {
+            if ($standard = RolePermissionSeeder::for($slug)) {
+                $roleConfigs[$slug] = $standard;
+            }
+        }
 
         // Every employee may raise a Request Form; only its maker (or an admin) edits/submits it.
         foreach ($roleConfigs as $slug => $conf) {

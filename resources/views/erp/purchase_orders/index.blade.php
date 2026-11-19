@@ -11,7 +11,7 @@
       </h4>
       <div class="text-muted small">Daftar & Kumpulan Seluruh Purchase Order (Master PO)</div>
     </div>
-    @if(auth()->user()->hasRole(['procurement', 'superadmin', 'admin']))
+    @if(auth()->user()->hasPermission('purchase_orders.create'))
       <a href="{{ route('erp.procurement.dashboard') }}" class="btn btn-primary btn-sm">
         <i class="bx bx-plus me-1"></i>+ Create PO Baru (dari RF/PR)
       </a>

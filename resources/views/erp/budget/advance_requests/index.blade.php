@@ -25,7 +25,9 @@
     <div class="sf-card-head">
       <h6>Advance Request</h6>
       <div class="sf-actions">
+        @if(auth()->user()->hasPermission('advance_requests.create'))
         <a href="{{ route('erp.advance-requests.create') }}" class="btn btn-primary btn-sm"><i class="bx bx-plus me-1"></i>New Advance Request</a>
+        @endif
       </div>
     </div>
     @if($advanceRequests->isEmpty())

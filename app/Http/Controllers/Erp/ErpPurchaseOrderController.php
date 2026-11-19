@@ -37,7 +37,7 @@ class ErpPurchaseOrderController extends Controller
     public function create(RequestForm $requestForm)
     {
         abort_unless(
-            auth()->user()->hasRole(['procurement', 'superadmin']) || auth()->user()->hasPermission('purchase_orders.create'),
+            auth()->user()->hasPermission('purchase_orders.create'),
             403,
             'Hanya divisi Procurement atau Super Admin yang dapat membuat Purchase Order (PO).'
         );
@@ -102,7 +102,7 @@ class ErpPurchaseOrderController extends Controller
     public function store(Request $request)
     {
         abort_unless(
-            auth()->user()->hasRole(['procurement', 'superadmin']) || auth()->user()->hasPermission('purchase_orders.create'),
+            auth()->user()->hasPermission('purchase_orders.create'),
             403,
             'Hanya divisi Procurement atau Super Admin yang dapat membuat Purchase Order (PO).'
         );
@@ -250,7 +250,7 @@ class ErpPurchaseOrderController extends Controller
     public function edit(ErpPurchaseOrder $purchaseOrder)
     {
         abort_unless(
-            auth()->user()->hasRole(['procurement', 'superadmin']) || auth()->user()->hasPermission('purchase_orders.update'),
+            auth()->user()->hasPermission('purchase_orders.update'),
             403,
             'Hanya divisi Procurement atau Super Admin yang dapat mengedit Purchase Order.'
         );
@@ -307,7 +307,7 @@ class ErpPurchaseOrderController extends Controller
     public function update(Request $request, ErpPurchaseOrder $purchaseOrder)
     {
         abort_unless(
-            auth()->user()->hasRole(['procurement', 'superadmin']) || auth()->user()->hasPermission('purchase_orders.update'),
+            auth()->user()->hasPermission('purchase_orders.update'),
             403,
             'Hanya divisi Procurement atau Super Admin yang dapat mengedit Purchase Order.'
         );
@@ -478,7 +478,7 @@ class ErpPurchaseOrderController extends Controller
     public function destroyAttachment(\App\Models\Erp\ErpNoteAttachment $attachment)
     {
         abort_unless(
-            auth()->user()->hasRole(['procurement', 'superadmin']) || auth()->user()->hasPermission('purchase_orders.update'),
+            auth()->user()->hasPermission('purchase_orders.update'),
             403,
             'Unauthorized'
         );
@@ -974,7 +974,7 @@ class ErpPurchaseOrderController extends Controller
                 $isAuthorized = true;
             }
         } else {
-            $isAuthorized = ($user->hasRole(['head_procurement', 'procurement']) || $user->hasPermission('purchase_orders.verify'));
+            $isAuthorized = $user->hasPermission('purchase_orders.verify');
         }
 
         if (!$isAuthorized) {

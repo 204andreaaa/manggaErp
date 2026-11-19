@@ -158,7 +158,7 @@ class AdvanceRequestController extends Controller
 
     public function show(AdvanceRequest $advanceRequest)
     {
-        abort_unless(auth()->user()->hasPermission('advance_requests.view'), 403);
+        abort_unless(auth()->user()->hasPermission('advance_requests.view') || $this->isInvolved($advanceRequest), 403);
 
         $advanceRequest->load([
             'budgetPlanDetail.monthlyBudgetPlan.annualBudgetPlan.budgetParent',
@@ -246,7 +246,7 @@ class AdvanceRequestController extends Controller
 
     public function approve(Request $request, ErpApproval $approval)
     {
-        abort_unless(auth()->user()->hasPermission('advance_requests.approve'), 403);
+        // Who may act is decided by Approval Config (the person / role on the step), checked below.
 
         $request->validate(['comments' => 'nullable|string']);
 
@@ -366,7 +366,7 @@ class AdvanceRequestController extends Controller
 
     public function reject(Request $request, ErpApproval $approval)
     {
-        abort_unless(auth()->user()->hasPermission('advance_requests.approve'), 403);
+        // Who may act is decided by Approval Config (the person / role on the step), checked below.
 
         $request->validate(['reason' => 'required|string|max:500']);
 
@@ -434,7 +434,7 @@ class AdvanceRequestController extends Controller
     {
         $user = auth()->user();
 
-        if (!$user->hasRole(['finance', 'superadmin'])) {
+        if (!$user->hasPermission('advance_requests.pay')) {
             return redirect()->back()->with('error', 'Hanya Finance atau Superadmin yang berhak memproses pembayaran kasbon.');
         }
 
@@ -481,7 +481,7 @@ class AdvanceRequestController extends Controller
     public function settle(Request $request, AdvanceRequest $advanceRequest)
     {
         $user = auth()->user();
-        abort_unless($user->hasRole(['finance', 'superadmin']) || $user->hasPermission('advance_requests.pay'), 403);
+        abort_unless($user->hasPermission('advance_requests.pay'), 403);
 
         $data = $request->validate([
             'settlement_date' => 'required|date',
@@ -560,5 +560,23 @@ class AdvanceRequestController extends Controller
                 }
             }
         }
+    }
+
+    /**
+     * The requester and the people named on its approval steps may open the
+     * document even without the module's view permission (e.g. an approver from
+     * another division).
+     */
+    private function isInvolved($document): bool
+    {
+        $user = auth()->user();
+        if ($document->request_by_id == $user->id) {
+            return true;
+        }
+        $roleIds = $user->roles()->pluck('roles.id')->all();
+
+        return $document->approvals()
+            ->where(fn ($q) => $q->where('assigned_to_user_id', $user->id)->orWhereIn('assigned_to_role_id', $roleIds ?: [0]))
+            ->exists();
     }
 }

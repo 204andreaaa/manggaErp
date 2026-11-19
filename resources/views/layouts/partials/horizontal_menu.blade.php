@@ -12,14 +12,18 @@ $dashboardRoute = 'dashboard';
 
 // Role checks
 $isSuperAdmin   = $u?->hasRole('superadmin') || $u?->hasRole('admin');
-$isAdminProject = $isSuperAdmin || $u?->hasRole(['admin_project', 'project_admin']) || $u?->canSeeMenu('work_items') || $u?->canSeeMenu('budget_parents') || $u?->canSeeMenu('sub_projects')
-    || $u?->canSeeMenu('annual_budget_plans') || $u?->canSeeMenu('advance_requests')
-    || $u?->canSeeMenu('expense_declarations');
-$isGA           = $isSuperAdmin || $u?->hasRole(['ga', 'general_affair']) || $u?->canSeeMenu('goods_receipts');
-$isProcurement  = $isSuperAdmin || $u?->hasRole('procurement') || $u?->hasPermission('purchase_orders.create') || $u?->canSeeMenu('suppliers') || $u?->canSeeMenu('payment_terms');
-$isFinance      = $isSuperAdmin || $u?->hasRole('finance') || $u?->canSeeMenu('payment_advices') || $u?->canSeeMenu('payment_advice_details') || $u?->canSeeMenu('invoices');
-$isLogistik     = $isSuperAdmin || $u?->hasRole(['logistik', 'warehouse']) || $u?->canSeeMenu('stocks') || $u?->canSeeMenu('warehouses');
-$isHRIS         = $isSuperAdmin || $u?->hasRole(['hrd', 'hr_manager']) || $u?->canSeeMenu('employees') || $u?->canSeeMenu('departments') || $u?->canSeeMenu('hr_attendances') || $u?->canSeeMenu('hr_payroll');
+// Same grouping as the sidebar: a division menu only for that division's own work.
+$isAdminProject = $isSuperAdmin || $u?->canSeeMenu('work_items') || $u?->canSeeMenu('budget_parents') || $u?->canSeeMenu('sub_projects');
+$isLogistik     = $isSuperAdmin || $u?->canSeeMenu('stocks') || $u?->canSeeMenu('warehouses');
+$isGA           = $isSuperAdmin || $u?->hasRole('general_affair') || ($u?->canSeeMenu('goods_receipts') && !$isLogistik);
+$isProcurement  = $isSuperAdmin || $u?->hasPermission('purchase_orders.create') || $u?->canSeeMenu('suppliers') || $u?->canSeeMenu('payment_terms');
+$isFinance      = $isSuperAdmin || $u?->canSeeMenu('payment_advices') || $u?->canSeeMenu('payment_advice_details') || $u?->canSeeMenu('invoices');
+$isHRIS         = $isSuperAdmin || $u?->canSeeMenu('employees') || $u?->canSeeMenu('departments') || $u?->canSeeMenu('hr_attendances') || $u?->canSeeMenu('hr_payroll');
+$budgetInFinance = !$isAdminProject && $isFinance;
+$canSeeBudgetPlans = $isSuperAdmin || $u?->canSeeMenu('annual_budget_plans');
+$canSeeDeptSpending = $isSuperAdmin || $u?->hasPermission('department_spending.view');
+$canSeeKasbon = $isSuperAdmin || $u?->canSeeMenu('advance_requests');
+$canSeeExpense = $isSuperAdmin || $u?->canSeeMenu('expense_declarations');
 $isCEO          = $isSuperAdmin || $u?->hasRole('ceo');
 $isMaster       = $isSuperAdmin || $u?->hasRole('procurement') || $u?->canSeeMenu('products') || $u?->canSeeMenu('uoms');
 $canSeeCustomReports = $isSuperAdmin || $u?->canSeeMenu('custom_reports');
@@ -83,6 +87,20 @@ if ($isGA || $isLogistik) {
                             <i class="bx bx-cart text-info me-2"></i> Purchase Orders (PO)
                         </a>
                     </li>
+                    @if($canSeeKasbon)
+                    <li>
+                        <a class="dropdown-item {{ request()->routeIs('erp.advance-requests.*') ? 'active' : '' }}" href="{{ $rl('erp.advance-requests.index') }}">
+                            <i class="bx bx-wallet text-warning me-2"></i> Advance Requests (Kasbon)
+                        </a>
+                    </li>
+                    @endif
+                    @if($canSeeExpense)
+                    <li>
+                        <a class="dropdown-item {{ request()->routeIs('erp.expense-declarations.*') ? 'active' : '' }}" href="{{ $rl('erp.expense-declarations.index') }}">
+                            <i class="bx bx-receipt text-success me-2"></i> Expense Declarations
+                        </a>
+                    </li>
+                    @endif
                 </ul>
             </li>
 
@@ -109,33 +127,8 @@ if ($isGA || $isLogistik) {
                             <i class="bx bx-wallet-alt me-2"></i> Budget Parents
                         </a>
                     </li>
-                    @if($isSuperAdmin || $u?->hasPermission('department_spending.view'))
-                    <li>
-                        <a class="dropdown-item {{ request()->routeIs('erp.department-spending.*') ? 'active' : '' }}" href="{{ $rl('erp.department-spending.index') }}">
-                            <i class="bx bx-buildings me-2"></i> Pengeluaran Departemen
-                        </a>
-                    </li>
-                    @endif
-                    @if($isSuperAdmin || $u?->canSeeMenu('annual_budget_plans'))
-                    <li>
-                        <a class="dropdown-item {{ request()->routeIs('erp.annual-budget-plans.*') || request()->routeIs('erp.monthly-budget-plans.*') ? 'active' : '' }}" href="{{ $rl('erp.annual-budget-plans.index') }}">
-                            <i class="bx bx-calendar me-2"></i> Budget Plans
-                        </a>
-                    </li>
-                    @endif
-                    @if($isSuperAdmin || $u?->canSeeMenu('advance_requests'))
-                    <li>
-                        <a class="dropdown-item {{ request()->routeIs('erp.advance-requests.*') ? 'active' : '' }}" href="{{ $rl('erp.advance-requests.index') }}">
-                            <i class="bx bx-wallet me-2"></i> Advance Requests (Kasbon)
-                        </a>
-                    </li>
-                    @endif
-                    @if($isSuperAdmin || $u?->canSeeMenu('expense_declarations'))
-                    <li>
-                        <a class="dropdown-item {{ request()->routeIs('erp.expense-declarations.*') ? 'active' : '' }}" href="{{ $rl('erp.expense-declarations.index') }}">
-                            <i class="bx bx-receipt me-2"></i> Expense Declarations
-                        </a>
-                    </li>
+                    @if(!$budgetInFinance)
+                        @include('layouts.partials.horizontal_budget_items')
                     @endif
                 </ul>
             </li>
@@ -233,6 +226,9 @@ if ($isGA || $isLogistik) {
                             <i class="bx bx-check-shield me-2"></i> PO Verification
                         </a>
                     </li>
+                    @if($budgetInFinance)
+                        @include('layouts.partials.horizontal_budget_items')
+                    @endif
                 </ul>
             </li>
             @endif
@@ -245,6 +241,13 @@ if ($isGA || $isLogistik) {
                     <i class="bx bx-box me-1 text-info"></i> Logistik
                 </a>
                 <ul class="dropdown-menu shadow-sm">
+                    @if(!$isGA && $u?->canSeeMenu('goods_receipts'))
+                    <li>
+                        <a class="dropdown-item {{ request()->routeIs('erp.goods-receipts.*') ? 'active' : '' }}" href="{{ $rl('erp.goods-receipts.index') }}">
+                            <i class="bx bx-package me-2"></i> Penerimaan Barang (GR/DO)
+                        </a>
+                    </li>
+                    @endif
                     <li>
                         <a class="dropdown-item {{ request()->routeIs('erp.stocks.*') ? 'active' : '' }}" href="{{ $rl('erp.stocks.index') }}">
                             <i class="bx bx-layer me-2"></i> Inventory Stocks

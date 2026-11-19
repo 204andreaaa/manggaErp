@@ -48,12 +48,12 @@ class PaymentInvoiceAndSubmitTest extends ErpTestCase
         $this->assertNull($detail->fresh()->invoice_no);
     }
 
-    public function test_non_finance_user_cannot_edit_the_invoice(): void
+    public function test_user_without_permission_cannot_edit_the_invoice(): void
     {
         $po = $this->makeApprovedPo();
         $pa = $this->makePaymentAdvice($po, 1_000_000, [1_000_000]);
         $detail = $pa->details()->first();
-        $this->actingInProject($this->makeUser('staff', ['payment_advice_details.update_invoice']));
+        $this->actingInProject($this->makeUser('procurement'));
 
         $this->post(route('erp.payment-advice-details.update-invoice', $detail), ['invoice_no' => 'INV-1'])->assertForbidden();
         $this->assertNull($detail->fresh()->invoice_no);
@@ -156,12 +156,12 @@ class PaymentInvoiceAndSubmitTest extends ErpTestCase
         $this->assertSame(1, ErpApproval::where('payment_advice_detail_id', $detail->id)->count());
     }
 
-    public function test_non_finance_user_cannot_submit(): void
+    public function test_user_without_permission_cannot_submit(): void
     {
         $po = $this->makeApprovedPo();
         $pa = $this->makePaymentAdvice($po, 1_000_000, [1_000_000]);
         $detail = $pa->details()->first();
-        $this->actingInProject($this->makeUser('staff', ['payment_advice_details.submit']));
+        $this->actingInProject($this->makeUser('procurement'));
 
         $this->post(route('erp.payment-advice-details.submit', $detail), ['invoice_no' => 'INV-1'])->assertForbidden();
 

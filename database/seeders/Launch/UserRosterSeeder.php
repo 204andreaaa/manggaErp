@@ -7,41 +7,25 @@ use App\Models\Employee;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
-use Database\Seeders\Core\RoleSeeder;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 /**
  * The real Mandau team (list from 2026-11-19). Safe to run again:
- *  - creates the "Head of ..." / project roles when missing, never touches the
- *    permissions of a role that already exists;
  *  - creates missing users with the starting password, but never resets the
  *    password of a user that already exists;
  *  - sets roles, position and department to what the list says;
  *  - deactivates the old demo accounts named in OLD_ACCOUNTS (nothing is deleted).
  *
  * Each person has exactly one role. Head / project roles count as members of
- * their division (Role::DIVISION_MEMBERS), and start as a copy of the division
- * role's permissions and menus; the difference between head and staff is then
- * ticked in Roles.
+ * their division (Role::DIVISION_MEMBERS); their permissions come from
+ * RolePermissionSeeder, which runs first.
  */
 class UserRosterSeeder extends Seeder
 {
     public const STAFF_PASSWORD = '123456';
     public const SUPERADMIN_PASSWORD = 'password123';
-
-    /** slug => name; permissions and menus start as a copy of the division role */
-    public const EXTRA_ROLES = [
-        'head_project' => 'Head of Project',
-        'project_manager' => 'Project Manager',
-        'project_coordinator' => 'Project Coordinator',
-        'staff_project' => 'Staff Project',
-        'head_procurement' => 'Head of Procurement',
-        'head_logistic' => 'Head of Logistic',
-        'head_finance' => 'Head of Finance',
-        'head_hr' => 'Head of HR',
-    ];
 
     /** username => [name, position, department code, roles] */
     public const ROSTER = [
@@ -89,7 +73,6 @@ class UserRosterSeeder extends Seeder
     public function run(): void
     {
         DB::connection('master')->transaction(function () {
-            $this->ensureRoles();
             $roleIds = Role::pluck('id', 'slug');
             $departments = Department::pluck('name', 'code');
             $projectIds = Project::where('is_active', true)->pluck('id')->all();
@@ -97,7 +80,7 @@ class UserRosterSeeder extends Seeder
             foreach (self::ROSTER as $username => [$name, $position, $deptCode, $roles]) {
                 $missing = array_diff($roles, $roleIds->keys()->all());
                 if ($missing) {
-                    throw new \RuntimeException("Role belum ada: ".implode(', ', $missing).' (jalankan RoleSeeder dulu)');
+                    throw new \RuntimeException("Role belum ada: ".implode(', ', $missing).' (jalankan RoleSeeder / RolePermissionSeeder dulu)');
                 }
                 if (!isset($departments[$deptCode])) {
                     throw new \RuntimeException("Departemen {$deptCode} belum ada (jalankan DepartmentSeeder dulu)");
@@ -154,41 +137,6 @@ class UserRosterSeeder extends Seeder
                 $this->say('Masih aktif tapi tidak ada di daftar (cek manual): '.implode(', ', $others));
             }
         });
-    }
-
-    private function ensureRoles(): void
-    {
-        $divisionOf = [];
-        foreach (Role::DIVISION_MEMBERS as $division => $members) {
-            foreach ($members as $member) {
-                $divisionOf[$member] = $division;
-            }
-        }
-
-        foreach (self::EXTRA_ROLES as $slug => $name) {
-            $role = Role::firstOrNew(['slug' => $slug]);
-            $role->name ??= $name;
-
-            // Copy from the division role while the job role is new or still at
-            // its untouched starting point; never overwrite permissions ticked later.
-            $untouched = !$role->exists
-                || ($this->sorted($role->permissions) === $this->sorted(RoleSeeder::RF_FOR_EVERYONE)
-                    && ($role->menu_keys ?? []) === ['request_forms']);
-            $division = Role::where('slug', $divisionOf[$slug] ?? '')->first();
-            if ($untouched) {
-                $role->permissions = array_values(array_unique(array_merge($division?->permissions ?? [], RoleSeeder::RF_FOR_EVERYONE)));
-                $role->menu_keys = array_values(array_unique(array_merge($division?->menu_keys ?? [], ['request_forms'])));
-            }
-            $role->save();
-        }
-    }
-
-    private function sorted(?array $list): array
-    {
-        $list = $list ?? [];
-        sort($list);
-
-        return $list;
     }
 
     private function say(string $line): void

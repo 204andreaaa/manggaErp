@@ -25,7 +25,9 @@
     <div class="sf-card-head">
       <h6>Expense Declaration</h6>
       <div class="sf-actions">
+        @if(auth()->user()->hasPermission('expense_declarations.create'))
         <a href="{{ route('erp.expense-declarations.create') }}" class="btn btn-primary btn-sm"><i class="bx bx-plus me-1"></i>New Expense Declaration</a>
+        @endif
       </div>
     </div>
     @if($declarations->isEmpty())

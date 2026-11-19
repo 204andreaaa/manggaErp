@@ -83,7 +83,7 @@
                 $canVerifyGr = true;
             }
         } else {
-            $canVerifyGr = auth()->user()->hasRole(['logistik', 'warehouse', 'ga', 'general_affair', 'superadmin']) || auth()->user()->hasPermission('goods_receipts.verify') || auth()->user()->hasPermission('goods_receipts.create');
+            $canVerifyGr = auth()->user()->hasPermission('goods_receipts.verify');
         }
         $canVerifyGr = $canVerifyGr && $goodsReceipt->status !== 'Received';
 

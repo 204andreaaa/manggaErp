@@ -6,7 +6,7 @@
 | **Sistem** | Mangga ERP — ERP multi-project untuk procurement, budget project, kasbon, pembayaran supplier, gudang dan HR |
 | **Repo** | `204andreaaa/manggaErp` (branch utama `master`) |
 | **Versi kode** | Laravel 13, PHP 8.2+ (server: PHP 8.4) |
-| **Versi PRD** | 1.5 |
+| **Versi PRD** | 1.6 |
 | **Terakhir diperbarui** | 2026-11-19 |
 | **Status** | Belum production (masih tahap uji internal) |
 
@@ -67,15 +67,15 @@ Role disimpan di database master (`roles`), satu user bisa punya beberapa role. 
 |---|---|---|
 | `superadmin` | Pengelola sistem | Semua akses; satu-satunya yang bisa hapus RF/PO/GR/PA, unlock dokumen, kelola project dan konfigurasi approval |
 | `admin` | Admin pusat | Semua permission (kecuali aksi khusus superadmin) |
-| `admin_project` | Admin project | Budget (Budget Parent, Sub Project, WID), membuat RF |
+| `admin_project` | Admin project | Budget (Budget Parent, Sub Project, WID, Budget Plan), kasbon dan expense, membuat RF |
 | `procurement` | Tim purchasing | Membuat PO dari RF, supplier, payment terms, katalog produk |
 | `logistik` | Logistik & gudang | Membuat PR dari RF, GR, stok, gudang |
 | `general_affair` | GA | Membuat RF, mencatat dan memverifikasi GR |
-| `finance` | Finance | Payment Advice dan termin, membayar kasbon |
+| `finance` | Finance | Invoice, Payment Advice dan termin, membayar dan menutup kasbon |
 | `ceo` | CEO | Approval RF/PO/termin, melihat semua |
 | `hrd` | HR | Departemen, data karyawan |
 
-**Role jabatan** (ditambahkan `UserRosterSeeder`). Setiap orang cukup punya **satu role**. Role jabatan dihitung sebagai anggota divisinya (`Role::DIVISION_MEMBERS`): semua cek role divisi di kode (`hasRole('procurement')`, middleware `role:`, notifikasi ke Finance) juga meloloskan role jabatannya. Yang membedakan head dan staff adalah **permission** masing-masing role: role jabatan baru dibuat sebagai salinan permission dan menu role divisinya, lalu diatur sendiri lewat menu Roles (seeder tidak menimpanya lagi setelah diubah).
+**Role jabatan** (ditambahkan `UserRosterSeeder`). Setiap orang cukup punya **satu role**. Role jabatan dihitung sebagai anggota divisinya (`Role::DIVISION_MEMBERS`): semua cek role divisi di kode (`hasRole('procurement')`, middleware `role:`, notifikasi ke Finance) juga meloloskan role jabatannya. Yang membedakan head dan staff adalah **permission** masing-masing role, diatur oleh `RolePermissionSeeder` (lihat [§12.3](#123-hak-akses-default-per-role)): staff mendapat semua permission head divisinya **kecuali** approve, reject, delete, verify dan delete_pr. Project Manager dan Project Coordinator mengikuti aturan staff.
 
 | Role (slug) | Anggota divisi | Dipakai untuk |
 |---|---|---|
@@ -445,11 +445,12 @@ Budget Parent (Account)          total_budget
 - Nominal harus muat di sisa Budget Plan Detail (dicek saat simpan dan saat submit).
 - Kode: `ADVREQ-{NNNNN}`.
 - **Status:** Draft → Submitted (budget di-booking) → Approved / Rejected (booking dilepas, bisa diajukan ulang).
-- **Approval:** konfigurasi `advance_request` yang rentang nominalnya mencakup total kasbon (min/maks opsional); pemohon tidak boleh approve sendiri; di level terakhir sisa budget dicek ulang.
+- **Approval:** konfigurasi `advance_request` yang rentang nominalnya mencakup total kasbon (min/maks opsional); yang boleh approve/reject hanya orang yang ditunjuk di langkah itu (atau superadmin), tanpa perlu permission `advance_requests.approve`; pemohon tidak boleh approve sendiri; di level terakhir sisa budget dicek ulang.
+- **Melihat:** halaman detail bisa dibuka oleh pemegang `advance_requests.view`, pemohonnya, dan orang yang ditunjuk di salah satu langkah approval-nya.
 - **Approved:** booking berubah jadi outstanding (nominal sama), Finance dapat notifikasi "Kasbon Siap Dibayar".
-- **Bayar:** Finance/superadmin menandai **Paid** (tanggal dan pembayar tercatat).
+- **Bayar:** pemegang `advance_requests.pay` (Finance) menandai **Paid** (tanggal dan pembayar tercatat).
 - **Outstanding** = nominal approved − Σ Expense Declaration with advance yang Approved (0 setelah di-settle).
-- **Settle / Tutup Kasbon:** Finance/superadmin (atau `advance_requests.pay`) menutup kasbon Approved + Paid. Sisa yang belum dideklarasikan dicatat **dikembalikan** karyawan (nominal otomatis = outstanding), dengan tanggal pengembalian dan catatan. Setelah itu outstanding = 0, budget-nya dilepas, kasbon berlabel **Closed**, dan tidak bisa dibuat Expense Declaration lagi. Karyawan pemohon dapat notifikasi. (Karyawan tidak bisa "nombok" lewat kasbon karena deklarasi dibatasi sebesar kasbon; kelebihan biaya dibuat sebagai deklarasi tanpa kasbon.)
+- **Settle / Tutup Kasbon:** pemegang `advance_requests.pay` menutup kasbon Approved + Paid. Sisa yang belum dideklarasikan dicatat **dikembalikan** karyawan (nominal otomatis = outstanding), dengan tanggal pengembalian dan catatan. Setelah itu outstanding = 0, budget-nya dilepas, kasbon berlabel **Closed**, dan tidak bisa dibuat Expense Declaration lagi. Karyawan pemohon dapat notifikasi. (Karyawan tidak bisa "nombok" lewat kasbon karena deklarasi dibatasi sebesar kasbon; kelebihan biaya dibuat sebagai deklarasi tanpa kasbon.)
 - Detail kasbon menampilkan daftar Expense Declaration-nya dan tombol buat deklarasi (bila Approved + Paid dan belum di-settle).
 
 ### 7.9 Expense Declaration
@@ -464,6 +465,7 @@ Budget Parent (Account)          total_budget
 
 - Field: tanggal, pemohon, info kendaraan, nama site, no PO (tanpa kasbon), baris per jenis biaya.
 - Kode: `EXP{yymm}-{NNNNNNN}`.
+- Approve/reject dan melihat detail mengikuti aturan kasbon (§7.8): orang yang ditunjuk di approval, pemohon, atau pemegang `expense_declarations.view`.
 
 ---
 
@@ -611,6 +613,8 @@ Semua master data di bawah ini **per project**.
 
 ### 11.6 Tampilan
 - Menu samping atau menu atas (bisa dipilih user).
+- **Isi menu ikut divisi.** Grup divisi (Admin Project, GA, Procurement, Finance, Logistik, HR) hanya muncul untuk orang yang memegang pekerjaan divisi itu (menu modul utamanya dicentang di role). Modul divisi lain yang hanya perlu dilihat tidak punya menu; dokumennya dibuka dari tautan (mis. supplier dari PO/PA). Kasbon dan Expense Declaration ada di **Pengajuan Umum**. Budget Plans dan Pengeluaran Departemen ada di grup Admin Project, atau di grup Finance untuk orang Finance. Penerimaan Barang ada di grup GA untuk GA, dan di grup Logistik untuk orang Logistik.
+- **Tombol ikut permission.** Tombol tambah/ubah/hapus/ajukan/bayar hanya tampil bila user memegang permission aksinya; pemegang `.view` saja hanya melihat data.
 - Mode terang / gelap / otomatis, warna aksen bisa diganti; tersimpan di browser.
 - Halaman error ramah dalam Bahasa Indonesia untuk 403, 404, 405, 419, 429, 500, 503.
 
@@ -619,7 +623,7 @@ Semua master data di bawah ini **per project**.
 ## 12. Hak akses
 
 ### 12.1 Daftar permission
-Permission disimpan sebagai daftar di setiap role. `superadmin` dan `admin` selalu lolos.
+Permission disimpan sebagai daftar di setiap role. `superadmin` dan `admin` selalu lolos. Aksi tulis (tambah, ubah, hapus, ajukan, verifikasi, bayar, buat PR/PO, buat GR) dicek **hanya dari permission**, tidak lagi dari nama role divisi; jadi role yang hanya punya `.view` tidak bisa mengubah data walaupun membuka halamannya. Approve/reject dokumen yang memakai Approval Config ditentukan oleh orang yang ditunjuk di langkahnya.
 
 | Grup | Permission |
 |---|---|
@@ -640,24 +644,26 @@ Permission disimpan sebagai daftar di setiap role. `superadmin` dan `admin` sela
 | Hapus/unlock RF, cancel/unlock PO, hapus PO Draft, hapus GR Recorded, hapus PA | superadmin |
 | Edit dan submit RF | pembuat RF, admin, superadmin |
 | Kelola project dan konfigurasi approval | superadmin |
-| Tandai kasbon dibayar, settle kasbon, kelola termin | finance, superadmin |
-| Buat PR | logistik, superadmin (atau `request_forms.create_pr`) |
-| Buat PO | procurement, superadmin (atau `purchase_orders.create`) |
+| Tandai kasbon dibayar, settle kasbon | `advance_requests.pay` |
+| Kelola termin PA (tambah/hapus termin, input invoice, ajukan, tandai lunas) | `payment_advices.update`, `payment_advice_details.update_invoice` / `.submit` / `.mark_paid` |
+| Buat PR / hapus PR | `request_forms.create_pr` / `request_forms.delete_pr` (pembuat PR boleh menghapus PR-nya sendiri) |
+| Buat PO | `purchase_orders.create` |
+| Verifikasi PO / GR tanpa Approval Config | `purchase_orders.verify` / `goods_receipts.verify` |
 | Melihat semua tab karyawan | karyawan itu sendiri, hrd, ceo, admin, superadmin |
 
 ### 12.3 Hak akses default per role
-Semua role mendapat `request_forms.view/create/submit` dan menu Request Form, di atas daftar di bawah ini.
+Sumbernya satu: `Database\Seeders\Launch\RolePermissionSeeder` (dipakai `LaunchSeeder` dan `RoleSeeder`). Aturannya: pekerjaan divisi sendiri penuh; modul divisi lain yang perlu dipantau hanya `.view` **tanpa menu**; sisanya tidak ada. Staff = head tanpa approve/reject/delete/verify/delete_pr. Semua role juga mendapat `request_forms.view/create/submit` dan menu Request Form. Menjalankan seeder ini mengembalikan role di bawah ke standar (perubahan lewat menu Roles pada role ini tertimpa); superadmin dan admin tidak disentuh.
 
-| Role | Permission bawaan |
-|---|---|
-| superadmin, admin | Semua |
-| admin_project | Budget Parent / Sub Project / WID penuh; RF view/create/update/submit; products.view |
-| general_affair | RF view/create/update/submit; GR view/create/update/verify/print; products.view |
-| procurement | RF view/update/approve/reject; PO penuh; GR view/print; supplier dan payment terms penuh; produk view/create/update/export |
-| logistik | RF view/create/submit/create_pr/delete_pr; GR view/create/update/verify/print; stok view/adjust; gudang penuh; products.view |
-| finance | Invoice penuh; PO view/print; GR view/print; payment advice view/update; semua permission termin; suppliers.view; payment_terms.view |
-| hrd | Departemen, karyawan, absensi, payroll penuh |
-| ceo | invoices.view; view budget; RF view/approve/reject; PO view/approve/reject/print; GR view/print; PA view; termin view/approve/reject/mark_paid; stocks.view; products.view; approval_configs.view |
+| Role | Permission (head) | Menu |
+|---|---|---|
+| superadmin, admin | Semua | Semua |
+| head_project, admin_project (staff: project_manager, project_coordinator, staff_project) | Budget Parent / Sub Project / WID penuh; Budget Plan view/create; kasbon dan expense view/create; RF update; lihat PO, GR, invoice, produk | WID, Sub Project, Budget Parent, Budget Plans, Kasbon, Expense, PO, Produk |
+| head_procurement (staff: procurement) | RF update/approve/reject; PO penuh; GR view/print; supplier dan payment terms penuh; produk penuh + export; stocks.view | PO, Supplier, Payment Terms, Produk dan atributnya |
+| head_logistic (staff: logistik) | Buat/hapus PR; PO view/print; GR penuh; stok view/adjust; gudang penuh; lihat supplier dan produk | PO, GR, Stok, Gudang, Produk, UOM |
+| general_affair | RF update; PO view/print; GR view/create/update/verify/print; products.view | PO, GR, Produk |
+| head_finance (staff: finance) | PO view/print; PA view/update/delete; semua permission termin; invoice penuh; kasbon view/approve/pay; expense view/approve; Budget Plan view; Pengeluaran Departemen; lihat GR, supplier, payment terms, budget project | PO, Invoice, PA, Kasbon, Expense, Budget Plans, Pengeluaran Departemen |
+| head_hr (staff: hrd) | Departemen, karyawan, absensi, payroll penuh | Departemen, Karyawan, Absensi, Payroll |
+| ceo | Lihat semua modul bisnis; approve/reject RF, PO, termin, kasbon, expense; tandai termin lunas; approval_configs.view | Semua modul bisnis (tanpa absensi, payroll, sistem selain Approval Config) |
 
 ---
 
@@ -696,7 +702,8 @@ Nomor dokumen yang sudah dihapus tidak dipakai ulang.
 | `php artisan tenants:migrate-all --execute` | Migrasi semua database project aktif |
 | `php artisan tenant:migrate {project_id} --execute` | Migrasi satu project |
 | `php artisan erp:sync-stocks` | Bangun ulang stok dari GR Received (**mengosongkan stok dulu**) |
-| `php artisan db:seed --class="Database\Seeders\LaunchSeeder" --force` | Data acuan untuk server sungguhan, aman diulang: 9 departemen, role jabatan, dan daftar user tim Mandau (`UserRosterSeeder`). User baru diberi password awal `123456` (superadmin `password123`), email `<username>@mandau.id`, dan akses ke semua project aktif. User yang sudah ada tidak diganti password/nama/email-nya; role, jabatan dan departemennya disamakan dengan daftar. Akun demo lama (budi, siti, procurement, ceo, Chenthia_Budiharto, admin_project, ga_budi) dinonaktifkan, tidak dihapus; `admin` tetap aktif sebagai cadangan. Role yang sudah ada tidak diubah permission-nya |
+| `php artisan db:seed --class="Database\Seeders\LaunchSeeder" --force` | Data acuan untuk server sungguhan, aman diulang: 9 departemen, role jabatan, dan daftar user tim Mandau (`UserRosterSeeder`). User baru diberi password awal `123456` (superadmin `password123`), email `<username>@mandau.id`, dan akses ke semua project aktif. User yang sudah ada tidak diganti password/nama/email-nya; role, jabatan dan departemennya disamakan dengan daftar. Akun demo lama (budi, siti, procurement, ceo, Chenthia_Budiharto, admin_project, ga_budi) dinonaktifkan, tidak dihapus; `admin` tetap aktif sebagai cadangan. Permission dan menu role divisi, role jabatan dan CEO **dikembalikan ke standar** §12.3 (`RolePermissionSeeder`) |
+| `php artisan db:seed --class="Database\Seeders\Launch\RolePermissionSeeder" --force` | Hanya menyamakan permission dan menu role divisi, role jabatan dan CEO dengan standar §12.3 |
 | `php artisan users:transfer {lama} {pengganti} --delete` | Memindahkan semua data milik satu user (dokumen yang dibuat, approval dan langkah approval, kasbon, notifikasi, data ADVEXNPJ, akses project) ke user lain di database master dan semua database project, lalu menghapus user lama. Tanpa `--execute` hanya pratinjau |
 | `php artisan db:seed` (DatabaseSeeder) | Data demo: **mengosongkan** budget, produk dan approval config, menimpa permission role. Hanya lokal, **jangan di production** |
 | `php artisan app:fresh --seed` | Reset total (hanya lokal, **jangan di production**) |
@@ -704,7 +711,7 @@ Nomor dokumen yang sudah dihapus tidak dipakai ulang.
 ### 13.4 Pengujian
 - Feature test di `tests/Feature` (Budget, Kasbon, MasterData, Payment, PurchaseOrder, RequestForm, dll.).
 - Jalan di database khusus `mangga_test_master` / `mangga_test_tenant`; test menolak jalan di database lain.
-- Perintah: `php artisan test`. Kondisi per 2026-11-19: **384 lolos, 0 dilewati**.
+- Perintah: `php artisan test`. Kondisi per 2026-11-19: **386 lolos, 0 dilewati**.
 
 ### 13.5 Deploy
 Di server (`/Users/mac/apps/mangga`), satu per satu:
@@ -725,6 +732,7 @@ Riwayat versi lengkap ada di `docs/prd-history/`.
 
 | Tanggal | Versi | Perubahan |
 |---|---|---|
+| 2026-11-19 | 1.6 | Hak akses per divisi disamakan (`RolePermissionSeeder`): pekerjaan sendiri penuh, modul divisi lain hanya lihat tanpa menu, staff tanpa approve/reject/hapus/verify. Aksi tulis dicek dari permission saja, bukan nama role (sebelumnya mis. Finance bisa ubah/hapus Payment Terms walau hanya punya izin lihat). Tombol aksi disembunyikan bila tidak punya izin. Sidebar per divisi: Kasbon dan Expense pindah ke Pengajuan Umum, Budget Plans ikut Finance untuk orang Finance, GR ikut Logistik untuk orang Logistik. Approve/reject kasbon dan expense cukup ditunjuk di Approval Config (sebelumnya macet karena tidak ada role selain superadmin yang punya `advance_requests.approve`); approver dan pemohon bisa membuka detailnya. Tim project dan Finance kini mendapat akses kasbon/expense. |
 | 2026-11-19 | 1.5 | Satu role per orang: role jabatan (Head of …, Project Manager, dll.) dihitung sebagai anggota divisinya dan mulai dari salinan permission divisi, jadi head tidak perlu dua role. Perintah baru `users:transfer` untuk memindahkan data user lama ke penggantinya lalu menghapusnya. |
 | 2026-11-19 | 1.4 | `LaunchSeeder` untuk server: departemen, role jabatan (Head of Project, Project Manager, Project Coordinator, Staff Project, Head of Procurement/Logistic/Finance/HR) di atas role divisi, dan daftar user tim Mandau (29 orang) beserta jabatan dan departemennya. Akun demo lama dinonaktifkan. Aman dijalankan ulang. |
 | 2026-11-16 | 1.3 | Form rincian invoice disamakan dengan Salesforce: Account, Project Code dan Work Id wajib (saling menyaring, diambil dari WID), Terms dan Currency (IDR/USD) wajib, centang Update WID (tanda saja), tombol Simpan & Tambah Lagi. Invoice punya total USD terpisah. Tampilan halaman invoice diperbarui. |
@@ -760,6 +768,7 @@ Celah dari versi 1.0 yang sudah diputuskan atau diperbaiki di versi 1.1 sudah di
 **Hak akses**
 - Masih ada halaman yang tidak mengecek permission di server: submit PO, halaman cetak PO/GR, dashboard, daftar WID per project.
 - Permission `projects.*`, `hr_attendances.*`, `hr_payroll.*`, `custom_reports.create/export/delete` ada di menu Role tapi tidak dicek di kode.
+- Approver level 1 kasbon dan expense ("KAM Approval") saat ini Sesa (GA), hasil pemindahan dari akun lama Budi. Perlu dipastikan siapa KAM yang benar.
 - Notifikasi dan tombol Approve di riwayat approval hanya untuk user yang ditunjuk. Konfigurasi lama yang masih ditujukan ke role (ditandai "Ganti ke user") perlu diganti ke user.
 
 **Data dan perilaku**

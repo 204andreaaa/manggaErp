@@ -24,7 +24,7 @@ class PurchaseOrderCompletionTest extends PurchaseOrderTestCase
         parent::setUp();
         $rf = $this->makeApprovedRf([['name' => 'Besi Beton', 'qty' => 4, 'unit_cost' => 250_000]]);
         $this->po = $this->makeApprovedPo($rf);
-        $this->logistik = $this->makeUser('logistik');
+        $this->logistik = $this->makeUser('head_logistic');
         $this->finance = $this->makeUser('finance');
 
         // One approved, still unpaid termin covering the whole invoice.

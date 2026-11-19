@@ -15,7 +15,7 @@ class PurchaseRequestController extends Controller
     {
         $u = auth()->user();
         abort_unless(
-            $u->hasRole(['logistik', 'superadmin']) || $u->hasPermission('request_forms.create_pr'),
+            $u->hasPermission('request_forms.create_pr'),
             403,
             'Hanya Logistik atau Super Admin yang dapat membuat PR.'
         );
@@ -92,9 +92,8 @@ class PurchaseRequestController extends Controller
     {
         $u = auth()->user();
         abort_unless(
-            $u->hasRole(['logistik', 'superadmin']) || 
             $u->hasPermission('request_forms.delete_pr') ||
-            ($u->hasRole('logistik') && strtolower($u->name) === strtolower($purchaseRequest->requestor)),
+            ($u->hasPermission('request_forms.create_pr') && strtolower($u->name) === strtolower($purchaseRequest->requestor)),
             403,
             'Hanya divisi Logistik atau Super Admin yang berhak menghapus Purchase Request ini.'
         );

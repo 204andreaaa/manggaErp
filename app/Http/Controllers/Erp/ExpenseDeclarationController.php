@@ -187,7 +187,7 @@ class ExpenseDeclarationController extends Controller
 
     public function show(ExpenseDeclaration $expenseDeclaration)
     {
-        abort_unless(auth()->user()->hasPermission('expense_declarations.view'), 403);
+        abort_unless(auth()->user()->hasPermission('expense_declarations.view') || $this->isInvolved($expenseDeclaration), 403);
 
         $expenseDeclaration->load([
             'budgetPlanDetail.monthlyBudgetPlan.annualBudgetPlan.budgetParent',
@@ -276,7 +276,7 @@ class ExpenseDeclarationController extends Controller
 
     public function approve(Request $request, ErpApproval $approval)
     {
-        abort_unless(auth()->user()->hasPermission('expense_declarations.approve'), 403);
+        // Who may act is decided by Approval Config (the person / role on the step), checked below.
 
         $request->validate(['comments' => 'nullable|string']);
 
@@ -382,7 +382,7 @@ class ExpenseDeclarationController extends Controller
 
     public function reject(Request $request, ErpApproval $approval)
     {
-        abort_unless(auth()->user()->hasPermission('expense_declarations.approve'), 403);
+        // Who may act is decided by Approval Config (the person / role on the step), checked below.
 
         $request->validate(['reason' => 'required|string|max:500']);
 
@@ -522,5 +522,23 @@ class ExpenseDeclarationController extends Controller
                 }
             }
         }
+    }
+
+    /**
+     * The requester and the people named on its approval steps may open the
+     * document even without the module's view permission (e.g. an approver from
+     * another division).
+     */
+    private function isInvolved($document): bool
+    {
+        $user = auth()->user();
+        if ($document->request_by_id == $user->id) {
+            return true;
+        }
+        $roleIds = $user->roles()->pluck('roles.id')->all();
+
+        return $document->approvals()
+            ->where(fn ($q) => $q->where('assigned_to_user_id', $user->id)->orWhereIn('assigned_to_role_id', $roleIds ?: [0]))
+            ->exists();
     }
 }

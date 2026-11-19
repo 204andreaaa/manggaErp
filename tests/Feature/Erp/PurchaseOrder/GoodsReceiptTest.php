@@ -27,7 +27,7 @@ class GoodsReceiptTest extends PurchaseOrderTestCase
             ['name' => 'Jasa Angkut', 'qty' => 1, 'unit_cost' => 500_000],
         ]);
         $this->po = $this->makeApprovedPo($this->rf);
-        $this->logistik = $this->makeUser('logistik');
+        $this->logistik = $this->makeUser('head_logistic');
     }
 
     private function poItem(int $index)

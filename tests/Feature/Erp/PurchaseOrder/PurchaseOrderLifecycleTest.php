@@ -325,7 +325,7 @@ class PurchaseOrderLifecycleTest extends PurchaseOrderTestCase
         $this->actingInProject($this->makeUser('staff'))->post(route('erp.purchase-orders.verify', $po))->assertSessionHas('error');
         $this->assertNull($po->fresh()->verified_by_id);
 
-        $checker = $this->makeUser('procurement');
+        $checker = $this->makeUser('head_procurement');
         $this->actingInProject($checker)->post(route('erp.purchase-orders.verify', $po))->assertSessionHas('success');
         $this->assertSame($checker->id, $po->fresh()->verified_by_id);
     }

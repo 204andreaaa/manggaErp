@@ -14,7 +14,7 @@ class ErpGoodsReceiptController extends Controller
     public function create(ErpPurchaseOrder $purchaseOrder)
     {
         abort_unless(
-            auth()->user()->hasRole(['logistik', 'warehouse', 'ga', 'superadmin']) || auth()->user()->hasPermission('goods_receipts.create'),
+            auth()->user()->hasPermission('goods_receipts.create'),
             403,
             'Hanya divisi GA, Logistik, Warehouse atau user dengan izin goods_receipts.create yang dapat membuat Goods Receipt (GR).'
         );
@@ -35,7 +35,7 @@ class ErpGoodsReceiptController extends Controller
     public function store(Request $request, ErpPurchaseOrder $purchaseOrder)
     {
         abort_unless(
-            auth()->user()->hasRole(['logistik', 'warehouse', 'ga', 'superadmin']) || auth()->user()->hasPermission('goods_receipts.create'),
+            auth()->user()->hasPermission('goods_receipts.create'),
             403,
             'Hanya divisi GA, Logistik, Warehouse atau user dengan izin goods_receipts.create yang dapat membuat Goods Receipt (GR).'
         );
@@ -185,7 +185,7 @@ class ErpGoodsReceiptController extends Controller
                 $isAuthorized = true;
             }
         } else {
-            $isAuthorized = $user->hasRole(['logistik', 'warehouse', 'ga', 'general_affair', 'superadmin']) || $user->hasPermission('goods_receipts.verify') || $user->hasPermission('goods_receipts.create');
+            $isAuthorized = $user->hasPermission('goods_receipts.verify');
         }
 
         abort_unless($isAuthorized, 403, 'Anda tidak memiliki hak akses untuk memverifikasi penerimaan fisik barang (GR) ini.');

@@ -125,9 +125,10 @@ class AdvanceRequestApprovalTest extends ErpTestCase
         $this->post(route('erp.advance-requests.approvals.reject', $approval), ['reason' => 'no'])->assertSessionHas('error');
         $this->assertSame('Pending', $approval->fresh()->status);
 
-        // Without the approve permission at all: 403.
+        // Not on any step (the requester): refused as well; approving follows Approval Config, not a permission.
         $this->actingInProject($this->requester);
-        $this->post(route('erp.advance-requests.approvals.approve', $approval))->assertForbidden();
+        $this->post(route('erp.advance-requests.approvals.approve', $approval))->assertSessionHas('error');
+        $this->assertSame('Pending', $approval->fresh()->status);
     }
 
     public function test_superadmin_can_override_any_level(): void

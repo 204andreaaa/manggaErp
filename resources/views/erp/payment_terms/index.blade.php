@@ -3,6 +3,11 @@
 @section('title', 'Payment Terms (TOP)')
 
 @section('content')
+@php
+  $canCreate = auth()->user()->hasPermission('payment_terms.create');
+  $canUpdate = auth()->user()->hasPermission('payment_terms.update');
+  $canDelete = auth()->user()->hasPermission('payment_terms.delete');
+@endphp
 <div class="container-xxl flex-grow-1 container-p-y">
   @if(session('success'))
     <div class="alert alert-success alert-dismissible" role="alert">
@@ -32,9 +37,11 @@
       <div class="text-muted small">Master Data ERP</div>
       <h4 class="mb-0 fw-bold">Payment Terms (TOP)</h4>
     </div>
+    @if($canCreate)
     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">
       <i class="bx bx-plus me-1"></i> Create TOP
     </button>
+    @endif
   </div>
 
   <div class="card">
@@ -45,7 +52,7 @@
             <th>Name</th>
             <th>Schedule</th>
             <th>Status</th>
-            <th>Actions</th>
+            @if($canUpdate || $canDelete)<th>Actions</th>@endif
           </tr>
         </thead>
         <tbody>
@@ -70,10 +77,14 @@
                   <span class="badge bg-label-secondary">Inactive</span>
                 @endif
               </td>
+              @if($canUpdate || $canDelete)
               <td>
+                @if($canUpdate)
                 <button class="btn btn-sm btn-icon btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editModal{{ $term->id }}">
                   <i class="bx bx-edit"></i>
                 </button>
+                @endif
+                @if($canDelete)
                 <form action="{{ route('erp.payment-terms.destroy', $term) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this term?');">
                   @csrf
                   @method('DELETE')
@@ -81,7 +92,9 @@
                     <i class="bx bx-trash"></i>
                   </button>
                 </form>
+                @endif
               </td>
+              @endif
             </tr>
 
             <!-- Edit Modal -->

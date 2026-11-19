@@ -365,12 +365,12 @@ class PaymentApprovalAndPaidTest extends ErpTestCase
         $this->assertNull($detail->fresh()->payment_receipt);
     }
 
-    public function test_non_finance_user_cannot_mark_paid(): void
+    public function test_user_without_mark_paid_permission_cannot_mark_paid(): void
     {
         $po = $this->makeApprovedPo();
         $pa = $this->makePaymentAdvice($po, 1_000_000);
         $detail = $this->makeDetail($pa, 1_000_000, ['approval_status' => 'Approved']);
-        $this->actingInProject($this->makeUser('staff', ['payment_advice_details.mark_paid']));
+        $this->actingInProject($this->makeUser('procurement'));
 
         $this->post(route('erp.payment-advice-details.mark-paid', $detail))->assertSessionHas('error');
         $this->assertNull($detail->fresh()->date_paid);
