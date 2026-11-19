@@ -65,7 +65,7 @@ class User extends Authenticatable
     {
         $need = is_array($slugs) ? $slugs : [$slugs];
 
-        return $this->roles()->whereIn('slug', $need)->exists()
+        return $this->roles()->whereIn('slug', Role::withDivisionMembers($need))->exists()
             || in_array(($this->role ?? ''), $need, true);
     }
 

@@ -21,16 +21,17 @@ use Illuminate\Support\Facades\Hash;
  *  - sets roles, position and department to what the list says;
  *  - deactivates the old demo accounts named in OLD_ACCOUNTS (nothing is deleted).
  *
- * Every head / project role sits on top of the division role (procurement,
- * finance, ...), because many screens still check those slugs directly. The
- * extra role is where head-only permissions can be ticked later in Roles.
+ * Each person has exactly one role. Head / project roles count as members of
+ * their division (Role::DIVISION_MEMBERS), and start as a copy of the division
+ * role's permissions and menus; the difference between head and staff is then
+ * ticked in Roles.
  */
 class UserRosterSeeder extends Seeder
 {
     public const STAFF_PASSWORD = '123456';
     public const SUPERADMIN_PASSWORD = 'password123';
 
-    /** slug => name; permissions start with RF access only, the rest comes from the division role */
+    /** slug => name; permissions and menus start as a copy of the division role */
     public const EXTRA_ROLES = [
         'head_project' => 'Head of Project',
         'project_manager' => 'Project Manager',
@@ -46,15 +47,15 @@ class UserRosterSeeder extends Seeder
     public const ROSTER = [
         'barry' => ['Barry', 'CEO', 'EXEC', ['ceo']],
 
-        'ella' => ['Ella', 'Head of Project', 'PROJ', ['admin_project', 'head_project']],
-        'atikha' => ['Atikha', 'Head of Project', 'PROJ', ['admin_project', 'head_project']],
-        'fikri' => ['Fikri', 'Head of Project', 'PROJ', ['admin_project', 'head_project']],
-        'dicky' => ['Dicky', 'Project Manager', 'PROJ', ['admin_project', 'project_manager']],
-        'radit' => ['Radit', 'Project Manager', 'PROJ', ['admin_project', 'project_manager']],
-        'jefri' => ['Jefri', 'Project Manager', 'PROJ', ['admin_project', 'project_manager']],
-        'eva' => ['Eva', 'Staff Project', 'PROJ', ['admin_project', 'staff_project']],
-        'indah' => ['Indah', 'Staff Project', 'PROJ', ['admin_project', 'staff_project']],
-        'munik' => ['Munik', 'Staff Project', 'PROJ', ['admin_project', 'staff_project']],
+        'ella' => ['Ella', 'Head of Project', 'PROJ', ['head_project']],
+        'atikha' => ['Atikha', 'Head of Project', 'PROJ', ['head_project']],
+        'fikri' => ['Fikri', 'Head of Project', 'PROJ', ['head_project']],
+        'dicky' => ['Dicky', 'Project Manager', 'PROJ', ['project_manager']],
+        'radit' => ['Radit', 'Project Manager', 'PROJ', ['project_manager']],
+        'jefri' => ['Jefri', 'Project Manager', 'PROJ', ['project_manager']],
+        'eva' => ['Eva', 'Staff Project', 'PROJ', ['staff_project']],
+        'indah' => ['Indah', 'Staff Project', 'PROJ', ['staff_project']],
+        'munik' => ['Munik', 'Staff Project', 'PROJ', ['staff_project']],
 
         'andrea' => ['Andrea', 'Staff IT', 'IT', ['superadmin']],
         'sadrak' => ['Sadrak', 'Head of IT', 'IT', ['superadmin']],
@@ -63,20 +64,20 @@ class UserRosterSeeder extends Seeder
         'sesa' => ['Sesa', 'General Affair', 'GA', ['general_affair']],
         'bram' => ['Bram', 'General Affair', 'GA', ['general_affair']],
 
-        'febri' => ['Febri', 'Head of Procurement', 'PROC', ['procurement', 'head_procurement']],
+        'febri' => ['Febri', 'Head of Procurement', 'PROC', ['head_procurement']],
         'silmi' => ['Silmi', 'Staff Procurement', 'PROC', ['procurement']],
         'rara' => ['Rara', 'Staff Procurement', 'PROC', ['procurement']],
 
-        'nikmal' => ['Nikmal', 'Head of Logistic', 'LOG', ['logistik', 'head_logistic']],
+        'nikmal' => ['Nikmal', 'Head of Logistic', 'LOG', ['head_logistic']],
         'nanang' => ['Nanang', 'Staff Logistic', 'LOG', ['logistik']],
 
-        'melvien' => ['Melvien', 'Head of Finance', 'FIN', ['finance', 'head_finance']],
+        'melvien' => ['Melvien', 'Head of Finance', 'FIN', ['head_finance']],
         'lilu' => ['Lilu', 'Staff Finance', 'FIN', ['finance']],
         'ririn' => ['Ririn', 'Staff Finance', 'FIN', ['finance']],
         'ani' => ['Ani', 'Staff Finance', 'FIN', ['finance']],
         'zamzam' => ['Zamzam', 'Staff Finance', 'FIN', ['finance']],
 
-        'kurnia' => ['Kurnia', 'Head of HR', 'HRD', ['hrd', 'head_hr']],
+        'kurnia' => ['Kurnia', 'Head of HR', 'HRD', ['head_hr']],
         'desti' => ['Desti', 'Staff HR', 'HRD', ['hrd']],
         'vanesa' => ['Vanesa', 'Staff HR', 'HRD', ['hrd']],
         'riza' => ['Riza', 'Staff HR', 'HRD', ['hrd']],
@@ -157,13 +158,37 @@ class UserRosterSeeder extends Seeder
 
     private function ensureRoles(): void
     {
-        foreach (self::EXTRA_ROLES as $slug => $name) {
-            Role::firstOrCreate(['slug' => $slug], [
-                'name' => $name,
-                'menu_keys' => ['request_forms'],
-                'permissions' => RoleSeeder::RF_FOR_EVERYONE,
-            ]);
+        $divisionOf = [];
+        foreach (Role::DIVISION_MEMBERS as $division => $members) {
+            foreach ($members as $member) {
+                $divisionOf[$member] = $division;
+            }
         }
+
+        foreach (self::EXTRA_ROLES as $slug => $name) {
+            $role = Role::firstOrNew(['slug' => $slug]);
+            $role->name ??= $name;
+
+            // Copy from the division role while the job role is new or still at
+            // its untouched starting point; never overwrite permissions ticked later.
+            $untouched = !$role->exists
+                || ($this->sorted($role->permissions) === $this->sorted(RoleSeeder::RF_FOR_EVERYONE)
+                    && ($role->menu_keys ?? []) === ['request_forms']);
+            $division = Role::where('slug', $divisionOf[$slug] ?? '')->first();
+            if ($untouched) {
+                $role->permissions = array_values(array_unique(array_merge($division?->permissions ?? [], RoleSeeder::RF_FOR_EVERYONE)));
+                $role->menu_keys = array_values(array_unique(array_merge($division?->menu_keys ?? [], ['request_forms'])));
+            }
+            $role->save();
+        }
+    }
+
+    private function sorted(?array $list): array
+    {
+        $list = $list ?? [];
+        sort($list);
+
+        return $list;
     }
 
     private function say(string $line): void

@@ -6,7 +6,7 @@
 | **Sistem** | Mangga ERP — ERP multi-project untuk procurement, budget project, kasbon, pembayaran supplier, gudang dan HR |
 | **Repo** | `204andreaaa/manggaErp` (branch utama `master`) |
 | **Versi kode** | Laravel 13, PHP 8.2+ (server: PHP 8.4) |
-| **Versi PRD** | 1.4 |
+| **Versi PRD** | 1.5 |
 | **Terakhir diperbarui** | 2026-11-19 |
 | **Status** | Belum production (masih tahap uji internal) |
 
@@ -75,18 +75,18 @@ Role disimpan di database master (`roles`), satu user bisa punya beberapa role. 
 | `ceo` | CEO | Approval RF/PO/termin, melihat semua |
 | `hrd` | HR | Departemen, data karyawan |
 
-**Role jabatan** (ditambahkan `UserRosterSeeder`). Role ini selalu dipasang **di atas** role divisinya, karena banyak layar masih mengecek slug divisi (`procurement`, `finance`, `logistik`, `admin_project`, dll.) secara langsung. Awalnya hanya berisi akses RF, jadi isi aksesnya datang dari role divisi; izin khusus head bisa dicentang belakangan lewat menu Roles.
+**Role jabatan** (ditambahkan `UserRosterSeeder`). Setiap orang cukup punya **satu role**. Role jabatan dihitung sebagai anggota divisinya (`Role::DIVISION_MEMBERS`): semua cek role divisi di kode (`hasRole('procurement')`, middleware `role:`, notifikasi ke Finance) juga meloloskan role jabatannya. Yang membedakan head dan staff adalah **permission** masing-masing role: role jabatan baru dibuat sebagai salinan permission dan menu role divisinya, lalu diatur sendiri lewat menu Roles (seeder tidak menimpanya lagi setelah diubah).
 
-| Role (slug) | Dipasang bersama | Dipakai untuk |
+| Role (slug) | Anggota divisi | Dipakai untuk |
 |---|---|---|
 | `head_project` | `admin_project` | Head of Project |
 | `project_manager` | `admin_project` | Project Manager |
 | `project_coordinator` | `admin_project` | Project Coordinator (belum ada orangnya) |
 | `staff_project` | `admin_project` | Staff Project |
-| `head_procurement` | `procurement` | Head of Procurement |
-| `head_logistic` | `logistik` | Head of Logistic |
-| `head_finance` | `finance` | Head of Finance |
-| `head_hr` | `hrd` | Head of HR |
+| `head_procurement` | `procurement` | Head of Procurement (staff memakai `procurement`) |
+| `head_logistic` | `logistik` | Head of Logistic (staff memakai `logistik`) |
+| `head_finance` | `finance` | Head of Finance (staff memakai `finance`) |
+| `head_hr` | `hrd` | Head of HR (staff memakai `hrd`) |
 
 Tim IT (Head dan Staff IT) memakai `superadmin`. GA belum punya head.
 
@@ -697,13 +697,14 @@ Nomor dokumen yang sudah dihapus tidak dipakai ulang.
 | `php artisan tenant:migrate {project_id} --execute` | Migrasi satu project |
 | `php artisan erp:sync-stocks` | Bangun ulang stok dari GR Received (**mengosongkan stok dulu**) |
 | `php artisan db:seed --class="Database\Seeders\LaunchSeeder" --force` | Data acuan untuk server sungguhan, aman diulang: 9 departemen, role jabatan, dan daftar user tim Mandau (`UserRosterSeeder`). User baru diberi password awal `123456` (superadmin `password123`), email `<username>@mandau.id`, dan akses ke semua project aktif. User yang sudah ada tidak diganti password/nama/email-nya; role, jabatan dan departemennya disamakan dengan daftar. Akun demo lama (budi, siti, procurement, ceo, Chenthia_Budiharto, admin_project, ga_budi) dinonaktifkan, tidak dihapus; `admin` tetap aktif sebagai cadangan. Role yang sudah ada tidak diubah permission-nya |
+| `php artisan users:transfer {lama} {pengganti} --delete` | Memindahkan semua data milik satu user (dokumen yang dibuat, approval dan langkah approval, kasbon, notifikasi, data ADVEXNPJ, akses project) ke user lain di database master dan semua database project, lalu menghapus user lama. Tanpa `--execute` hanya pratinjau |
 | `php artisan db:seed` (DatabaseSeeder) | Data demo: **mengosongkan** budget, produk dan approval config, menimpa permission role. Hanya lokal, **jangan di production** |
 | `php artisan app:fresh --seed` | Reset total (hanya lokal, **jangan di production**) |
 
 ### 13.4 Pengujian
 - Feature test di `tests/Feature` (Budget, Kasbon, MasterData, Payment, PurchaseOrder, RequestForm, dll.).
 - Jalan di database khusus `mangga_test_master` / `mangga_test_tenant`; test menolak jalan di database lain.
-- Perintah: `php artisan test`. Kondisi per 2026-11-16: **382 lolos, 0 dilewati**.
+- Perintah: `php artisan test`. Kondisi per 2026-11-19: **384 lolos, 0 dilewati**.
 
 ### 13.5 Deploy
 Di server (`/Users/mac/apps/mangga`), satu per satu:
@@ -724,7 +725,8 @@ Riwayat versi lengkap ada di `docs/prd-history/`.
 
 | Tanggal | Versi | Perubahan |
 |---|---|---|
-| 2026-11-19 | 1.4 | `LaunchSeeder` untuk server: departemen, role jabatan (Head of Project, Project Manager, Project Coordinator, Staff Project, Head of Procurement/Logistic/Finance/HR) di atas role divisi, dan daftar user tim Mandau (30 orang) beserta jabatan dan departemennya. Akun demo lama dinonaktifkan. Aman dijalankan ulang. |
+| 2026-11-19 | 1.5 | Satu role per orang: role jabatan (Head of …, Project Manager, dll.) dihitung sebagai anggota divisinya dan mulai dari salinan permission divisi, jadi head tidak perlu dua role. Perintah baru `users:transfer` untuk memindahkan data user lama ke penggantinya lalu menghapusnya. |
+| 2026-11-19 | 1.4 | `LaunchSeeder` untuk server: departemen, role jabatan (Head of Project, Project Manager, Project Coordinator, Staff Project, Head of Procurement/Logistic/Finance/HR) di atas role divisi, dan daftar user tim Mandau (29 orang) beserta jabatan dan departemennya. Akun demo lama dinonaktifkan. Aman dijalankan ulang. |
 | 2026-11-16 | 1.3 | Form rincian invoice disamakan dengan Salesforce: Account, Project Code dan Work Id wajib (saling menyaring, diambil dari WID), Terms dan Currency (IDR/USD) wajib, centang Update WID (tanda saja), tombol Simpan & Tambah Lagi. Invoice punya total USD terpisah. Tampilan halaman invoice diperbarui. |
 | 2026-11-16 | 1.2 | Modul baru **Invoice (tagihan ke customer)**: invoice, rincian per WID, pembayaran masuk; nilai dan status (New / Partial Paid / Paid) dihitung otomatis. Permission `invoices.*` (Finance penuh, CEO lihat). Dibuat dari asumsi tanpa konfirmasi Finance. |
 | 2026-11-12 | 1.1 | **Keputusan bisnis:** PO hanya boleh dihapus selagi Draft dan belum pernah diajukan, sisanya Cancel. GR Received tidak bisa dihapus. Kasbon dan deklarasi tanpa kasbon mem-booking budget sejak submit. Approval kasbon dan deklarasi mengikuti rentang nominal. Kasbon bisa di-Settle (Closed). Setiap langkah approval wajib ke satu user. RF bisa dibuat semua role, tapi hanya pembuat atau admin yang bisa edit/submit. Sub-master produk ikut izin Products. Akses project diatur di form User. Template laporan pribadi kecuali dibagikan. **Perbaikan:** `erp:sync-stocks` tidak lagi memaksa PO Completed. Edit PO menolak baris yang sudah ada di PO lain dan mengembalikan status item RF. `amount_paid`/`balance_amount` PO ikut pembayaran termin. Tombol "Tandai semua dibaca" berfungsi. Permission user export/bulk delete, `purchase_orders.verify` dan `department_spending.view` bisa diberikan lewat menu Role. Perintah rusak `master:sync-users` dan test usang ProjectLogoTest dihapus. |

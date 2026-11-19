@@ -94,7 +94,7 @@ class NotificationHelper
      */
     public static function notifyFinance(string $type, string $title, string $body = '', string $url = '', string $refType = '', int $refId = null): void
     {
-        $finances = User::whereHas('roles', fn($q) => $q->where('slug', 'finance'))->get();
+        $finances = User::whereHas('roles', fn($q) => $q->whereIn('slug', \App\Models\Role::withDivisionMembers(['finance'])))->get();
 
         foreach ($finances as $user) {
             static::send($user->id, $type, $title, $body, $url, $refType, $refId);

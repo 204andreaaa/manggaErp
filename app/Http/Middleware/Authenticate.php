@@ -17,7 +17,7 @@ class Authenticate
         $user = $request->user(); // << WAJIB ADA
 
         if (!empty($slugs)) {
-            $ok = $user->roles()->whereIn('slug', $slugs)->exists()
+            $ok = $user->roles()->whereIn('slug', \App\Models\Role::withDivisionMembers($slugs))->exists()
                 || in_array(($user->role ?? ''), $slugs, true);
 
             abort_unless($ok, 403, 'Unauthorized');
