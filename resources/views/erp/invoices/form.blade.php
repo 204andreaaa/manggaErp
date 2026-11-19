@@ -59,6 +59,38 @@
             </div>
           </div>
         </div>
+
+        <div class="card shadow-sm border-0 mb-4">
+          <div class="card-header pb-2">
+            <h6 class="hr-section-title"><span class="avatar avatar-sm"><span class="avatar-initial rounded bg-label-info"><i class="bx bx-calculator"></i></span></span>Pajak</h6>
+          </div>
+          <div class="card-body row g-3">
+            <div class="col-md-4">
+              <label class="form-label">PPN <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <input type="number" name="ppn_rate" class="form-control" min="0" max="100" step="0.01" required value="{{ old('ppn_rate', (float) $invoice->ppn_rate) }}">
+                <span class="input-group-text">%</span>
+              </div>
+              <div class="form-text">Ditambahkan ke seluruh nilai invoice.</div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">PPh <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <input type="number" name="pph_rate" class="form-control" min="0" max="100" step="0.01" required value="{{ old('pph_rate', (float) $invoice->pph_rate) }}">
+                <span class="input-group-text">%</span>
+              </div>
+              <div class="form-text">Dipotong customer dari nilai jasa.</div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Nilai Jasa (dasar PPh)</label>
+              <div class="input-group">
+                <span class="input-group-text">Rp</span>
+                <input type="number" name="pph_base" class="form-control" min="0" step="0.01" value="{{ old('pph_base', (float) $invoice->pph_base ?: '') }}" placeholder="0">
+              </div>
+              <div class="form-text">Bagian jasa saja; material tidak kena PPh. Kosong = tanpa PPh.</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="col-lg-4">
@@ -78,7 +110,7 @@
           </div>
         </div>
         <div class="alert alert-info border-0 small">
-          <i class="bx bx-info-circle me-1"></i>Nilai invoice dihitung dari <b>rincian per WID</b>, dan status (New / Partial Paid / Paid) mengikuti <b>pembayaran</b>. Keduanya diisi di halaman invoice setelah disimpan.
+          <i class="bx bx-info-circle me-1"></i>Nilai invoice (sebelum pajak) dihitung dari <b>rincian per WID</b>. Yang harus dibayar customer = nilai invoice + PPN − PPh; status (New / Partial Paid / Paid) mengikuti <b>pembayaran</b>.
         </div>
         <div class="d-flex gap-2">
           <a href="{{ $back }}" class="btn btn-label-secondary flex-fill">Batal</a>

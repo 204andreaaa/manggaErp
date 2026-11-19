@@ -6,7 +6,7 @@
 | **Sistem** | Mangga ERP — ERP multi-project untuk procurement, budget project, kasbon, pembayaran supplier, gudang dan HR |
 | **Repo** | `204andreaaa/manggaErp` (branch utama `master`) |
 | **Versi kode** | Laravel 13, PHP 8.2+ (server: PHP 8.4) |
-| **Versi PRD** | 1.6 |
+| **Versi PRD** | 1.7 |
 | **Terakhir diperbarui** | 2026-11-19 |
 | **Status** | Belum production (masih tahap uji internal) |
 
@@ -340,7 +340,7 @@ Pinjaman/klaim karyawan di luar project dicatat di halaman karyawan, tanpa appro
 ### 6.3 Invoice (tagihan ke customer)
 **Tujuan:** mencatat tagihan perusahaan ke customer (piutang, uang masuk) beserta pembayarannya, dengan rincian per WID. Meniru objek "Invoice" di Salesforce. Tanpa approval.
 
-> **Asumsi tahap 1 (dibuat tanpa konfirmasi tim Finance, 2026-11-16).** Form rincian sudah disamakan dengan form "New Invoice Detail" Salesforce. Belum dibuat: master Customer (customer masih teks bebas), pajak (PPN/PPh), efek centang "Update WID", upload bukti bayar, pelunasan invoice USD, tautan ke Revenue Plan WID. Lihat [Lampiran](#15-lampiran-celah-dan-pekerjaan-terbuka).
+> **Asumsi tahap 1 (dibuat tanpa konfirmasi tim Finance, 2026-11-16).** Form rincian sudah disamakan dengan form "New Invoice Detail" Salesforce. Pajak (PPN/PPh) ditambahkan di versi 1.7 sesuai keputusan user. Belum dibuat: master Customer (customer masih teks bebas), efek centang "Update WID", upload bukti bayar, pelunasan invoice USD, tautan ke Revenue Plan WID. Lihat [Lampiran](#15-lampiran-celah-dan-pekerjaan-terbuka).
 
 **Invoice**
 | Field | Aturan |
@@ -353,11 +353,18 @@ Pinjaman/klaim karyawan di luar project dicatat di halaman karyawan, tanpa appro
 | Customer | Teks bebas (opsional) |
 | TOP | Teks bebas (mis. "DP 30%", "TERMIN 1 - 95%", "FP 100%") |
 | Remarks | Opsional |
-| Invoice Amount | **Otomatis** = Σ rincian bermata uang IDR |
+| Invoice Amount (Nilai Invoice) | **Otomatis** = Σ rincian bermata uang IDR; nilai **sebelum pajak** (DPP) |
+| PPN % | Wajib, 0–100. Invoice baru terisi tarif default dari admin, bisa diubah per invoice |
+| PPh % | Wajib, 0–100. Sama seperti PPN |
+| Nilai Jasa (dasar PPh) | Opsional, diisi manual oleh Finance: bagian jasa dari nilai invoice (material tidak kena PPh). Kosong = tanpa PPh. Bila lebih besar dari nilai invoice, yang dipakai nilai invoice |
+| PPN | **Otomatis** = Invoice Amount × PPN % |
+| Nilai Invoice + PPN | **Otomatis** = Invoice Amount + PPN (total yang ditagih) |
+| PPh | **Otomatis** = Nilai Jasa × PPh %; dipotong customer (bukti potong) dan **langsung dianggap terbayar** |
+| Nilai Invoice − PPh (harus dibayar customer) | **Otomatis** = Nilai Invoice + PPN − PPh. Contoh: 100 jt, PPN 11%, PPh 2% dari jasa 100 jt → 111 jt − 2 jt = 109 jt |
 | Invoice Amount USD | **Otomatis** = Σ rincian bermata uang USD (ditampilkan terpisah, tidak ikut hitungan pembayaran) |
 | Amount Payment Detail | **Otomatis** = Σ pembayaran |
-| Belum Dibayar | **Otomatis** = Invoice Amount − Amount Payment Detail |
-| Invoice Status | **Otomatis**: New (belum ada bayar) → Partial Paid → Paid (lunas) |
+| Belum Dibayar | **Otomatis** = (Nilai Invoice + PPN − PPh) − Amount Payment Detail |
+| Invoice Status | **Otomatis**: New (belum ada bayar) → Partial Paid → Paid (lunas = pembayaran mencapai Nilai Invoice − PPh) |
 | Partial Payment Date | **Otomatis** = tanggal pembayaran pertama |
 | Final Payment Date | **Otomatis** = tanggal pembayaran terakhir saat lunas |
 
@@ -376,9 +383,13 @@ Pinjaman/klaim karyawan di luar project dicatat di halaman karyawan, tanpa appro
 
 Tombol **Simpan & Tambah Lagi** (seperti "Save & New") langsung membuka form rincian berikutnya. Rincian bisa dihapus; penghapusan rincian IDR ditolak bila nilai invoice jadi lebih kecil dari yang sudah dibayar.
 
-**Payment Detail** (pembayaran masuk): tanggal bayar, amount, metode (Bank Transfer / Cash / Giro / Cek / Lainnya), referensi, catatan. Tidak bisa dicatat sebelum ada rincian, dan tidak boleh melebihi sisa tagihan. Menghapus pembayaran menghitung ulang status.
+**Payment Detail** (pembayaran masuk): tanggal bayar, amount, metode (Bank Transfer / Cash / Giro / Cek / Lainnya), referensi, catatan. Tidak bisa dicatat sebelum ada rincian, dan tidak boleh melebihi sisa tagihan (setelah pajak). Menghapus pembayaran menghitung ulang status.
 
-**Halaman:** daftar invoice (ringkasan total ditagih / sudah dibayar / belum dibayar, filter perusahaan & status, cari nomor/customer/TOP), form invoice, detail invoice (gaya Salesforce: field, Invoices Details, Payment Detail).
+**Pajak.** Mengubah PPN/PPh/Nilai Jasa di Edit Invoice menghitung ulang semua nilai; ditolak bila hasilnya lebih kecil dari yang sudah dibayar customer. Menghapus rincian juga ditolak bila nilai setelah pajak jadi lebih kecil dari yang sudah dibayar. Invoice yang dibuat sebelum versi 1.7 mulai dengan PPN dan PPh 0% (nilainya tidak berubah) sampai Finance mengisinya.
+
+**Tarif default** (halaman Invoice → *Tarif Pajak Default*, hanya superadmin/admin): PPN % dan PPh % yang otomatis terisi di invoice baru (awal: PPN 11%, PPh 2%). Disimpan di tabel master `app_settings`. Mengubahnya tidak mengubah invoice yang sudah ada.
+
+**Halaman:** daftar invoice (ringkasan total ditagih termasuk PPN / sudah dibayar / belum dibayar, filter perusahaan & status, cari nomor/customer/TOP), form invoice (dengan bagian Pajak), detail invoice dengan lima kotak: **Nilai Invoice**, **Nilai Invoice + PPN**, **Nilai Invoice − PPh**, **Sudah Dibayar**, **Belum Dibayar**; tabel rincian menampilkan total sebelum pajak, PPN, PPh dan yang harus dibayar customer.
 
 **Hapus invoice:** permission `invoices.delete`, hanya bila belum ada pembayaran.
 
@@ -644,6 +655,7 @@ Permission disimpan sebagai daftar di setiap role. `superadmin` dan `admin` sela
 | Hapus/unlock RF, cancel/unlock PO, hapus PO Draft, hapus GR Recorded, hapus PA | superadmin |
 | Edit dan submit RF | pembuat RF, admin, superadmin |
 | Kelola project dan konfigurasi approval | superadmin |
+| Atur tarif pajak default invoice customer | superadmin, admin |
 | Tandai kasbon dibayar, settle kasbon | `advance_requests.pay` |
 | Kelola termin PA (tambah/hapus termin, input invoice, ajukan, tandai lunas) | `payment_advices.update`, `payment_advice_details.update_invoice` / `.submit` / `.mark_paid` |
 | Buat PR / hapus PR | `request_forms.create_pr` / `request_forms.delete_pr` (pembuat PR boleh menghapus PR-nya sendiri) |
@@ -692,7 +704,7 @@ Sumbernya satu: `Database\Seeders\Launch\RolePermissionSeeder` (dipakai `LaunchS
 Nomor dokumen yang sudah dihapus tidak dipakai ulang.
 
 ### 13.2 Tabel utama
-- **Master:** users, roles, role_user, projects, project_user, companies, departments, employees, notifications, custom_reports, activity_logs.
+- **Master:** users, roles, role_user, projects, project_user, companies, departments, employees, notifications, custom_reports, activity_logs, app_settings.
 - **Tenant:** request_forms, request_form_items, erp_notes_attachments, erp_purchase_requests (+items), erp_purchase_orders (+items), erp_goods_receipts (+items), erp_stocks, erp_payment_advices, erp_payment_advice_details, erp_payment_terms, erp_approvals, erp_approval_configs, erp_budget_parents, erp_sub_projects, erp_work_items, erp_annual_budget_plans, erp_monthly_budget_plans, erp_budget_plan_details, erp_advance_requests, erp_expense_declarations, erp_employee_advances, erp_invoices, erp_invoice_details, erp_invoice_payments, erp_products, product_families, product_types, brands, product_models, uoms, currencies, erp_suppliers (+contacts, attachments), erp_warehouses.
 
 ### 13.3 Perintah operasional
@@ -711,7 +723,7 @@ Nomor dokumen yang sudah dihapus tidak dipakai ulang.
 ### 13.4 Pengujian
 - Feature test di `tests/Feature` (Budget, Kasbon, MasterData, Payment, PurchaseOrder, RequestForm, dll.).
 - Jalan di database khusus `mangga_test_master` / `mangga_test_tenant`; test menolak jalan di database lain.
-- Perintah: `php artisan test`. Kondisi per 2026-11-19: **386 lolos, 0 dilewati**.
+- Perintah: `php artisan test`. Kondisi per 2026-11-19: **388 lolos, 0 dilewati**.
 
 ### 13.5 Deploy
 Di server (`/Users/mac/apps/mangga`), satu per satu:
@@ -732,6 +744,7 @@ Riwayat versi lengkap ada di `docs/prd-history/`.
 
 | Tanggal | Versi | Perubahan |
 |---|---|---|
+| 2026-11-19 | 1.7 | Pajak di invoice customer: PPN % dan PPh % per invoice (default diatur admin di halaman Tarif Pajak Default, awal 11% dan 2%), Nilai Jasa sebagai dasar PPh diisi manual. Nilai Invoice tetap sebelum pajak; yang harus dibayar customer = Nilai Invoice + PPN − PPh, dan PPh langsung dianggap terbayar. Detail invoice menampilkan Nilai Invoice, Nilai Invoice + PPN, Nilai Invoice − PPh, Sudah Dibayar, Belum Dibayar. Tabel master baru `app_settings`. |
 | 2026-11-19 | 1.6 | Hak akses per divisi disamakan (`RolePermissionSeeder`): pekerjaan sendiri penuh, modul divisi lain hanya lihat tanpa menu, staff tanpa approve/reject/hapus/verify. Aksi tulis dicek dari permission saja, bukan nama role (sebelumnya mis. Finance bisa ubah/hapus Payment Terms walau hanya punya izin lihat). Tombol aksi disembunyikan bila tidak punya izin. Sidebar per divisi: Kasbon dan Expense pindah ke Pengajuan Umum, Budget Plans ikut Finance untuk orang Finance, GR ikut Logistik untuk orang Logistik. Approve/reject kasbon dan expense cukup ditunjuk di Approval Config (sebelumnya macet karena tidak ada role selain superadmin yang punya `advance_requests.approve`); approver dan pemohon bisa membuka detailnya. Tim project dan Finance kini mendapat akses kasbon/expense. |
 | 2026-11-19 | 1.5 | Satu role per orang: role jabatan (Head of …, Project Manager, dll.) dihitung sebagai anggota divisinya dan mulai dari salinan permission divisi, jadi head tidak perlu dua role. Perintah baru `users:transfer` untuk memindahkan data user lama ke penggantinya lalu menghapusnya. |
 | 2026-11-19 | 1.4 | `LaunchSeeder` untuk server: departemen, role jabatan (Head of Project, Project Manager, Project Coordinator, Staff Project, Head of Procurement/Logistic/Finance/HR) di atas role divisi, dan daftar user tim Mandau (29 orang) beserta jabatan dan departemennya. Akun demo lama dinonaktifkan. Aman dijalankan ulang. |
@@ -761,7 +774,7 @@ Celah dari versi 1.0 yang sudah diputuskan atau diperbaiki di versi 1.1 sudah di
 - Daftar pilihan Terms yang sebenarnya (baru diketahui "Final Payment" dan "DP I").
 - Rincian USD: dibayar dalam USD atau dikonversi ke IDR? Saat ini total USD hanya ditampilkan, tidak ikut status pembayaran.
 - Isi Payment Detail yang sebenarnya (bukti transfer, rekening penerima, potongan).
-- Pajak: nilai invoice sebelum/sesudah PPN, potongan PPh dari customer.
+- Bukti potong PPh dari customer belum bisa di-upload (PPh langsung dianggap terbayar).
 - Status selain New / Partial Paid / Paid (mis. Cancelled).
 - Siapa yang membuat dan boleh melihat invoice selain Finance.
 

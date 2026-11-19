@@ -194,6 +194,8 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::resource('payment-terms', \App\Http\Controllers\Erp\ErpPaymentTermController::class)->except(['create', 'show', 'edit']);
 
         // Customer invoices (tagihan ke customer)
+        Route::get('invoices/tax-settings', [\App\Http\Controllers\Erp\InvoiceController::class, 'taxSettings'])->name('invoices.tax-settings');
+        Route::put('invoices/tax-settings', [\App\Http\Controllers\Erp\InvoiceController::class, 'updateTaxSettings'])->name('invoices.tax-settings.update');
         Route::resource('invoices', \App\Http\Controllers\Erp\InvoiceController::class);
         Route::post('invoices/{invoice}/details', [\App\Http\Controllers\Erp\InvoiceController::class, 'storeDetail'])->name('invoices.details.store');
         Route::delete('invoice-details/{detail}', [\App\Http\Controllers\Erp\InvoiceController::class, 'destroyDetail'])->name('invoice-details.destroy');

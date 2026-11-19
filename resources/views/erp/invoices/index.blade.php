@@ -7,10 +7,11 @@
 @section('content')
 @php
   $money = fn ($v) => 'Rp '.number_format((float) $v, 0, ',', '.');
-  $billed = (float) ($totals->amount ?? 0);
+  $billed = (float) ($totals->total ?? 0);
+  $due = (float) ($totals->due ?? 0);
   $cards = [
-    ['bx-receipt', 'primary', 'Total Ditagih', $money($billed), 'Semua invoice'],
-    ['bx-wallet', 'success', 'Sudah Dibayar', $money($totals->paid ?? 0), $billed > 0 ? round(($totals->paid ?? 0) / $billed * 100).'% dari tagihan' : '-'],
+    ['bx-receipt', 'primary', 'Total Ditagih', $money($billed), 'Termasuk PPN · sebelum pajak '.$money($totals->amount ?? 0)],
+    ['bx-wallet', 'success', 'Sudah Dibayar', $money($totals->paid ?? 0), $due > 0 ? round(($totals->paid ?? 0) / $due * 100).'% dari yang harus dibayar (setelah PPh)' : '-'],
     ['bx-hourglass', 'warning', 'Belum Dibayar', $money($totals->outstanding ?? 0), 'Sisa piutang customer'],
   ];
 @endphp
@@ -33,9 +34,14 @@
         <small class="text-muted">Tagihan ke customer dan pembayarannya</small>
       </div>
     </div>
-    @if(auth()->user()->hasPermission('invoices.create'))
-      <a href="{{ route('erp.invoices.create') }}" class="btn btn-primary"><i class="bx bx-plus me-1"></i>Invoice Baru</a>
-    @endif
+    <div class="d-flex gap-2">
+      @if(auth()->user()->hasRole(['superadmin', 'admin']))
+        <a href="{{ route('erp.invoices.tax-settings') }}" class="btn btn-label-secondary"><i class="bx bx-cog me-1"></i>Tarif Pajak Default</a>
+      @endif
+      @if(auth()->user()->hasPermission('invoices.create'))
+        <a href="{{ route('erp.invoices.create') }}" class="btn btn-primary"><i class="bx bx-plus me-1"></i>Invoice Baru</a>
+      @endif
+    </div>
   </div>
 
   <div class="row g-3 mb-4">
@@ -90,7 +96,7 @@
           </thead>
           <tbody>
             @foreach($invoices as $inv)
-              @php $pct = $inv->invoice_amount > 0 ? min(100, round($inv->amount_paid / $inv->invoice_amount * 100)) : 0; @endphp
+              @php $pct = $inv->amount_due > 0 ? min(100, round($inv->amount_paid / $inv->amount_due * 100)) : 0; @endphp
               <tr style="cursor:pointer" onclick="window.location='{{ route('erp.invoices.show', $inv) }}'">
                 <td>
                   <a href="{{ route('erp.invoices.show', $inv) }}" class="fw-semibold hr-code">{{ $inv->code }}</a>
@@ -100,7 +106,8 @@
                 <td class="text-nowrap">{{ $inv->invoice_date?->format('d M Y') }}
                   <div class="small {{ $inv->isOverdue() ? 'text-danger fw-semibold' : 'text-muted' }}">Jatuh tempo {{ $inv->due_date?->format('d M Y') ?? '-' }}</div></td>
                 <td><span class="badge bg-label-{{ $inv->statusColor() }}">{{ $inv->status }}</span></td>
-                <td class="text-end fw-semibold text-nowrap">{{ $money($inv->invoice_amount) }}</td>
+                <td class="text-end fw-semibold text-nowrap">{{ $money($inv->total_amount) }}
+                  <div class="small text-muted fw-normal">sebelum pajak {{ $money($inv->invoice_amount) }}</div></td>
                 <td>
                   <div class="progress" style="height:6px"><div class="progress-bar bg-success" style="width: {{ $pct }}%"></div></div>
                   <div class="small text-muted mt-1">{{ $pct }}% · sisa {{ $money($inv->outstanding) }}</div>

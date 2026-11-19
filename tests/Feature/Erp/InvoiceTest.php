@@ -36,6 +36,7 @@ class InvoiceTest extends ErpTestCase
             ->post(route('erp.invoices.store'), array_merge([
                 'invoice_number' => 'MDU04871/IJE-MANDAU/XI/2026', 'invoice_date' => '2026-11-10', 'due_date' => '2026-12-11',
                 'company_id' => $this->company->id, 'customer_name' => 'Indosat', 'top' => 'FP 100%',
+                'ppn_rate' => 0, 'pph_rate' => 0,
             ], $overrides))->assertSessionHasNoErrors();
 
         return Invoice::latest('id')->firstOrFail();
@@ -167,9 +168,52 @@ class InvoiceTest extends ErpTestCase
         $this->get(route('erp.invoices.edit', $paid))->assertOk();
 
         $this->put(route('erp.invoices.update', $paid), [
-            'invoice_number' => 'INV-PAID', 'invoice_date' => '2026-11-10', 'remarks' => 'diubah',
+            'invoice_number' => 'INV-PAID', 'invoice_date' => '2026-11-10', 'remarks' => 'diubah', 'ppn_rate' => 0, 'pph_rate' => 0,
         ])->assertRedirect(route('erp.invoices.show', $paid));
         $this->assertSame('diubah', $paid->fresh()->remarks);
+    }
+
+    public function test_ppn_is_added_and_pph_on_the_services_part_is_withheld_by_the_customer(): void
+    {
+        // 100jt (of which 100jt services), PPN 11%, PPh 2%: billed 111jt, customer transfers 109jt
+        $invoice = $this->createInvoice(['ppn_rate' => 11, 'pph_rate' => 2, 'pph_base' => 100_000_000]);
+        $this->addDetail($invoice, 100_000_000);
+        $invoice->refresh();
+        $this->assertEquals(11_000_000, (float) $invoice->ppn_amount);
+        $this->assertEquals(111_000_000, (float) $invoice->total_amount);
+        $this->assertEquals(2_000_000, (float) $invoice->pph_amount);
+        $this->assertEquals(109_000_000, (float) $invoice->amount_due);
+        $this->assertEquals(109_000_000, (float) $invoice->outstanding);
+
+        $this->pay($invoice, 109_000_001)->assertSessionHasErrors('amount');
+        $this->pay($invoice, 109_000_000)->assertSessionHas('success');
+        $this->assertSame('Paid', $invoice->fresh()->status, 'the withheld PPh counts as paid');
+
+        $this->get(route('erp.invoices.show', $invoice))->assertOk()
+            ->assertSee('Nilai Invoice + PPN')->assertSee('Rp 111.000.000')->assertSee('Nilai Invoice − PPh')->assertSee('Rp 109.000.000');
+
+        // a rate change that would leave the customer owing less than paid is refused
+        $this->put(route('erp.invoices.update', $invoice), [
+            'invoice_number' => $invoice->invoice_number, 'invoice_date' => '2026-11-10', 'ppn_rate' => 0, 'pph_rate' => 2, 'pph_base' => 100_000_000,
+        ])->assertSessionHasErrors('ppn_rate');
+        $this->assertEquals(11, (float) $invoice->fresh()->ppn_rate);
+    }
+
+    public function test_pph_only_covers_the_services_part_and_defaults_come_from_the_admin_setting(): void
+    {
+        // 100jt of which 40jt services: PPh 2% = 800rb
+        $invoice = $this->createInvoice(['ppn_rate' => 11, 'pph_rate' => 2, 'pph_base' => 40_000_000]);
+        $this->addDetail($invoice, 100_000_000);
+        $this->assertEquals(800_000, (float) $invoice->fresh()->pph_amount);
+        $this->assertEquals(110_200_000, (float) $invoice->fresh()->amount_due);
+
+        // only an admin sets the defaults; a new invoice starts from them
+        $this->get(route('erp.invoices.tax-settings'))->assertForbidden();
+        $admin = $this->makeUser('superadmin');
+        $this->actingInProject($admin)->put(route('erp.invoices.tax-settings.update'), ['ppn_rate' => 12, 'pph_rate' => 2.5])->assertSessionHas('success');
+        $this->assertSame('12', \App\Models\AppSetting::get(\App\Models\AppSetting::INVOICE_PPN_RATE));
+        $this->actingInProject($this->finance)->get(route('erp.invoices.create'))->assertOk()
+            ->assertSee('name="ppn_rate" class="form-control" min="0" max="100" step="0.01" required value="12"', false);
     }
 
     public function test_access_follows_the_invoice_permissions(): void

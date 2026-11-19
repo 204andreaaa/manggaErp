@@ -10,11 +10,16 @@
   $money = fn ($v) => 'Rp '.number_format((float) $v, 0, ',', '.');
   $date = fn ($d) => $d?->format('d M Y') ?? '-';
   $canUpdate = auth()->user()->hasPermission('invoices.update');
-  $paidPct = $inv->invoice_amount > 0 ? min(100, round($inv->amount_paid / $inv->invoice_amount * 100)) : 0;
+  $paidPct = $inv->amount_due > 0 ? min(100, round($inv->amount_paid / $inv->amount_due * 100)) : 0;
   $statusIcon = match ($inv->status) { 'Paid' => 'bx-check-circle', 'Partial Paid' => 'bx-time-five', default => 'bx-file' };
+  $rate = fn ($v) => rtrim(rtrim(number_format((float) $v, 2, ',', '.'), '0'), ',').'%';
   $cards = [
     ['bx-receipt', 'primary', 'Nilai Invoice', $money($inv->invoice_amount),
-      $inv->details->count().' rincian WID'.($inv->invoice_amount_usd > 0 ? ' · + USD '.number_format((float) $inv->invoice_amount_usd, 2, ',', '.') : '')],
+      'Sebelum pajak · '.$inv->details->count().' rincian WID'.($inv->invoice_amount_usd > 0 ? ' · + USD '.number_format((float) $inv->invoice_amount_usd, 2, ',', '.') : '')],
+    ['bx-plus-circle', 'info', 'Nilai Invoice + PPN', $money($inv->total_amount),
+      'PPN '.$rate($inv->ppn_rate).' · '.$money($inv->ppn_amount)],
+    ['bx-minus-circle', 'secondary', 'Nilai Invoice − PPh', $money($inv->amount_due),
+      'PPh '.$rate($inv->pph_rate).' dari jasa '.$money(min((float) $inv->pph_base, (float) $inv->invoice_amount)).' · dipotong '.$money($inv->pph_amount)],
     ['bx-wallet', 'success', 'Sudah Dibayar', $money($inv->amount_paid), $inv->payments->count().' kali pembayaran'],
     ['bx-hourglass', $inv->outstanding > 0 ? ($inv->isOverdue() ? 'danger' : 'warning') : 'success', 'Belum Dibayar', $money($inv->outstanding),
       $inv->outstanding <= 0 ? 'Lunas' : ($inv->isOverdue() ? 'Lewat jatuh tempo '.$date($inv->due_date) : 'Jatuh tempo '.$date($inv->due_date))],
@@ -91,7 +96,7 @@
   {{-- Amounts --}}
   <div class="row g-3 mb-4">
     @foreach($cards as [$icon, $color, $label, $value, $note])
-      <div class="col-md-4">
+      <div class="col-md-4 col-xl">
         <div class="card hr-stat card-border-shadow-{{ $color }} shadow-sm">
           <div class="card-body">
             <div class="d-flex align-items-center gap-2 mb-2">
@@ -166,7 +171,10 @@
                 @endforeach
               </tbody>
               <tfoot>
-                <tr><th colspan="4" class="text-end">Total IDR</th><th class="text-end text-nowrap">{{ $money($inv->invoice_amount) }}</th><th></th></tr>
+                <tr><th colspan="4" class="text-end">Total IDR (sebelum pajak)</th><th class="text-end text-nowrap">{{ $money($inv->invoice_amount) }}</th><th></th></tr>
+                <tr><td colspan="4" class="text-end text-muted">+ PPN {{ $rate($inv->ppn_rate) }}</td><td class="text-end text-nowrap">{{ $money($inv->ppn_amount) }}</td><td></td></tr>
+                <tr><td colspan="4" class="text-end text-muted">− PPh {{ $rate($inv->pph_rate) }} (dipotong customer)</td><td class="text-end text-nowrap">{{ $money($inv->pph_amount) }}</td><td></td></tr>
+                <tr><th colspan="4" class="text-end">Harus dibayar customer</th><th class="text-end text-nowrap">{{ $money($inv->amount_due) }}</th><th></th></tr>
                 @if($inv->invoice_amount_usd > 0)
                   <tr><th colspan="4" class="text-end">Total USD</th><th class="text-end text-nowrap">USD {{ number_format((float) $inv->invoice_amount_usd, 2, ',', '.') }}</th><th></th></tr>
                 @endif

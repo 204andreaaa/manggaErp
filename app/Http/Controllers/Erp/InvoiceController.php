@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Erp;
 
 use App\Helpers\NotificationHelper;
 use App\Http\Controllers\Controller;
+use App\Models\AppSetting;
 use App\Models\Company;
 use App\Models\Erp\ErpWorkItem;
 use App\Models\Erp\Invoice;
@@ -40,7 +41,7 @@ class InvoiceController extends Controller
             ->latest('invoice_date')->latest('id')
             ->paginate(50)->withQueryString();
 
-        $totals = Invoice::selectRaw('SUM(invoice_amount) amount, SUM(amount_paid) paid, SUM(outstanding) outstanding')->first();
+        $totals = Invoice::selectRaw('SUM(invoice_amount) amount, SUM(total_amount) total, SUM(amount_due) due, SUM(amount_paid) paid, SUM(outstanding) outstanding')->first();
 
         return view('erp.invoices.index', [
             'invoices' => $invoices,
@@ -53,7 +54,15 @@ class InvoiceController extends Controller
     {
         $this->authorizeTo('create');
 
-        return view('erp.invoices.form', ['invoice' => new Invoice(['invoice_date' => now()]), 'companies' => $this->companies()]);
+        return view('erp.invoices.form', [
+            'invoice' => new Invoice([
+                'invoice_date' => now(),
+                // starts from the default rates the admin set; Finance may change them per invoice
+                'ppn_rate' => AppSetting::get(AppSetting::INVOICE_PPN_RATE, '0'),
+                'pph_rate' => AppSetting::get(AppSetting::INVOICE_PPH_RATE, '0'),
+            ]),
+            'companies' => $this->companies(),
+        ]);
     }
 
     public function store(Request $request)
@@ -99,7 +108,19 @@ class InvoiceController extends Controller
     public function update(Request $request, Invoice $invoice)
     {
         $this->authorizeTo('update');
-        $invoice->update($this->validateHeader($request, $invoice) + ['updated_by_id' => auth()->id()]);
+        $data = $this->validateHeader($request, $invoice);
+
+        DB::connection('tenant')->transaction(function () use ($invoice, $data) {
+            $invoice->update($data + ['updated_by_id' => auth()->id()]);
+            $invoice->recalculate();
+            // new tax rates may not leave the customer owing less than they already paid
+            if ((float) $invoice->amount_paid > (float) $invoice->amount_due + 0.005) {
+                throw ValidationException::withMessages([
+                    'ppn_rate' => 'Dengan pajak ini nilai yang harus dibayar customer (Rp '.number_format((float) $invoice->amount_due, 0, ',', '.')
+                        .') lebih kecil dari yang sudah dibayar (Rp '.number_format((float) $invoice->amount_paid, 0, ',', '.').').',
+                ]);
+            }
+        });
 
         NotificationHelper::pushLive('invoice', $invoice->id, 'updated');
 
@@ -174,9 +195,9 @@ class InvoiceController extends Controller
         $this->authorizeTo('update');
         $invoice = $detail->invoice;
 
-        // the invoice may not end up worth less than what the customer already paid (payments are in IDR)
+        // the invoice may not end up worth less than what the customer already paid (payments are in IDR, after taxes)
         $remaining = (float) $invoice->details()->where('currency', 'IDR')->where('id', '!=', $detail->id)->sum('amount');
-        if ($detail->currency === 'IDR' && $remaining < (float) $invoice->amount_paid - 0.005) {
+        if ($detail->currency === 'IDR' && $invoice->taxesFor($remaining)['amount_due'] < (float) $invoice->amount_paid - 0.005) {
             return redirect()->back()->with('error', 'Rincian tidak bisa dihapus: nilai invoice akan lebih kecil dari yang sudah dibayar customer.');
         }
 
@@ -244,11 +265,42 @@ class InvoiceController extends Controller
             'top' => ['nullable', 'string', 'max:100'],
             'remarks' => ['nullable', 'string', 'max:2000'],
             'due_date' => ['nullable', 'date', 'after_or_equal:invoice_date'],
-        ]);
+            'ppn_rate' => ['required', 'numeric', 'min:0', 'max:100'],
+            'pph_rate' => ['required', 'numeric', 'min:0', 'max:100'],
+            'pph_base' => ['nullable', 'numeric', 'min:0', 'max:999999999999'],
+        ], [], ['ppn_rate' => 'PPN', 'pph_rate' => 'PPh', 'pph_base' => 'nilai jasa']);
+
+        $data['pph_base'] = $data['pph_base'] ?? 0;
 
         $data['company_name'] = !empty($data['company_id']) ? Company::find($data['company_id'])?->short_name : null;
 
         return $data;
+    }
+
+    /** Default PPN / PPh rates new invoices start with (admin only). */
+    public function taxSettings()
+    {
+        abort_unless(auth()->user()->hasRole(['superadmin', 'admin']), 403);
+
+        return view('erp.invoices.tax_settings', [
+            'ppnRate' => AppSetting::get(AppSetting::INVOICE_PPN_RATE, '0'),
+            'pphRate' => AppSetting::get(AppSetting::INVOICE_PPH_RATE, '0'),
+        ]);
+    }
+
+    public function updateTaxSettings(Request $request)
+    {
+        abort_unless(auth()->user()->hasRole(['superadmin', 'admin']), 403);
+        $data = $request->validate([
+            'ppn_rate' => ['required', 'numeric', 'min:0', 'max:100'],
+            'pph_rate' => ['required', 'numeric', 'min:0', 'max:100'],
+        ], [], ['ppn_rate' => 'PPN', 'pph_rate' => 'PPh']);
+
+        AppSetting::put(AppSetting::INVOICE_PPN_RATE, (string) (float) $data['ppn_rate']);
+        AppSetting::put(AppSetting::INVOICE_PPH_RATE, (string) (float) $data['pph_rate']);
+
+        return redirect()->route('erp.invoices.tax-settings')
+            ->with('success', 'Tarif default disimpan. Berlaku untuk invoice baru; invoice yang sudah ada tidak berubah.');
     }
 
     private function companies()
