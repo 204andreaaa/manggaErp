@@ -23,7 +23,7 @@ class Invoice extends Model
     protected $fillable = [
         'code', 'invoice_number', 'invoice_date', 'company_id', 'company_name', 'customer_name',
         'top', 'remarks', 'due_date', 'status', 'invoice_amount', 'invoice_amount_usd', 'amount_paid', 'outstanding',
-        'ppn_rate', 'ppn_amount', 'total_amount', 'pph_rate', 'pph_base', 'pph_amount', 'amount_due',
+        'ppn_rate', 'ppn_amount', 'total_amount', 'pph_rate', 'pph_amount', 'amount_due',
         'partial_payment_date', 'final_payment_date', 'created_by_id', 'updated_by_id',
     ];
 
@@ -40,7 +40,6 @@ class Invoice extends Model
         'ppn_amount' => 'decimal:2',
         'total_amount' => 'decimal:2',
         'pph_rate' => 'decimal:2',
-        'pph_base' => 'decimal:2',
         'pph_amount' => 'decimal:2',
         'amount_due' => 'decimal:2',
     ];
@@ -63,13 +62,13 @@ class Invoice extends Model
     /**
      * Taxes of an invoice worth $dpp (IDR, before tax):
      *  - PPN on top of the whole value: total = DPP + PPN;
-     *  - PPh withheld by the customer on the services part only (pph_base, at most
-     *    the DPP), counted as paid at once: amount_due = total - PPh.
+     *  - PPh withheld by the customer on the DPP, counted as paid at once:
+     *    amount_due = total - PPh.
      */
     public function taxesFor(float $dpp): array
     {
         $ppn = round($dpp * (float) $this->ppn_rate / 100, 2);
-        $pph = round(min((float) $this->pph_base, $dpp) * (float) $this->pph_rate / 100, 2);
+        $pph = round($dpp * (float) $this->pph_rate / 100, 2);
 
         return ['ppn_amount' => $ppn, 'total_amount' => $dpp + $ppn, 'pph_amount' => $pph, 'amount_due' => $dpp + $ppn - $pph];
     }

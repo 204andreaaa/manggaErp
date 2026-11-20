@@ -175,8 +175,8 @@ class InvoiceTest extends ErpTestCase
 
     public function test_ppn_is_added_and_pph_on_the_services_part_is_withheld_by_the_customer(): void
     {
-        // 100jt (of which 100jt services), PPN 11%, PPh 2%: billed 111jt, customer transfers 109jt
-        $invoice = $this->createInvoice(['ppn_rate' => 11, 'pph_rate' => 2, 'pph_base' => 100_000_000]);
+        // 100jt, PPN 11%, PPh 2%: billed 111jt, customer transfers 109jt
+        $invoice = $this->createInvoice(['ppn_rate' => 11, 'pph_rate' => 2]);
         $this->addDetail($invoice, 100_000_000);
         $invoice->refresh();
         $this->assertEquals(11_000_000, (float) $invoice->ppn_amount);
@@ -194,18 +194,18 @@ class InvoiceTest extends ErpTestCase
 
         // a rate change that would leave the customer owing less than paid is refused
         $this->put(route('erp.invoices.update', $invoice), [
-            'invoice_number' => $invoice->invoice_number, 'invoice_date' => '2026-11-10', 'ppn_rate' => 0, 'pph_rate' => 2, 'pph_base' => 100_000_000,
+            'invoice_number' => $invoice->invoice_number, 'invoice_date' => '2026-11-10', 'ppn_rate' => 0, 'pph_rate' => 2,
         ])->assertSessionHasErrors('ppn_rate');
         $this->assertEquals(11, (float) $invoice->fresh()->ppn_rate);
     }
 
-    public function test_pph_only_covers_the_services_part_and_defaults_come_from_the_admin_setting(): void
+    public function test_no_pph_at_zero_percent_and_defaults_come_from_the_admin_setting(): void
     {
-        // 100jt of which 40jt services: PPh 2% = 800rb
-        $invoice = $this->createInvoice(['ppn_rate' => 11, 'pph_rate' => 2, 'pph_base' => 40_000_000]);
+        // materials only: PPh 0%, the customer pays DPP + PPN
+        $invoice = $this->createInvoice(['ppn_rate' => 11, 'pph_rate' => 0]);
         $this->addDetail($invoice, 100_000_000);
-        $this->assertEquals(800_000, (float) $invoice->fresh()->pph_amount);
-        $this->assertEquals(110_200_000, (float) $invoice->fresh()->amount_due);
+        $this->assertEquals(0, (float) $invoice->fresh()->pph_amount);
+        $this->assertEquals(111_000_000, (float) $invoice->fresh()->amount_due);
 
         // only an admin sets the defaults; a new invoice starts from them
         $this->get(route('erp.invoices.tax-settings'))->assertForbidden();

@@ -267,10 +267,7 @@ class InvoiceController extends Controller
             'due_date' => ['nullable', 'date', 'after_or_equal:invoice_date'],
             'ppn_rate' => ['required', 'numeric', 'min:0', 'max:100'],
             'pph_rate' => ['required', 'numeric', 'min:0', 'max:100'],
-            'pph_base' => ['nullable', 'numeric', 'min:0', 'max:999999999999'],
-        ], [], ['ppn_rate' => 'PPN', 'pph_rate' => 'PPh', 'pph_base' => 'nilai jasa']);
-
-        $data['pph_base'] = $data['pph_base'] ?? 0;
+        ], [], ['ppn_rate' => 'PPN', 'pph_rate' => 'PPh']);
 
         $data['company_name'] = !empty($data['company_id']) ? Company::find($data['company_id'])?->short_name : null;
 

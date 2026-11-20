@@ -65,7 +65,7 @@
             <h6 class="hr-section-title"><span class="avatar avatar-sm"><span class="avatar-initial rounded bg-label-info"><i class="bx bx-calculator"></i></span></span>Pajak</h6>
           </div>
           <div class="card-body row g-3">
-            <div class="col-md-4">
+            <div class="col-md-6">
               <label class="form-label">PPN <span class="text-danger">*</span></label>
               <div class="input-group">
                 <input type="number" name="ppn_rate" class="form-control" min="0" max="100" step="0.01" required value="{{ old('ppn_rate', (float) $invoice->ppn_rate) }}">
@@ -73,21 +73,13 @@
               </div>
               <div class="form-text">Ditambahkan ke seluruh nilai invoice.</div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-6">
               <label class="form-label">PPh <span class="text-danger">*</span></label>
               <div class="input-group">
                 <input type="number" name="pph_rate" class="form-control" min="0" max="100" step="0.01" required value="{{ old('pph_rate', (float) $invoice->pph_rate) }}">
                 <span class="input-group-text">%</span>
               </div>
-              <div class="form-text">Dipotong customer dari nilai jasa.</div>
-            </div>
-            <div class="col-md-4">
-              <label class="form-label">Nilai Jasa (dasar PPh)</label>
-              <div class="input-group">
-                <span class="input-group-text">Rp</span>
-                <input type="number" name="pph_base" class="form-control" min="0" step="0.01" value="{{ old('pph_base', (float) $invoice->pph_base ?: '') }}" placeholder="0">
-              </div>
-              <div class="form-text">Bagian jasa saja; material tidak kena PPh. Kosong = tanpa PPh.</div>
+              <div class="form-text">Dipotong customer dari nilai invoice (isi 0% bila tidak kena PPh).</div>
             </div>
           </div>
         </div>
