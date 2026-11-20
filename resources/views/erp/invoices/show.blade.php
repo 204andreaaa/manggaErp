@@ -19,7 +19,7 @@
     ['bx-plus-circle', 'info', 'Nilai Invoice + PPN', $money($inv->total_amount),
       'PPN '.$rate($inv->ppn_rate).' · '.$money($inv->ppn_amount)],
     ['bx-minus-circle', 'secondary', 'Harus Dibayar Customer', $money($inv->amount_due),
-      'Nilai Invoice + PPN − PPh '.$rate($inv->pph_rate).' ('.$money($inv->pph_amount).')'],
+      'Nilai Invoice + PPN − PPh '.$rate($inv->pph_rate)],
     ['bx-wallet', 'success', 'Sudah Dibayar', $money($inv->amount_paid), $inv->payments->count().' kali pembayaran'],
     ['bx-hourglass', $inv->outstanding > 0 ? ($inv->isOverdue() ? 'danger' : 'warning') : 'success', 'Belum Dibayar', $money($inv->outstanding),
       $inv->outstanding <= 0 ? 'Lunas' : ($inv->isOverdue() ? 'Lewat jatuh tempo '.$date($inv->due_date) : 'Jatuh tempo '.$date($inv->due_date))],
