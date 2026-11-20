@@ -6,8 +6,8 @@
 | **Sistem** | Mangga ERP — ERP multi-project untuk procurement, budget project, kasbon, pembayaran supplier, gudang dan HR |
 | **Repo** | `204andreaaa/manggaErp` (branch utama `master`) |
 | **Versi kode** | Laravel 13, PHP 8.2+ (server: PHP 8.4) |
-| **Versi PRD** | 1.7 |
-| **Terakhir diperbarui** | 2026-11-19 |
+| **Versi PRD** | 1.8 |
+| **Terakhir diperbarui** | 2026-11-20 |
 | **Status** | Belum production (masih tahap uji internal) |
 
 > **Cara dokumen ini dirawat.** PRD ini ditulis dari kode yang berjalan, bukan dari rencana. Setiap perubahan perilaku sistem (function, aturan, field, status, hak akses, halaman) menghasilkan **PRD versi baru**: versi yang lama disalin dulu ke `docs/prd-history/PRD-v<versi>.md`, lalu dokumen ini diperbarui, nomor versinya dinaikkan, dan satu baris ditambahkan di [Changelog](#14-changelog) — semuanya di commit yang sama dengan perubahan kodenya. Di repo ini ada hook Claude Code (`.claude/settings.json` → `.claude/hooks/prd-reminder.cjs`) yang mengingatkan hal ini setiap kali file di `app/`, `routes/`, `database/`, `config/` atau `resources/views/` diubah.
@@ -340,7 +340,7 @@ Pinjaman/klaim karyawan di luar project dicatat di halaman karyawan, tanpa appro
 ### 6.3 Invoice (tagihan ke customer)
 **Tujuan:** mencatat tagihan perusahaan ke customer (piutang, uang masuk) beserta pembayarannya, dengan rincian per WID. Meniru objek "Invoice" di Salesforce. Tanpa approval.
 
-> **Asumsi tahap 1 (dibuat tanpa konfirmasi tim Finance, 2026-11-16).** Form rincian sudah disamakan dengan form "New Invoice Detail" Salesforce. Pajak (PPN/PPh) ditambahkan di versi 1.7 sesuai keputusan user. Belum dibuat: master Customer (customer masih teks bebas), efek centang "Update WID", upload bukti bayar, pelunasan invoice USD, tautan ke Revenue Plan WID. Lihat [Lampiran](#15-lampiran-celah-dan-pekerjaan-terbuka).
+> **Asumsi tahap 1 (dibuat tanpa konfirmasi tim Finance, 2026-11-16).** Form rincian sudah disamakan dengan form "New Invoice Detail" Salesforce. Pajak (PPN/PPh) ditambahkan di versi 1.7 sesuai keputusan user. Belum dibuat: master Customer (customer masih teks bebas), upload bukti bayar, pelunasan invoice USD, tautan ke Revenue Plan WID. Lihat [Lampiran](#15-lampiran-celah-dan-pekerjaan-terbuka).
 
 **Invoice**
 | Field | Aturan |
@@ -378,7 +378,6 @@ Pinjaman/klaim karyawan di luar project dicatat di halaman karyawan, tanpa appro
 | Currency | **Wajib**: IDR atau USD |
 | Amount | Wajib, > 0 |
 | Received Doc | Tanggal, opsional |
-| Update WID | Centang; **saat ini hanya disimpan sebagai tanda**, belum mengubah apa pun di WID |
 
 Tombol **Simpan & Tambah Lagi** (seperti "Save & New") langsung membuka form rincian berikutnya. Rincian bisa dihapus; penghapusan rincian IDR ditolak bila nilai invoice jadi lebih kecil dari yang sudah dibayar.
 
@@ -743,6 +742,7 @@ Riwayat versi lengkap ada di `docs/prd-history/`.
 
 | Tanggal | Versi | Perubahan |
 |---|---|---|
+| 2026-11-20 | 1.8 | Centang "Update WID" di form rincian invoice dihapus karena artinya tidak diketahui dan tidak berpengaruh apa pun ke WID (sebelumnya hanya disimpan sebagai tanda). Kolom lamanya di database dibiarkan, tidak dipakai lagi. |
 | 2026-11-19 | 1.7 | Pajak di invoice customer: PPN % dan PPh % per invoice (default diatur admin di halaman Tarif Pajak Default, awal 11% dan 2%), keduanya dihitung dari Nilai Invoice. Nilai Invoice tetap sebelum pajak; yang harus dibayar customer = Nilai Invoice + PPN − PPh, dan PPh langsung dianggap terbayar. Detail invoice menampilkan Nilai Invoice, Nilai Invoice + PPN, Harus Dibayar Customer (Nilai Invoice + PPN − PPh), Sudah Dibayar, Belum Dibayar. Tabel master baru `app_settings`. |
 | 2026-11-19 | 1.6 | Hak akses per divisi disamakan (`RolePermissionSeeder`): pekerjaan sendiri penuh, modul divisi lain hanya lihat tanpa menu, staff tanpa approve/reject/hapus/verify. Aksi tulis dicek dari permission saja, bukan nama role (sebelumnya mis. Finance bisa ubah/hapus Payment Terms walau hanya punya izin lihat). Tombol aksi disembunyikan bila tidak punya izin. Sidebar per divisi: Kasbon dan Expense pindah ke Pengajuan Umum, Budget Plans ikut Finance untuk orang Finance, GR ikut Logistik untuk orang Logistik. Approve/reject kasbon dan expense cukup ditunjuk di Approval Config (sebelumnya macet karena tidak ada role selain superadmin yang punya `advance_requests.approve`); approver dan pemohon bisa membuka detailnya. Tim project dan Finance kini mendapat akses kasbon/expense. |
 | 2026-11-19 | 1.5 | Satu role per orang: role jabatan (Head of …, Project Manager, dll.) dihitung sebagai anggota divisinya dan mulai dari salinan permission divisi, jadi head tidak perlu dua role. Perintah baru `users:transfer` untuk memindahkan data user lama ke penggantinya lalu menghapusnya. |
@@ -769,7 +769,6 @@ Celah dari versi 1.0 yang sudah diputuskan atau diperbaiki di versi 1.1 sudah di
 **Invoice customer — perlu dikonfirmasi ke Finance**
 - Perlu master Customer, atau cukup teks bebas?
 - Daftar perusahaan penagih (MANDAU, MIG, …). Master perusahaan saat ini berisi Mandau dan IOH.
-- Arti centang "Update WID" di Invoice Detail Salesforce (apakah menambah realisasi pendapatan WID?). Saat ini hanya disimpan.
 - Daftar pilihan Terms yang sebenarnya (baru diketahui "Final Payment" dan "DP I").
 - Rincian USD: dibayar dalam USD atau dikonversi ke IDR? Saat ini total USD hanya ditampilkan, tidak ikut status pembayaran.
 - Isi Payment Detail yang sebenarnya (bukti transfer, rekening penerima, potongan).

@@ -155,8 +155,7 @@
                       @else <span class="text-muted">Tanpa WID</span> @endif
                     </td>
                     <td class="small">{{ $d->budgetParent?->name ?? '-' }}<div class="text-muted">{{ $d->subProject?->sub_project_code ?? $d->project_code ?? '-' }}</div></td>
-                    <td>{{ $d->terms ?: '-' }}<div class="small text-muted hr-code">{{ $d->code }}</div>
-                      @if($d->update_wid)<span class="badge bg-label-info rounded-pill" style="font-size:.66rem">Update WID</span>@endif</td>
+                    <td>{{ $d->terms ?: '-' }}<div class="small text-muted hr-code">{{ $d->code }}</div></td>
                     <td class="small text-nowrap">{{ $date($d->received_doc_date) }}</td>
                     <td class="text-end fw-semibold text-nowrap">{{ $d->currency === 'USD' ? 'USD '.number_format((float) $d->amount, 2, ',', '.') : $money($d->amount) }}</td>
                     <td class="text-end">
@@ -273,13 +272,6 @@
           <input type="number" name="amount" class="form-control" min="1" step="0.01" required>
         </div>
         <div class="col-md-4"><label class="form-label">Received Doc</label><input type="date" name="received_doc_date" class="form-control"></div>
-        <div class="col-md-8 d-flex align-items-end">
-          <div class="form-check mb-2">
-            <input class="form-check-input" type="checkbox" name="update_wid" value="1" id="invUpdateWid">
-            <label class="form-check-label" for="invUpdateWid">Update WID</label>
-            <div class="form-text mt-0">Disimpan sebagai tanda saja; pengaruhnya ke WID menunggu konfirmasi Finance.</div>
-          </div>
-        </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Batal</button>

@@ -156,7 +156,6 @@ class InvoiceController extends Controller
             'currency' => ['required', Rule::in(array_keys(InvoiceDetail::CURRENCIES))],
             'amount' => ['required', 'numeric', 'min:1', 'max:999999999999'],
             'received_doc_date' => ['nullable', 'date'],
-            'update_wid' => ['nullable', 'boolean'],
             'po_date' => ['nullable', 'date'],
             'description' => ['nullable', 'string', 'max:500'],
         ]);
@@ -172,7 +171,6 @@ class InvoiceController extends Controller
         $data['sub_project_id'] = $subProject->id;
         $data['budget_parent_id'] = $subProject->budget_parent_id;
         $data['project_code'] = $subProject->sub_project_code;
-        $data['update_wid'] = $request->boolean('update_wid');
 
         DB::connection('tenant')->transaction(function () use ($invoice, $data) {
             $invoice->details()->create($data + [

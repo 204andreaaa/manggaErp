@@ -60,13 +60,12 @@ class InvoiceTest extends ErpTestCase
         $otherParent = ErpBudgetParent::create(['budget_code' => 'BP-OTHER', 'name' => 'Other', 'total_budget' => 1, 'remaining_budget' => 0, 'status' => 'Active']);
         $this->addDetail($invoice, 1_000, ['budget_parent_id' => $otherParent->id])->assertSessionHasErrors('work_item_id');
 
-        $this->addDetail($invoice, 1_000, ['update_wid' => 1, 'save_new' => 1])
+        $this->addDetail($invoice, 1_000, ['save_new' => 1])
             ->assertSessionHas('success')->assertSessionHas('reopen_detail', true);
         $detail = $invoice->details()->sole();
         $this->assertSame($this->wid->subProject->budget_parent_id, (int) $detail->budget_parent_id);
         $this->assertSame($this->wid->sub_project_id, (int) $detail->sub_project_id);
         $this->assertSame('SP-INV', $detail->project_code);
-        $this->assertTrue($detail->update_wid);
     }
 
     public function test_usd_lines_get_their_own_total_and_do_not_count_towards_the_idr_amount(): void

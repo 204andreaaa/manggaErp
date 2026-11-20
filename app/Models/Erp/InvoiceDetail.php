@@ -19,14 +19,13 @@ class InvoiceDetail extends Model
 
     protected $fillable = [
         'code', 'invoice_id', 'budget_parent_id', 'sub_project_id', 'work_item_id', 'project_code',
-        'terms', 'currency', 'amount', 'po_date', 'received_doc_date', 'update_wid', 'description', 'created_by_id',
+        'terms', 'currency', 'amount', 'po_date', 'received_doc_date', 'description', 'created_by_id',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
         'po_date' => 'date',
         'received_doc_date' => 'date',
-        'update_wid' => 'boolean',
     ];
 
     public function budgetParent()
