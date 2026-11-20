@@ -190,7 +190,7 @@ class InvoiceTest extends ErpTestCase
         $this->assertSame('Paid', $invoice->fresh()->status, 'the withheld PPh counts as paid');
 
         $this->get(route('erp.invoices.show', $invoice))->assertOk()
-            ->assertSee('Nilai Invoice + PPN')->assertSee('Rp 111.000.000')->assertSee('Nilai Invoice − PPh')->assertSee('Rp 109.000.000');
+            ->assertSee('Nilai Invoice + PPN')->assertSee('Rp 111.000.000')->assertSee('Harus Dibayar Customer')->assertSee('Rp 109.000.000');
 
         // a rate change that would leave the customer owing less than paid is refused
         $this->put(route('erp.invoices.update', $invoice), [

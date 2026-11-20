@@ -359,11 +359,11 @@ Pinjaman/klaim karyawan di luar project dicatat di halaman karyawan, tanpa appro
 | PPN | **Otomatis** = Invoice Amount × PPN % |
 | Nilai Invoice + PPN | **Otomatis** = Invoice Amount + PPN (total yang ditagih) |
 | PPh | **Otomatis** = Invoice Amount × PPh %; dipotong customer (bukti potong) dan **langsung dianggap terbayar**. Invoice yang tidak kena PPh (mis. material saja) diisi PPh 0% |
-| Nilai Invoice − PPh (harus dibayar customer) | **Otomatis** = Nilai Invoice + PPN − PPh. Contoh: 100 jt, PPN 11%, PPh 2% → 111 jt − 2 jt = 109 jt |
+| Harus Dibayar Customer | **Otomatis** = Nilai Invoice + PPN − PPh. Contoh: 100 jt, PPN 11%, PPh 2% → 111 jt − 2 jt = 109 jt |
 | Invoice Amount USD | **Otomatis** = Σ rincian bermata uang USD (ditampilkan terpisah, tidak ikut hitungan pembayaran) |
 | Amount Payment Detail | **Otomatis** = Σ pembayaran |
 | Belum Dibayar | **Otomatis** = (Nilai Invoice + PPN − PPh) − Amount Payment Detail |
-| Invoice Status | **Otomatis**: New (belum ada bayar) → Partial Paid → Paid (lunas = pembayaran mencapai Nilai Invoice − PPh) |
+| Invoice Status | **Otomatis**: New (belum ada bayar) → Partial Paid → Paid (lunas = pembayaran mencapai Harus Dibayar Customer) |
 | Partial Payment Date | **Otomatis** = tanggal pembayaran pertama |
 | Final Payment Date | **Otomatis** = tanggal pembayaran terakhir saat lunas |
 
@@ -388,7 +388,7 @@ Tombol **Simpan & Tambah Lagi** (seperti "Save & New") langsung membuka form rin
 
 **Tarif default** (halaman Invoice → *Tarif Pajak Default*, hanya superadmin/admin): PPN % dan PPh % yang otomatis terisi di invoice baru (awal: PPN 11%, PPh 2%). Disimpan di tabel master `app_settings`. Mengubahnya tidak mengubah invoice yang sudah ada.
 
-**Halaman:** daftar invoice (ringkasan total ditagih termasuk PPN / sudah dibayar / belum dibayar, filter perusahaan & status, cari nomor/customer/TOP), form invoice (dengan bagian Pajak), detail invoice dengan lima kotak: **Nilai Invoice**, **Nilai Invoice + PPN**, **Nilai Invoice − PPh**, **Sudah Dibayar**, **Belum Dibayar**; tabel rincian menampilkan total sebelum pajak, PPN, PPh dan yang harus dibayar customer.
+**Halaman:** daftar invoice (ringkasan total ditagih termasuk PPN / sudah dibayar / belum dibayar, filter perusahaan & status, cari nomor/customer/TOP), form invoice (dengan bagian Pajak), detail invoice dengan lima kotak: **Nilai Invoice**, **Nilai Invoice + PPN**, **Harus Dibayar Customer** (Nilai Invoice + PPN − PPh), **Sudah Dibayar**, **Belum Dibayar**; tabel rincian menampilkan total sebelum pajak, PPN, PPh dan yang harus dibayar customer.
 
 **Hapus invoice:** permission `invoices.delete`, hanya bila belum ada pembayaran.
 
@@ -743,7 +743,7 @@ Riwayat versi lengkap ada di `docs/prd-history/`.
 
 | Tanggal | Versi | Perubahan |
 |---|---|---|
-| 2026-11-19 | 1.7 | Pajak di invoice customer: PPN % dan PPh % per invoice (default diatur admin di halaman Tarif Pajak Default, awal 11% dan 2%), keduanya dihitung dari Nilai Invoice. Nilai Invoice tetap sebelum pajak; yang harus dibayar customer = Nilai Invoice + PPN − PPh, dan PPh langsung dianggap terbayar. Detail invoice menampilkan Nilai Invoice, Nilai Invoice + PPN, Nilai Invoice − PPh, Sudah Dibayar, Belum Dibayar. Tabel master baru `app_settings`. |
+| 2026-11-19 | 1.7 | Pajak di invoice customer: PPN % dan PPh % per invoice (default diatur admin di halaman Tarif Pajak Default, awal 11% dan 2%), keduanya dihitung dari Nilai Invoice. Nilai Invoice tetap sebelum pajak; yang harus dibayar customer = Nilai Invoice + PPN − PPh, dan PPh langsung dianggap terbayar. Detail invoice menampilkan Nilai Invoice, Nilai Invoice + PPN, Harus Dibayar Customer (Nilai Invoice + PPN − PPh), Sudah Dibayar, Belum Dibayar. Tabel master baru `app_settings`. |
 | 2026-11-19 | 1.6 | Hak akses per divisi disamakan (`RolePermissionSeeder`): pekerjaan sendiri penuh, modul divisi lain hanya lihat tanpa menu, staff tanpa approve/reject/hapus/verify. Aksi tulis dicek dari permission saja, bukan nama role (sebelumnya mis. Finance bisa ubah/hapus Payment Terms walau hanya punya izin lihat). Tombol aksi disembunyikan bila tidak punya izin. Sidebar per divisi: Kasbon dan Expense pindah ke Pengajuan Umum, Budget Plans ikut Finance untuk orang Finance, GR ikut Logistik untuk orang Logistik. Approve/reject kasbon dan expense cukup ditunjuk di Approval Config (sebelumnya macet karena tidak ada role selain superadmin yang punya `advance_requests.approve`); approver dan pemohon bisa membuka detailnya. Tim project dan Finance kini mendapat akses kasbon/expense. |
 | 2026-11-19 | 1.5 | Satu role per orang: role jabatan (Head of …, Project Manager, dll.) dihitung sebagai anggota divisinya dan mulai dari salinan permission divisi, jadi head tidak perlu dua role. Perintah baru `users:transfer` untuk memindahkan data user lama ke penggantinya lalu menghapusnya. |
 | 2026-11-19 | 1.4 | `LaunchSeeder` untuk server: departemen, role jabatan (Head of Project, Project Manager, Project Coordinator, Staff Project, Head of Procurement/Logistic/Finance/HR) di atas role divisi, dan daftar user tim Mandau (29 orang) beserta jabatan dan departemennya. Akun demo lama dinonaktifkan. Aman dijalankan ulang. |
