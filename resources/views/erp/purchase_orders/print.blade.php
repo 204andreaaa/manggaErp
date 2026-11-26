@@ -362,6 +362,12 @@
         </div>
     </div>
 
+    @php
+        $tenant = \App\Models\Project::current();
+        $ptName = $tenant?->letterheadName() ?? '';
+        $ptAddress = array_values(array_filter(array_map('trim', preg_split('/\r?\n/', (string) $tenant?->address))));
+    @endphp
+
     <!-- PRINTABLE SHEET -->
     <div class="sheet">
         
@@ -369,8 +375,10 @@
         <div class="po-header">
             <div class="po-title">PURCHASE ORDER</div>
             <div class="company-brand">
-                <img src="{{ asset('ImageAsset/logo-mandau.png') }}" alt="Mandau" class="company-logo" onerror="this.style.display='none'">
-                <div class="company-name">PT Mandiri Daya Utama Nusantara</div>
+                @if($tenant?->logoUrl())
+                    <img src="{{ $tenant->logoUrl() }}" alt="{{ $ptName }}" class="company-logo" onerror="this.style.display='none'">
+                @endif
+                <div class="company-name">{{ $ptName }}</div>
             </div>
         </div>
 
@@ -449,11 +457,14 @@
             <tbody>
                 <tr>
                     <td>
-                        <strong>{{ $purchaseOrder->destination ?: ($purchaseOrder->warehouse?->name ?: 'PT. Mandiri Daya Utama Nusantara') }}</strong><br>
-                        {{ $purchaseOrder->warehouse?->address ?: 'Komp Golden Plaza Jl. RS Fatmawati No.15, Blok C 16 - 17' }}<br>
-                        Jakarta Selatan - 12420<br>
-                        Ph. : {{ $purchaseOrder->warehouse?->phone ?: '+6221-7599 7945' }}<br>
-                        Fax : {{ $purchaseOrder->warehouse?->fax ?: '+6221-7599 9888' }}
+                        <strong>{{ $purchaseOrder->destination ?: ($purchaseOrder->warehouse?->name ?: $ptName) }}</strong><br>
+                        @if($purchaseOrder->warehouse?->address)
+                            {{ $purchaseOrder->warehouse->address }}<br>
+                        @else
+                            @foreach($ptAddress as $line){{ $line }}<br>@endforeach
+                        @endif
+                        Ph. : {{ $purchaseOrder->warehouse?->phone ?: ($tenant?->phone ?: '-') }}<br>
+                        Fax : {{ $purchaseOrder->warehouse?->fax ?: ($tenant?->fax ?: '-') }}
                     </td>
                     <td>
                         {{ $purchaseOrder->payment_terms ?: '100% after received invoice dan dokumen complete' }}<br>
@@ -525,11 +536,14 @@
                     <div class="invoice-details-box">
                         <div class="invoice-details-title">PROJECT CODE : {{ $purchaseOrder->requestForm?->workItem?->code ?: ($purchaseOrder->requestForm?->project_code ?: ($purchaseOrder->project_code ?: '-')) }}</div>
                         <div class="invoice-details-title" style="margin-top: 6px;">INVOICE DETAILS</div>
-                        <div>INVOICE TO : {{ $purchaseOrder->invoice_to ?: 'PT. Mandiri Daya Utama Nusantara' }}</div>
-                        <div>ATTENTION : {{ $purchaseOrder->attention_to ?: 'Finance PT Mandiri Daya Utama Nusantara' }}</div>
-                        <div>Golden Fatmawati</div>
-                        <div>Jl. RS Fatmawati No. 15 Blok C17</div>
-                        <div>Jakarta 12420, Indonesia</div>
+                        <div>INVOICE TO : {{ $purchaseOrder->invoice_to ?: $ptName }}</div>
+                        <div>ATTENTION : {{ $purchaseOrder->attention_to ?: ($ptName !== '' ? 'Finance ' . $ptName : '-') }}</div>
+                        @foreach($ptAddress as $line)
+                            <div>{{ $line }}</div>
+                        @endforeach
+                        @if($tenant?->tax_number)
+                            <div>NPWP : {{ $tenant->tax_number }}</div>
+                        @endif
                         <div>Ph : +6221-7590 9945 &nbsp;|&nbsp; Fax : +6221-7590 9133</div>
                     </div>
                 </td>

@@ -98,7 +98,7 @@
               <tr style="cursor:pointer" onclick="window.location='{{ route('erp.vehicles.show', $v) }}'">
                 <td>
                   <a href="{{ route('erp.vehicles.show', $v) }}" class="fw-semibold hr-code text-nowrap">{{ $v->plate_number }}</a>
-                  <div class="small text-muted">{{ $v->company_name ?: '-' }}@unless($v->is_active) · <span class="text-danger">tidak aktif</span>@endunless</div>
+                  @unless($v->is_active)<div class="small text-danger">tidak aktif</div>@endunless
                 </td>
                 <td><span class="badge bg-label-{{ $v->isRent() ? 'info' : 'primary' }}">{{ $v->ownership }}</span><div class="small text-muted">{{ $v->kind }}</div></td>
                 <td>{{ trim($v->brand.' '.$v->model) ?: '-' }}<div class="small text-muted">{{ $v->production_year }}@if($v->subProject) · {{ $v->subProject->sub_project_code }}@endif</div></td>

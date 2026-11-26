@@ -20,8 +20,6 @@ return new class extends Migration
             $table->id();
             $table->string('plate_number', 20)->unique();          // Vehicle Id, e.g. B 2601 PFR
             $table->string('ownership', 10);                        // Own / Rent
-            $table->unsignedBigInteger('company_id')->nullable();   // master.companies
-            $table->string('company_name', 150)->nullable();
             $table->string('kind', 10)->default('Mobil');           // Mobil / Motor
             $table->string('brand', 60)->nullable();
             $table->string('model', 60)->nullable();

@@ -35,8 +35,11 @@
     <div class="page">
         <div class="header">
             <div class="logo">
-                <img src="{{ asset('ImageAsset/logo-mandau.png') }}" alt="Mandau Logo" onerror="this.style.display='none'" style="max-width: 150px;">
-                <div style="font-size: 9px; color: #f37021; margin-top: 5px; font-weight: bold;">PT Mandiri Daya Utama Nusantara</div>
+                @php $tenant = \App\Models\Project::current(); @endphp
+                @if($tenant?->logoUrl())
+                    <img src="{{ $tenant->logoUrl() }}" alt="{{ $tenant->letterheadName() }}" onerror="this.style.display='none'" style="max-width: 150px;">
+                @endif
+                <div style="font-size: 9px; color: #f37021; margin-top: 5px; font-weight: bold;">{{ $tenant?->letterheadName() }}</div>
             </div>
         </div>
 

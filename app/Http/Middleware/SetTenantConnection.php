@@ -31,13 +31,13 @@ class SetTenantConnection
             
             if (!$project || !$project->is_active) {
                 $request->session()->forget('project_id');
-                return redirect()->route('projects.switch')->with('error', 'Project tidak valid atau tidak aktif.');
+                return redirect()->route('projects.switch')->with('error', 'Perusahaan tidak valid atau tidak aktif.');
             }
 
             // Validasi akses user ke project ini
             if (!auth()->user()->hasRole('superadmin') && !auth()->user()->projects()->where('project_id', $projectId)->exists()) {
                 $request->session()->forget('project_id');
-                return redirect()->route('projects.switch')->with('error', 'Anda tidak memiliki akses ke project ini.');
+                return redirect()->route('projects.switch')->with('error', 'Anda tidak memiliki akses ke perusahaan ini.');
             }
 
             ErpTenantManager::switchToProject($project);

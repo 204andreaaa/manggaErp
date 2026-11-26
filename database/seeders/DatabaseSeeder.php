@@ -23,6 +23,7 @@ class DatabaseSeeder extends Seeder
             ErpProductCatalogSeeder::class,
             MasterUserSeeder::class,
             ErpBudgetSeeder::class,
+            ErpVehicleSeeder::class,
             ErpApprovalConfigSeeder::class,
         ]);
     }

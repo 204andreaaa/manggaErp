@@ -37,15 +37,6 @@
                      value="{{ old('invoice_number', $invoice->invoice_number) }}" placeholder="mis. MDU04871/IJE-MANDAU/XI/2026">
             </div>
             <div class="col-md-6">
-              <label class="form-label">Perusahaan</label>
-              <select name="company_id" class="form-select">
-                <option value="">-- Pilih --</option>
-                @foreach($companies as $c)
-                  <option value="{{ $c->id }}" @selected((string) old('company_id', $invoice->company_id) === (string) $c->id)>{{ $c->short_name ?: $c->name }}</option>
-                @endforeach
-              </select>
-            </div>
-            <div class="col-md-6">
               <label class="form-label">Customer</label>
               <input type="text" name="customer_name" class="form-control" maxlength="150" value="{{ old('customer_name', $invoice->customer_name) }}" placeholder="mis. Indosat">
             </div>

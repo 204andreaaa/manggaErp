@@ -70,7 +70,6 @@
           <div class="hr-meta mt-1">
             <span><i class="bx bx-hash"></i>{{ $inv->invoice_number }}</span>
             @if($inv->customer_name)<span><i class="bx bx-user-circle"></i>{{ $inv->customer_name }}</span>@endif
-            @if($inv->company_name)<span><i class="bx bx-buildings"></i>{{ $inv->company_name }}</span>@endif
             @if($inv->top)<span><i class="bx bx-calendar-event"></i>{{ $inv->top }}</span>@endif
           </div>
         </div>

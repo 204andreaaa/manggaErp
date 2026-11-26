@@ -193,8 +193,6 @@ Route::middleware(['auth', 'active'])->group(function () {
         // Dedicated ERP Payment Terms
         Route::resource('payment-terms', \App\Http\Controllers\Erp\ErpPaymentTermController::class)->except(['create', 'show', 'edit']);
 
-        // Our own companies (master DB, shared by every project), admins only
-        Route::resource('companies', \App\Http\Controllers\Erp\CompanyController::class)->except(['show', 'destroy']);
 
         // Company vehicles (Own / Rent), GA
         Route::resource('vehicles', \App\Http\Controllers\Erp\VehicleController::class);

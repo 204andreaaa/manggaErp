@@ -18,7 +18,7 @@ class ProjectSwitchController extends Controller
         }
 
         if ($projects->isEmpty()) {
-            return response("Anda belum memiliki akses ke project ERP apapun. Silakan hubungi Superadmin.", 403);
+            return response("Anda belum memiliki akses ke perusahaan mana pun di ERP. Silakan hubungi Superadmin.", 403);
         }
 
         // Kalau bukan superadmin, cuma ada 1 project dan belum pernah pilih project, langsung switch
@@ -38,11 +38,11 @@ class ProjectSwitchController extends Controller
         $user = auth()->user();
         
         if (!$user->hasRole('superadmin') && !$user->projects()->where('project_id', $projectId)->exists()) {
-            return back()->with('error', 'Anda tidak memiliki akses ke project ini.');
+            return back()->with('error', 'Anda tidak memiliki akses ke perusahaan ini.');
         }
 
         if (!$project->is_active) {
-            return back()->with('error', 'Project ini sedang tidak aktif.');
+            return back()->with('error', 'Perusahaan ini sedang tidak aktif.');
         }
 
         $request->session()->put('project_id', $project->id);

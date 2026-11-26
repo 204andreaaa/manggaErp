@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Erp;
 
-use App\Models\Company;
 use App\Models\Erp\ErpBudgetParent;
 use App\Models\Erp\ErpSubProject;
 use App\Models\Erp\ErpWorkItem;
@@ -18,13 +17,11 @@ class InvoiceTest extends ErpTestCase
 {
     private User $finance;
     private ErpWorkItem $wid;
-    private Company $company;
 
     protected function setUp(): void
     {
         parent::setUp();
         $this->finance = $this->makeUser('finance', ['invoices.view', 'invoices.create', 'invoices.update', 'invoices.delete']);
-        $this->company = Company::firstOrCreate(['code' => 'MANDAU'], ['name' => 'Mandau', 'short_name' => 'MANDAU', 'is_active' => true]);
         $parent = ErpBudgetParent::create(['budget_code' => 'BP-INV', 'name' => 'Account', 'total_budget' => 1_000_000, 'remaining_budget' => 0, 'status' => 'Active']);
         $sub = ErpSubProject::create(['budget_parent_id' => $parent->id, 'sub_project_code' => 'SP-INV', 'name' => 'Sub']);
         $this->wid = ErpWorkItem::create(['sub_project_id' => $sub->id, 'wid_code' => 'WID-INV-001', 'name' => 'Tower A', 'allocated_budget' => 1_000_000, 'remaining_budget' => 1_000_000]);
@@ -35,7 +32,7 @@ class InvoiceTest extends ErpTestCase
         $this->actingInProject($this->finance)
             ->post(route('erp.invoices.store'), array_merge([
                 'invoice_number' => 'MDU04871/IJE-MANDAU/XI/2026', 'invoice_date' => '2026-11-10', 'due_date' => '2026-12-11',
-                'company_id' => $this->company->id, 'customer_name' => 'Indosat', 'top' => 'FP 100%',
+                'customer_name' => 'Indosat', 'top' => 'FP 100%',
                 'ppn_rate' => 0, 'pph_rate' => 0,
             ], $overrides))->assertSessionHasNoErrors();
 
@@ -89,7 +86,7 @@ class InvoiceTest extends ErpTestCase
     {
         $invoice = $this->createInvoice();
         $this->assertSame('INV-00001', $invoice->code);
-        $this->assertSame('MANDAU', $invoice->company_name);
+        $this->assertNull($invoice->company_name); // the issuing PT is the project itself
         $this->assertSame('New', $invoice->status);
 
         $this->addDetail($invoice, 6_306_000)->assertSessionHas('success');

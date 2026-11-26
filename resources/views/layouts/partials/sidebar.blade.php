@@ -646,22 +646,12 @@ $isSystemOpen = request()->routeIs('erp.users.*')
             <span class="menu-header-text">System & Security</span>
         </li>
 
-        {{-- Projects (Tenants) --}}
+        {{-- Perusahaan (tenants: one PT, one database) --}}
         @if($canSeeProjects)
         <li id="menu-item-erp-projects" class="menu-item {{ request()->routeIs('erp.projects.*') ? 'active' : '' }}">
             <a href="{{ $rl('erp.projects.index') }}" class="menu-link d-flex align-items-center">
                 <i class="menu-icon tf-icons bx bx-buildings"></i>
-                <div class="text-truncate">Projects (Tenants)</div>
-            </a>
-        </li>
-        @endif
-
-        {{-- Companies (admins) --}}
-        @if($isSuperAdmin)
-        <li id="menu-item-erp-companies" class="menu-item {{ request()->routeIs('erp.companies.*') ? 'active' : '' }}">
-            <a href="{{ $rl('erp.companies.index') }}" class="menu-link d-flex align-items-center">
-                <i class="menu-icon tf-icons bx bx-building"></i>
-                <div class="text-truncate">Perusahaan</div>
+                <div class="text-truncate">Perusahaan (Tenant)</div>
             </a>
         </li>
         @endif

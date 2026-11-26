@@ -30,7 +30,7 @@ class Vehicle extends Model
     public const EXPIRY_WARNING_DAYS = 30;
 
     protected $fillable = [
-        'plate_number', 'ownership', 'company_id', 'company_name', 'kind', 'brand', 'model', 'vehicle_type',
+        'plate_number', 'ownership', 'kind', 'brand', 'model', 'vehicle_type',
         'production_year', 'color', 'condition', 'usage_status', 'region', 'location', 'current_area',
         'sub_project_id', 'pic', 'stnk_name', 'stnk_address', 'chassis_number', 'engine_number',
         'stnk_expiry_date', 'tax_expiry_date', 'purchase_date', 'purchase_price', 'rental_supplier_id',

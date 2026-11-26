@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Erp;
 use App\Helpers\NotificationHelper;
 use App\Http\Controllers\Controller;
 use App\Models\AppSetting;
-use App\Models\Company;
 use App\Models\Erp\ErpWorkItem;
 use App\Models\Erp\Invoice;
 use App\Models\Erp\InvoiceDetail;
@@ -31,7 +30,6 @@ class InvoiceController extends Controller
         $this->authorizeTo('view');
 
         $invoices = Invoice::query()
-            ->when($request->filled('company_id'), fn ($q) => $q->where('company_id', $request->integer('company_id')))
             ->when(in_array($request->query('status'), Invoice::STATUSES, true), fn ($q) => $q->where('status', $request->query('status')))
             ->when($request->filled('q'), function ($q) use ($request) {
                 $term = '%'.$request->query('q').'%';
@@ -45,7 +43,6 @@ class InvoiceController extends Controller
 
         return view('erp.invoices.index', [
             'invoices' => $invoices,
-            'companies' => $this->companies(),
             'totals' => $totals,
         ]);
     }
@@ -61,7 +58,6 @@ class InvoiceController extends Controller
                 'ppn_rate' => AppSetting::get(AppSetting::INVOICE_PPN_RATE, '0'),
                 'pph_rate' => AppSetting::get(AppSetting::INVOICE_PPH_RATE, '0'),
             ]),
-            'companies' => $this->companies(),
         ]);
     }
 
@@ -102,7 +98,7 @@ class InvoiceController extends Controller
     {
         $this->authorizeTo('update');
 
-        return view('erp.invoices.form', ['invoice' => $invoice, 'companies' => $this->companies()]);
+        return view('erp.invoices.form', ['invoice' => $invoice]);
     }
 
     public function update(Request $request, Invoice $invoice)
@@ -258,7 +254,6 @@ class InvoiceController extends Controller
             'invoice_number' => ['required', 'string', 'max:120',
                 Rule::unique('erp_invoices', 'invoice_number')->whereNull('deleted_at')->ignore($invoice?->id)],
             'invoice_date' => ['required', 'date'],
-            'company_id' => ['nullable', Rule::exists('master.companies', 'id')],
             'customer_name' => ['nullable', 'string', 'max:150'],
             'top' => ['nullable', 'string', 'max:100'],
             'remarks' => ['nullable', 'string', 'max:2000'],
@@ -267,8 +262,7 @@ class InvoiceController extends Controller
             'pph_rate' => ['required', 'numeric', 'min:0', 'max:100'],
         ], [], ['ppn_rate' => 'PPN', 'pph_rate' => 'PPh']);
 
-        $data['company_name'] = !empty($data['company_id']) ? Company::find($data['company_id'])?->short_name : null;
-
+        // The issuing PT is the project (tenant) itself; company_id / company_name of old invoices are left as they were.
         return $data;
     }
 
@@ -296,11 +290,6 @@ class InvoiceController extends Controller
 
         return redirect()->route('erp.invoices.tax-settings')
             ->with('success', 'Tarif default disimpan. Berlaku untuk invoice baru; invoice yang sudah ada tidak berubah.');
-    }
-
-    private function companies()
-    {
-        return Company::where('is_active', true)->orderByDesc('is_default')->orderBy('name')->get(['id', 'name', 'short_name']);
     }
 
     /** Next "PREFIX-00001" code; numbers of deleted rows are not reused. */

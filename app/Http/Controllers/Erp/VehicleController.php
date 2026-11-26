@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Erp;
 
 use App\Http\Controllers\Controller;
-use App\Models\Company;
 use App\Models\Erp\ErpSubProject;
 use App\Models\Erp\ErpSupplier;
 use App\Models\Erp\RequestFormItem;
@@ -168,7 +167,6 @@ class VehicleController extends Controller
             'ownership' => [$vehicle ? 'nullable' : 'required', Rule::in(Vehicle::OWNERSHIPS)],
             'plate_number' => ['required', 'string', 'max:20',
                 Rule::unique('tenant.erp_vehicles', 'plate_number')->ignore($vehicle?->id)->whereNull('deleted_at')],
-            'company_id' => [$requiredIfRent, 'nullable', 'integer', Rule::exists('master.companies', 'id')],
             'kind' => ['required', Rule::in(Vehicle::KINDS)],
             'brand' => [$requiredIfRent, 'nullable', 'string', 'max:60'],
             'model' => ['nullable', 'string', 'max:60'],
@@ -206,9 +204,6 @@ class VehicleController extends Controller
         $data['plate_number'] = strtoupper(preg_replace('/\s+/', ' ', trim($data['plate_number'])));
         $data['ownership'] = $ownership;
         $data['is_active'] = $request->boolean('is_active');
-        $data['company_name'] = !empty($data['company_id'])
-            ? Company::find($data['company_id'])?->short_name ?: Company::find($data['company_id'])?->name
-            : null;
 
         // fields of the other kind are not kept
         if ($rent) {
@@ -227,7 +222,6 @@ class VehicleController extends Controller
 
         return [
             'vehicle' => $vehicle,
-            'companies' => Company::where('is_active', true)->orderByDesc('is_default')->orderBy('name')->get(['id', 'name', 'short_name']),
             'suppliers' => ErpSupplier::orderBy('name')->get(['id', 'name', 'supplier_code']),
             'subProjects' => ErpSubProject::orderBy('sub_project_code')->get(['id', 'sub_project_code', 'name']),
             // earlier answers are offered again, so the same city / brand is not typed ten ways

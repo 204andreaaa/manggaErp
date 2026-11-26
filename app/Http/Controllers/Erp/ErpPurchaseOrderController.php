@@ -61,15 +61,9 @@ class ErpPurchaseOrderController extends Controller
         
         $projectId = session('project_id') ?? session('current_project');
         $activeProject = $projectId ? \App\Models\Project::find($projectId) : \App\Models\Project::where('is_active', true)->first();
-        $projectName = strtolower($activeProject?->name ?? 'mandau');
-
-        if (str_contains($projectName, 'imprima')) {
-            $defaultInvoiceTo = 'PT Imprima Prima Sejahtera';
-            $defaultAttentionTo = 'Finance PT Imprima Prima Sejahtera';
-        } else {
-            $defaultInvoiceTo = 'PT Mandiri Daya Utama Nusantara';
-            $defaultAttentionTo = 'Finance PT Mandiri Daya Utama Nusantara';
-        }
+        // The PO is billed to the PT of the project it is made in
+        $defaultInvoiceTo = $activeProject?->letterheadName() ?? '';
+        $defaultAttentionTo = $defaultInvoiceTo !== '' ? 'Finance ' . $defaultInvoiceTo : '';
 
         $usersQuery = \App\Models\User::orderBy('name');
         if ($projectId) {
@@ -268,15 +262,9 @@ class ErpPurchaseOrderController extends Controller
 
         $projectId = session('project_id') ?? session('current_project');
         $activeProject = $projectId ? \App\Models\Project::find($projectId) : \App\Models\Project::where('is_active', true)->first();
-        $projectName = strtolower($activeProject?->name ?? 'mandau');
-
-        if (str_contains($projectName, 'imprima')) {
-            $defaultInvoiceTo = 'PT Imprima Prima Sejahtera';
-            $defaultAttentionTo = 'Finance PT Imprima Prima Sejahtera';
-        } else {
-            $defaultInvoiceTo = 'PT Mandiri Daya Utama Nusantara';
-            $defaultAttentionTo = 'Finance PT Mandiri Daya Utama Nusantara';
-        }
+        // The PO is billed to the PT of the project it is made in
+        $defaultInvoiceTo = $activeProject?->letterheadName() ?? '';
+        $defaultAttentionTo = $defaultInvoiceTo !== '' ? 'Finance ' . $defaultInvoiceTo : '';
 
         $usersQuery = \App\Models\User::orderBy('name');
         if ($projectId) {

@@ -411,7 +411,7 @@
                 <path d="m22 17.5-8.58 3.91a2 2 0 0 1-1.66 0L3.18 17.5"></path>
             </svg>
         </div>
-        <span class="mangga-brand-text">MANGGA PROJECTS</span>
+        <span class="mangga-brand-text">MANGGA ERP</span>
     </a>
 
     <!-- Overview Badges -->
@@ -427,7 +427,7 @@
         <div class="total-pill">Total: {{ $projects->count() }}</div>
         
         @if(auth()->user()->hasRole('superadmin'))
-            <button type="button" class="btn-add-project" data-bs-toggle="modal" data-bs-target="#modalAddProject" title="Tambah Project Baru">+</button>
+            <button type="button" class="btn-add-project" data-bs-toggle="modal" data-bs-target="#modalAddProject" title="Tambah Perusahaan Baru">+</button>
         @endif
 
         <div class="user-profile-box">
@@ -474,11 +474,14 @@
                     <!-- Top Info & Logo -->
                     <div class="card-top">
                         <div>
-                            <span class="card-project-tag">PROJECT</span>
+                            <span class="card-project-tag">PERUSAHAAN</span>
                             <h3 class="card-project-name">{{ $p->name }}</h3>
+                            @if($p->legal_name && $p->legal_name !== $p->name)<div style="font-size:12px;opacity:.75">{{ $p->legal_name }}</div>@endif
                         </div>
                         <div class="logo-container">
-                            @if(\Illuminate\Support\Str::contains(strtolower($p->name), 'imprima'))
+                            @if($p->logoUrl())
+                                <img src="{{ $p->logoUrl() }}" alt="{{ $p->name }}" class="mandau-logo-img" />
+                            @elseif(\Illuminate\Support\Str::contains(strtolower($p->name), 'imprima'))
                                 <div class="imprima-logo-wrapper">
                                     <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
                                         <circle cx="12" cy="12" r="9" stroke="#a3e635" stroke-width="3.5" fill="none"/>
@@ -521,13 +524,13 @@
                 <!-- Bottom Actions -->
                 <div class="card-actions-row">
                     @if(auth()->user()->hasRole('superadmin'))
-                        <button type="button" class="action-icon-btn btn-delete-card" data-bs-toggle="modal" data-bs-target="#modalDeleteProject{{ $p->id }}" title="Hapus Project">
+                        <button type="button" class="action-icon-btn btn-delete-card" data-bs-toggle="modal" data-bs-target="#modalDeleteProject{{ $p->id }}" title="Hapus Perusahaan">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <polyline points="3 6 5 6 21 6"></polyline>
                                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                             </svg>
                         </button>
-                        <button type="button" class="action-icon-btn btn-edit-card" data-bs-toggle="modal" data-bs-target="#modalEditProject{{ $p->id }}" title="Edit Project">
+                        <button type="button" class="action-icon-btn btn-edit-card" data-bs-toggle="modal" data-bs-target="#modalEditProject{{ $p->id }}" title="Edit Perusahaan">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
@@ -539,45 +542,14 @@
                         @csrf
                         <input type="hidden" name="project_id" value="{{ $p->id }}">
                         <button type="submit" class="btn-view-card" {{ !$p->is_active ? 'disabled' : '' }}>
-                            <span>&rarr;</span> View Project
+                            <span>&rarr;</span> Masuk
                         </button>
                     </form>
                 </div>
             </div>
 
             @if(auth()->user()->hasRole('superadmin'))
-                <!-- Modal Edit -->
-                <div class="modal fade" id="modalEditProject{{ $p->id }}" tabindex="-1" aria-hidden="true">
-                    <div class="modal-dialog modal-dialog-centered">
-                        <div class="modal-content">
-                            <form action="{{ route('erp.projects.update', $p->id) }}" method="POST">
-                                @csrf
-                                @method('PUT')
-                                <div class="modal-header">
-                                    <h5 class="modal-title">Edit Project: {{ $p->name }}</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                </div>
-                                <div class="modal-body">
-                                    <div class="mb-3">
-                                        <label class="form-label">Nama Project</label>
-                                        <input type="text" name="name" class="form-control" value="{{ $p->name }}" required>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">Status Project</label>
-                                        <select name="is_active" class="form-select">
-                                            <option value="1" {{ $p->is_active ? 'selected' : '' }}>Aktif</option>
-                                            <option value="0" {{ !$p->is_active ? 'selected' : '' }}>Nonaktif</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
-                                    <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
+                @include('erp.projects._edit_modal', ['p' => $p])
 
                 <!-- Modal Delete -->
                 <div class="modal fade" id="modalDeleteProject{{ $p->id }}" tabindex="-1" aria-hidden="true">
@@ -587,16 +559,16 @@
                                 @csrf
                                 @method('DELETE')
                                 <div class="modal-header">
-                                    <h5 class="modal-title">Konfirmasi Hapus Project</h5>
+                                    <h5 class="modal-title">Konfirmasi Hapus Perusahaan</h5>
                                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                 </div>
                                 <div class="modal-body">
-                                    <p>Apakah Anda yakin ingin menghapus project <strong>{{ $p->name }}</strong> (<code>{{ $p->db_name }}</code>)?</p>
+                                    <p>Apakah Anda yakin ingin menghapus perusahaan <strong>{{ $p->name }}</strong> (<code>{{ $p->db_name }}</code>)?</p>
                                     <small class="text-danger">Tindakan ini tidak dapat dibatalkan!</small>
                                 </div>
                                 <div class="modal-footer">
                                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
-                                    <button type="submit" class="btn btn-danger">Hapus Project</button>
+                                    <button type="submit" class="btn btn-danger">Hapus Perusahaan</button>
                                 </div>
                             </form>
                         </div>
@@ -608,20 +580,20 @@
 </main>
 
 @if(auth()->user()->hasRole('superadmin'))
-    <!-- Modal Add Project -->
+    <!-- Modal Add Perusahaan -->
     <div class="modal fade" id="modalAddProject" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <form action="{{ route('erp.projects.store') }}" method="POST">
                     @csrf
                     <div class="modal-header">
-                        <h5 class="modal-title">Tambah Project Baru (Tenant)</h5>
+                        <h5 class="modal-title">Tambah Perusahaan Baru (Tenant)</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
                         <div class="mb-3">
-                            <label class="form-label">Nama Project</label>
-                            <input type="text" id="addProjectName" name="name" class="form-control" placeholder="Misal: Cabang Jakarta" required>
+                            <label class="form-label">Nama Perusahaan</label>
+                            <input type="text" id="addProjectName" name="name" class="form-control" placeholder="Misal: Imprima" required>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Nama Database</label>
@@ -631,7 +603,7 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
-                        <button type="submit" class="btn btn-primary">Buat Project & Database</button>
+                        <button type="submit" class="btn btn-primary">Buat Perusahaan & Database</button>
                     </div>
                 </form>
             </div>

@@ -68,19 +68,13 @@
           <span class="input-group-text"><i class="bx bx-search"></i></span>
           <input type="text" name="q" value="{{ request('q') }}" class="form-control" placeholder="Cari nomor, customer, TOP...">
         </div>
-        <select name="company_id" class="form-select form-select-sm" style="max-width:190px" onchange="this.form.submit()">
-          <option value="">Semua perusahaan</option>
-          @foreach($companies as $c)
-            <option value="{{ $c->id }}" @selected((string) request('company_id') === (string) $c->id)>{{ $c->short_name ?: $c->name }}</option>
-          @endforeach
-        </select>
         <div class="btn-group btn-group-sm" role="group">
           @foreach(['' => 'Semua', 'New' => 'New', 'Partial Paid' => 'Partial', 'Paid' => 'Paid'] as $value => $label)
             <a href="{{ request()->fullUrlWithQuery(['status' => $value ?: null, 'page' => null]) }}"
                class="btn {{ (string) request('status') === $value ? 'btn-primary' : 'btn-outline-primary' }}">{{ $label }}</a>
           @endforeach
         </div>
-        @if(request()->hasAny(['q', 'company_id', 'status']))
+        @if(request()->hasAny(['q', 'status']))
           <a href="{{ route('erp.invoices.index') }}" class="btn btn-sm btn-text-secondary"><i class="bx bx-x me-1"></i>Reset</a>
         @endif
       </form>
@@ -102,7 +96,7 @@
                   <a href="{{ route('erp.invoices.show', $inv) }}" class="fw-semibold hr-code">{{ $inv->code }}</a>
                   <div class="small text-muted text-truncate" style="max-width:260px">{{ $inv->invoice_number }}</div>
                 </td>
-                <td>{{ $inv->customer_name ?: '-' }}<div class="small text-muted">{{ $inv->company_name }}@if($inv->top) · {{ $inv->top }}@endif</div></td>
+                <td>{{ $inv->customer_name ?: '-' }}@if($inv->top)<div class="small text-muted">{{ $inv->top }}</div>@endif</td>
                 <td class="text-nowrap">{{ $inv->invoice_date?->format('d M Y') }}
                   <div class="small {{ $inv->isOverdue() ? 'text-danger fw-semibold' : 'text-muted' }}">Jatuh tempo {{ $inv->due_date?->format('d M Y') ?? '-' }}</div></td>
                 <td><span class="badge bg-label-{{ $inv->statusColor() }}">{{ $inv->status }}</span></td>

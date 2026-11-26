@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Erp;
 
-use App\Models\Company;
 use App\Models\Erp\RequestForm;
 use App\Models\Erp\Vehicle;
 use App\Models\User;
@@ -15,13 +14,11 @@ use Tests\Feature\Erp\PurchaseOrder\PurchaseOrderTestCase;
 class VehicleTest extends PurchaseOrderTestCase
 {
     private User $ga;
-    private Company $company;
 
     protected function setUp(): void
     {
         parent::setUp();
         $this->ga = $this->makeUser('general_affair');
-        $this->company = Company::firstOrCreate(['code' => 'MANDAU'], ['name' => 'Mandau', 'short_name' => 'MANDAU', 'is_active' => true]);
     }
 
     private function itemPayload(array $overrides = []): array
@@ -49,7 +46,7 @@ class VehicleTest extends PurchaseOrderTestCase
     private function rentPayload(array $overrides = []): array
     {
         return array_merge([
-            'ownership' => 'Rent', 'plate_number' => 'B 2601 PFR', 'company_id' => $this->company->id, 'kind' => 'Mobil',
+            'ownership' => 'Rent', 'plate_number' => 'B 2601 PFR', 'kind' => 'Mobil',
             'brand' => 'Daihatsu', 'model' => 'Grand Max', 'production_year' => 2012, 'condition' => 'Good',
             'region' => 'Kalimantan Timur', 'location' => 'Balikpapan', 'current_area' => 'Kalimantan Timur',
             'stnk_expiry_date' => now()->addYear()->toDateString(), 'rental_supplier_id' => $this->supplier->id,
@@ -73,7 +70,7 @@ class VehicleTest extends PurchaseOrderTestCase
 
         // a rented car needs its vendor, rent and period; an own car its purchase price
         $this->post(route('erp.vehicles.store'), ['ownership' => 'Rent', 'plate_number' => 'B 1 X', 'kind' => 'Mobil', 'production_year' => 2020])
-            ->assertSessionHasErrors(['rental_supplier_id', 'rent_price', 'rent_period', 'rental_start_date', 'rental_end_date', 'company_id', 'location', 'stnk_expiry_date']);
+            ->assertSessionHasErrors(['rental_supplier_id', 'rent_price', 'rent_period', 'rental_start_date', 'rental_end_date', 'location', 'stnk_expiry_date']);
         $this->post(route('erp.vehicles.store'), $this->ownPayload(['purchase_price' => null]))->assertSessionHasErrors('purchase_price');
 
         $own = $this->makeVehicle('Own');
@@ -84,7 +81,6 @@ class VehicleTest extends PurchaseOrderTestCase
         $this->post(route('erp.vehicles.store'), $this->ownPayload(['plate_number' => 'B 2363 SOX']))->assertSessionHasErrors('plate_number');
 
         $rent = $this->makeVehicle('Rent');
-        $this->assertSame('MANDAU', $rent->company_name);
         $this->assertNull($rent->purchase_price);
         $this->get(route('erp.vehicles.show', $rent))->assertSee('Rp 3.000.000 / bulan');
 

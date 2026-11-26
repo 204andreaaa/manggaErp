@@ -50,15 +50,6 @@
               <input type="text" name="plate_number" class="form-control text-uppercase" maxlength="20" required value="{{ $val('plate_number') }}" placeholder="mis. B 2601 PFR">
             </div>
             <div class="col-md-4">
-              <label class="form-label">Perusahaan {!! $reqRent !!}</label>
-              <select name="company_id" class="form-select" @required($rent)>
-                <option value="">-- Pilih --</option>
-                @foreach($companies as $c)
-                  <option value="{{ $c->id }}" @selected((string) $val('company_id') === (string) $c->id)>{{ $c->short_name ?: $c->name }}</option>
-                @endforeach
-              </select>
-            </div>
-            <div class="col-md-4">
               <label class="form-label">Jenis {!! $req !!}</label>
               <select name="kind" class="form-select" required>
                 @foreach(\App\Models\Erp\Vehicle::KINDS as $k)<option value="{{ $k }}" @selected($val('kind') === $k)>{{ $k }}</option>@endforeach

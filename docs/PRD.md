@@ -35,7 +35,7 @@
 ## 1. Ringkasan produk
 
 ### 1.1 Masalah yang diselesaikan
-Perusahaan menjalankan beberapa project (mis. Mandau, Imprima). Tiap project butuh:
+Grup menjalankan beberapa PT (mis. PT Mandiri Daya Utama Nusantara / Mandau dan PT Intertel Media Prima / Imprima). Tiap PT punya datanya sendiri dan butuh:
 - pengajuan barang/jasa yang tercatat dan disetujui berjenjang,
 - pembelian ke supplier yang terkontrol terhadap budget project,
 - penerimaan barang ke gudang dan stok,
@@ -96,12 +96,14 @@ Hak akses default per role ada di [§12.3](#123-hak-akses-default-per-role).
 
 ## 3. Arsitektur dan teknologi
 
-### 3.1 Multi-project (multi-tenant)
-- **Database master** (`master`): users, roles, role_user, projects, project_user, employees, departments, notifications, custom_reports, activity_logs, companies.
+### 3.1 Multi-perusahaan (multi-tenant)
+- **Satu tenant = satu PT** (Mandau, Imprima). Di kode dan database tenant disebut *project* (tabel `projects`); di layar disebut **Perusahaan** supaya tidak tertukar dengan Project (Sub Project) di modul budget.
+- **Database master** (`master`): users, roles, role_user, projects, project_user, employees, departments, notifications, custom_reports, activity_logs, companies (tidak dipakai lagi).
 - **Database tenant** (`tenant`, satu per project): seluruh data operasional (RF, PR, PO, GR, stok, PA, budget, kasbon, master produk/supplier/gudang, ADVEXNPJ).
-- Setelah login user memilih project. `project_id` disimpan di session. Middleware `SetTenantConnection` mengarahkan koneksi `tenant` ke database project itu di setiap request.
+- Setelah login user memilih perusahaan (halaman "MANGGA ERP"). `project_id` disimpan di session. Middleware `SetTenantConnection` mengarahkan koneksi `tenant` ke database project itu di setiap request.
 - User non-superadmin hanya bisa masuk ke project yang terhubung lewat `project_user`.
-- Akibatnya: data karyawan dan user sama di semua project, tetapi RF, PO, budget, master produk, supplier, gudang dan ADVEXNPJ **berbeda per project**.
+- Akibatnya: data karyawan dan user sama di semua perusahaan, tetapi RF, PO, budget, master produk, supplier, gudang, invoice, kendaraan dan ADVEXNPJ **berbeda per perusahaan**.
+- **Identitas PT** disimpan di tenant itu sendiri: nama legal, logo, alamat, telepon, fax, email, website, NPWP. Identitas ini menjadi **kop surat** cetakan PO dan GR, default *Invoice To / Attention* di PO, dan PT penagih invoice. Diubah superadmin lewat tombol Edit di halaman pilih perusahaan atau menu System & Security → Perusahaan (Tenant). Logo PNG/JPG/WEBP maks 2 MB disimpan di `public/uploads/logos`. Saat fitur ini dipasang, perusahaan yang sudah ada diisi identitas Mandau (yang sebelumnya tertulis langsung di cetakan), kecuali yang namanya mengandung "imprima" (diisi nama legal PT Intertel Media Prima saja).
 
 ### 3.2 Teknologi
 | Lapisan | Teknologi |
@@ -251,12 +253,12 @@ Pinjaman/klaim karyawan di luar project dicatat di halaman karyawan, tanpa appro
 **Halaman**
 - **PO Request (dashboard procurement):** RF Approved yang punya PR, dengan tombol Buat PO.
 - **Daftar PO:** no PO, tanggal, supplier, gudang tujuan, total + pajak, status, GR, pembayaran lunas. Filter Draft/Approved/Completed.
-- **Detail PO**, **Edit**, **Cetak**.
+- **Detail PO**, **Edit**, **Cetak**. Kop cetakan (logo, nama PT), alamat pengiriman bila gudang tidak punya alamat, serta alamat dan NPWP di Invoice Details diambil dari identitas PT perusahaan aktif.
 
 **Membuat PO**
 - Oleh procurement, superadmin, atau `purchase_orders.create`.
 - Hanya item RF yang belum ada di PO aktif (non-Cancelled) yang bisa dipilih.
-- Field: supplier (wajib; alamat, rekening, transfer to, payment terms terisi otomatis), gudang tujuan, contact person, tanggal (wajib), ETA, metode bayar (Bank Transfer/Cash/COD), payment terms, invoice to / attention to (default PT Mandiri Daya Utama Nusantara, atau PT Imprima Prima Sejahtera untuk project Imprima), tanda tangan (user role CEO), deskripsi, lampiran.
+- Field: supplier (wajib; alamat, rekening, transfer to, payment terms terisi otomatis), gudang tujuan, contact person, tanggal (wajib), ETA, metode bayar (Bank Transfer/Cash/COD), payment terms, invoice to / attention to (default nama legal PT perusahaan tempat PO dibuat, dan "Finance <nama PT>"), tanda tangan (user role CEO), deskripsi, lampiran.
 - Item: qty, harga satuan, pajak (nominal per baris), remark. Baris qty 0 diabaikan.
 - Total: `total_po_amount` = Σ qty × harga; `tax` = Σ pajak; `total_po_amount_with_tax` = jumlah keduanya.
 
@@ -293,7 +295,7 @@ Pinjaman/klaim karyawan di luar project dicatat di halaman karyawan, tanpa appro
 - **Verifikasi (Receive):** user di konfigurasi `gr_verification`; bila tidak ada konfigurasi, role logistik/GA/superadmin atau `goods_receipts.verify`.
 - **Efek Received:** stok bertambah (hanya produk fisik), item RF yang sudah penuh → Completed, flag GR di PO diperbarui, cek aturan Completed PO.
 - **Hapus GR:** superadmin, **hanya GR yang masih Recorded** (belum diverifikasi). GR Received tetap tercatat dan tidak bisa dihapus (tombol tidak muncul). Setelah GR Recorded dihapus: flag GR PO dihitung ulang; PO Completed hanya turun ke Approved bila tidak lagi diterima penuh dan lunas.
-- **Cetak GR** tersedia.
+- **Cetak GR** tersedia; kopnya dari identitas PT perusahaan aktif.
 
 ### 5.5 Stok
 - Stok disimpan per **produk + gudang + supplier**.
@@ -312,7 +314,7 @@ Pinjaman/klaim karyawan di luar project dicatat di halaman karyawan, tanpa appro
 **Tujuan:** buku induk mobil/motor kantor, milik sendiri (**Own**) atau sewa (**Rent**), beserta biayanya. Mengikuti objek "Vehicle" di Salesforce.
 
 **Halaman**
-- **Daftar kendaraan:** kotak ringkasan (kendaraan aktif Own/Rent, sewa habis, STNK/pajak yang lewat atau habis ≤ 30 hari; kotak bisa diklik sebagai filter), cari plat/merk/lokasi/PIC, filter Own/Rent dan aktif. Kolom: plat, perusahaan, jenis, merk/model, lokasi, status sewa + akhir sewa, tanggal STNK dan pajak (merah = lewat, kuning = ≤ 30 hari).
+- **Daftar kendaraan:** kotak ringkasan (kendaraan aktif Own/Rent, sewa habis, STNK/pajak yang lewat atau habis ≤ 30 hari; kotak bisa diklik sebagai filter), cari plat/merk/lokasi/PIC, filter Own/Rent dan aktif. Kolom: plat, jenis, merk/model, lokasi, status sewa + akhir sewa, tanggal STNK dan pajak (merah = lewat, kuning = ≤ 30 hari).
 - **Kendaraan baru:** pilih dulu Own atau Rent (tidak bisa diubah setelah disimpan), lalu isi form. Ada **Simpan & Tambah Lagi**.
 - **Detail kendaraan:** kotak ringkasan (Rent: total sewa, total servis, masa sewa; Own: harga beli, total servis, total biaya), **Riwayat Biaya**, **Pengajuan Dalam Proses**, dan data kendaraan.
 
@@ -320,7 +322,7 @@ Pinjaman/klaim karyawan di luar project dicatat di halaman karyawan, tanpa appro
 | Field | Own | Rent |
 |---|---|---|
 | Plat nomor | Wajib, unik, disimpan huruf besar | Wajib, unik |
-| Perusahaan, merk, kondisi, region, lokasi, area sekarang, STNK habis | Opsional | **Wajib** |
+| Merk, kondisi, region, lokasi, area sekarang, STNK habis | Opsional | **Wajib** |
 | Jenis (Mobil/Motor), tahun produksi | Wajib | Wajib |
 | Harga beli, tanggal beli | Harga beli **wajib** | Tidak dipakai |
 | Vendor rental (dari master Supplier), harga sewa per **Bulan / Tahun** (harga kontrak, biaya tetap dihitung dari PO), mulai dan akhir sewa | Tidak dipakai | **Wajib**; akhir ≥ mulai |
@@ -372,7 +374,7 @@ Merk, model, tipe, warna, kondisi, status pemakaian, region, lokasi dan area men
 **Hapus PA:** superadmin.
 
 ### 6.3 Invoice (tagihan ke customer)
-**Tujuan:** mencatat tagihan perusahaan ke customer (piutang, uang masuk) beserta pembayarannya, dengan rincian per WID. Meniru objek "Invoice" di Salesforce. Tanpa approval.
+**Tujuan:** mencatat tagihan perusahaan (PT tenant yang sedang dibuka — tidak dipilih per invoice) ke customer (piutang, uang masuk) beserta pembayarannya, dengan rincian per WID. Meniru objek "Invoice" di Salesforce. Tanpa approval.
 
 > **Asumsi tahap 1 (dibuat tanpa konfirmasi tim Finance, 2026-11-16).** Form rincian sudah disamakan dengan form "New Invoice Detail" Salesforce. Pajak (PPN/PPh) ditambahkan di versi 1.7 sesuai keputusan user. Belum dibuat: master Customer (customer masih teks bebas), upload bukti bayar, pelunasan invoice USD, tautan ke Revenue Plan WID. Lihat [Lampiran](#15-lampiran-celah-dan-pekerjaan-terbuka).
 
@@ -383,7 +385,6 @@ Merk, model, tipe, warna, kondisi, status pemakaian, region, lokasi dan area men
 | Invoice Number | Wajib, maks 120, unik (mis. `MDU04871/IJE-MANDAU/XI/2026`) |
 | Invoice Date | Wajib |
 | Invoice Due Date | Opsional, tidak boleh sebelum Invoice Date. Lewat jatuh tempo dan belum lunas ditandai merah |
-| Company | Pilihan dari master perusahaan |
 | Customer | Teks bebas (opsional) |
 | TOP | Teks bebas (mis. "DP 30%", "TERMIN 1 - 95%", "FP 100%") |
 | Remarks | Opsional |
@@ -421,7 +422,7 @@ Tombol **Simpan & Tambah Lagi** (seperti "Save & New") langsung membuka form rin
 
 **Tarif default** (halaman Invoice → *Tarif Pajak Default*, hanya superadmin/admin): PPN % dan PPh % yang otomatis terisi di invoice baru (awal: PPN 11%, PPh 2%). Disimpan di tabel master `app_settings`. Mengubahnya tidak mengubah invoice yang sudah ada.
 
-**Halaman:** daftar invoice (ringkasan total ditagih termasuk PPN / sudah dibayar / belum dibayar, filter perusahaan & status, cari nomor/customer/TOP), form invoice (dengan bagian Pajak), detail invoice dengan lima kotak: **Nilai Invoice**, **Nilai Invoice + PPN**, **Harus Dibayar Customer** (Nilai Invoice + PPN − PPh), **Sudah Dibayar**, **Belum Dibayar**; tabel rincian menampilkan total sebelum pajak, PPN, PPh dan yang harus dibayar customer.
+**Halaman:** daftar invoice (ringkasan total ditagih termasuk PPN / sudah dibayar / belum dibayar, filter status, cari nomor/customer/TOP), form invoice (dengan bagian Pajak), detail invoice dengan lima kotak: **Nilai Invoice**, **Nilai Invoice + PPN**, **Harus Dibayar Customer** (Nilai Invoice + PPN − PPh), **Sudah Dibayar**, **Belum Dibayar**; tabel rincian menampilkan total sebelum pajak, PPN, PPh dan yang harus dibayar customer.
 
 **Hapus invoice:** permission `invoices.delete`, hanya bila belum ada pembayaran.
 
@@ -624,12 +625,6 @@ Semua master data di bawah ini **per project**.
 
 - Produk **fisik** menambah stok saat GR; produk **jasa** tidak.
 
-**Perusahaan** (database master, **berlaku untuk semua project**; menu System & Security → Perusahaan, hanya superadmin/admin)
-- Perusahaan kita sendiri (MANDAU, IMPRIMA, …) yang dipilih di Invoice dan Kendaraan.
-- Field: kode (wajib, unik, huruf besar tanpa spasi), nama (wajib), nama singkat (yang tampil di pilihan), nama legal, alamat, kota, provinsi, telepon, email, website, NPWP, aktif, default.
-- **Tidak bisa dihapus** karena data invoice dan kendaraan menunjuk ke sana; yang sudah tidak dipakai dinonaktifkan, lalu tidak muncul lagi di pilihan (data lama tetap). Hanya satu perusahaan default (muncul paling atas); perusahaan nonaktif tidak bisa jadi default.
-- Invoice dan kendaraan menyimpan nama singkat saat disimpan; mengganti nama perusahaan tidak mengubah data lama.
-
 ---
 
 ## 11. Fitur pendukung
@@ -693,9 +688,8 @@ Permission disimpan sebagai daftar di setiap role. `superadmin` dan `admin` sela
 |---|---|
 | Hapus/unlock RF, cancel/unlock PO, hapus PO Draft, hapus GR Recorded, hapus PA | superadmin |
 | Edit dan submit RF | pembuat RF, admin, superadmin |
-| Kelola project dan konfigurasi approval | superadmin |
+| Kelola perusahaan (tenant) beserta identitas PT/kop surat, dan konfigurasi approval | superadmin |
 | Atur tarif pajak default invoice customer | superadmin, admin |
-| Kelola perusahaan (tambah, ubah, nonaktifkan) | superadmin, admin |
 | Tandai kasbon dibayar, settle kasbon | `advance_requests.pay` |
 | Kelola termin PA (tambah/hapus termin, input invoice, ajukan, tandai lunas) | `payment_advices.update`, `payment_advice_details.update_invoice` / `.submit` / `.mark_paid` |
 | Buat PR / hapus PR | `request_forms.create_pr` / `request_forms.delete_pr` (pembuat PR boleh menghapus PR-nya sendiri) |
@@ -757,6 +751,7 @@ Nomor dokumen yang sudah dihapus tidak dipakai ulang.
 | `php artisan db:seed --class="Database\Seeders\LaunchSeeder" --force` | Data acuan untuk server sungguhan, aman diulang: 9 departemen, role jabatan, dan daftar user tim Mandau (`UserRosterSeeder`). User baru diberi password awal `123456` (superadmin `password123`), email `<username>@mandau.id`, dan akses ke semua project aktif. User yang sudah ada tidak diganti password/nama/email-nya; role, jabatan dan departemennya disamakan dengan daftar. Akun demo lama (budi, siti, procurement, ceo, Chenthia_Budiharto, admin_project, ga_budi) dinonaktifkan, tidak dihapus; `admin` tetap aktif sebagai cadangan. Permission dan menu role divisi, role jabatan dan CEO **dikembalikan ke standar** §12.3 (`RolePermissionSeeder`) |
 | `php artisan db:seed --class="Database\Seeders\Launch\RolePermissionSeeder" --force` | Hanya menyamakan permission dan menu role divisi, role jabatan dan CEO dengan standar §12.3 |
 | `php artisan users:transfer {lama} {pengganti} --delete` | Memindahkan semua data milik satu user (dokumen yang dibuat, approval dan langkah approval, kasbon, notifikasi, data ADVEXNPJ, akses project) ke user lain di database master dan semua database project, lalu menghapus user lama. Tanpa `--execute` hanya pratinjau |
+| `php artisan db:seed --class="Database\Seeders\ErpVehicleSeeder"` | 12 kendaraan contoh (7 Rent, 5 Own; sebagian STNK/pajak/sewa sudah lewat atau hampir habis) plus 2 supplier rental contoh (`SUP-RENT-DEMO1/2`), di database tenant dari `.env`. Aman diulang (dicocokkan lewat plat). Data contoh — untuk lokal/demo |
 | `php artisan db:seed` (DatabaseSeeder) | Data demo: **mengosongkan** budget, produk dan approval config, menimpa permission role. Hanya lokal, **jangan di production** |
 | `php artisan app:fresh --seed` | Reset total (hanya lokal, **jangan di production**) |
 
@@ -784,7 +779,7 @@ Riwayat versi lengkap ada di `docs/prd-history/`.
 
 | Tanggal | Versi | Perubahan |
 |---|---|---|
-| 2026-11-26 | 1.9 | Modul baru **Kendaraan** (GA): kendaraan Own / Rent dengan field wajib mengikuti Salesforce, status sewa (Expired / Not Yet) dan peringatan STNK/pajak. Item RF bisa memilih plat, jenis biaya (Sewa / Servis / Lainnya) dan periode sewa; biaya kendaraan diambil dari PO yang approved, dan PO sewa yang approved memajukan akhir sewa. Harga sewa kontrak per Bulan atau per Tahun. Approval memakai jalur RF/PO yang ada. Permission `vehicles.*` (GA penuh, CEO lihat). Menu "Rental Mobil GA (Soon)" diganti halaman Kendaraan. Halaman baru **Perusahaan** (superadmin/admin) untuk menambah, mengubah dan menonaktifkan perusahaan yang dipilih di Invoice dan Kendaraan (sebelumnya hanya lewat seeder). |
+| 2026-11-26 | 1.9 | Modul baru **Kendaraan** (GA): kendaraan Own / Rent dengan field wajib mengikuti Salesforce, status sewa (Expired / Not Yet) dan peringatan STNK/pajak. Item RF bisa memilih plat, jenis biaya (Sewa / Servis / Lainnya) dan periode sewa; biaya kendaraan diambil dari PO yang approved, dan PO sewa yang approved memajukan akhir sewa. Harga sewa kontrak per Bulan atau per Tahun. Approval memakai jalur RF/PO yang ada. Permission `vehicles.*` (GA penuh, CEO lihat). Menu "Rental Mobil GA (Soon)" diganti halaman Kendaraan. **Satu tenant = satu PT:** tenant disebut "Perusahaan" di layar dan menyimpan identitas PT (nama legal, logo, alamat, telepon, fax, email, website, NPWP) yang menjadi kop cetakan PO/GR dan default Invoice To di PO (sebelumnya Mandau tertulis langsung di cetakan). Pilihan Perusahaan di Invoice dihapus (PT penagih = tenant; data lama tidak dihapus, hanya tidak ditampilkan). Seeder kendaraan contoh `ErpVehicleSeeder`. |
 | 2026-11-20 | 1.8 | Centang "Update WID" di form rincian invoice dihapus karena artinya tidak diketahui dan tidak berpengaruh apa pun ke WID (sebelumnya hanya disimpan sebagai tanda). Kolom lamanya di database dibiarkan, tidak dipakai lagi. |
 | 2026-11-19 | 1.7 | Pajak di invoice customer: PPN % dan PPh % per invoice (default diatur admin di halaman Tarif Pajak Default, awal 11% dan 2%), keduanya dihitung dari Nilai Invoice. Nilai Invoice tetap sebelum pajak; yang harus dibayar customer = Nilai Invoice + PPN − PPh, dan PPh langsung dianggap terbayar. Detail invoice menampilkan Nilai Invoice, Nilai Invoice + PPN, Harus Dibayar Customer (Nilai Invoice + PPN − PPh), Sudah Dibayar, Belum Dibayar. Tabel master baru `app_settings`. |
 | 2026-11-19 | 1.6 | Hak akses per divisi disamakan (`RolePermissionSeeder`): pekerjaan sendiri penuh, modul divisi lain hanya lihat tanpa menu, staff tanpa approve/reject/hapus/verify. Aksi tulis dicek dari permission saja, bukan nama role (sebelumnya mis. Finance bisa ubah/hapus Payment Terms walau hanya punya izin lihat). Tombol aksi disembunyikan bila tidak punya izin. Sidebar per divisi: Kasbon dan Expense pindah ke Pengajuan Umum, Budget Plans ikut Finance untuk orang Finance, GR ikut Logistik untuk orang Logistik. Approve/reject kasbon dan expense cukup ditunjuk di Approval Config (sebelumnya macet karena tidak ada role selain superadmin yang punya `advance_requests.approve`); approver dan pemohon bisa membuka detailnya. Tim project dan Finance kini mendapat akses kasbon/expense. |
@@ -809,9 +804,12 @@ Temuan dari pembacaan kode saat menyusun PRD ini. Belum semuanya diverifikasi de
 
 Celah dari versi 1.0 yang sudah diputuskan atau diperbaiki di versi 1.1 sudah dihapus dari daftar ini (lihat Changelog).
 
+**Kop surat / identitas PT**
+- Cetakan PO, bila supplier tidak punya rekening, masih menampilkan "VA BCA 00112112099300 PT Badan Mandiri Daya" untuk semua perusahaan. Perlu dicek ini rekening apa dan apakah Imprima punya sendiri.
+- Tabel master `companies` dan export lama yang memakainya (tidak dipanggil dari mana pun) belum dihapus.
+
 **Invoice customer — perlu dikonfirmasi ke Finance**
 - Perlu master Customer, atau cukup teks bebas?
-- Daftar perusahaan penagih (MANDAU, MIG, …). Admin bisa menambahkannya di halaman Perusahaan; isi awalnya Mandau dan IOH (IOH sepertinya customer, bukan perusahaan kita — perlu dicek lalu dinonaktifkan).
 - Daftar pilihan Terms yang sebenarnya (baru diketahui "Final Payment" dan "DP I").
 - Rincian USD: dibayar dalam USD atau dikonversi ke IDR? Saat ini total USD hanya ditampilkan, tidak ikut status pembayaran.
 - Isi Payment Detail yang sebenarnya (bukti transfer, rekening penerima, potongan).

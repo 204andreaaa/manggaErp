@@ -28,7 +28,7 @@
       ];
   $info = [
     'Identitas' => [
-      'Perusahaan' => $v->company_name, 'Jenis' => $v->kind, 'Merk / Model' => trim($v->brand.' '.$v->model),
+      'Jenis' => $v->kind, 'Merk / Model' => trim($v->brand.' '.$v->model),
       'Tipe' => $v->vehicle_type, 'Tahun' => $v->production_year, 'Warna' => $v->color,
       'Kondisi' => $v->condition, 'Status Pemakaian' => $v->usage_status, 'Kilometer' => $v->mileage !== null ? number_format($v->mileage, 0, ',', '.') : null,
       'Plat yang Digantikan' => $v->replacement_plate,
