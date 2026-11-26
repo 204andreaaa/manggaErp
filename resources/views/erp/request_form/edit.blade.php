@@ -252,6 +252,8 @@
           // (a day early in Asia/Jakarta), so hand the page a plain Y-m-d instead.
           $oldItems = old('items', $rf->items->map(fn ($item) => array_merge($item->toArray(), [
               'date_required' => $item->date_required?->toDateString(),
+              'rental_start_date' => $item->rental_start_date?->toDateString(),
+              'rental_end_date' => $item->rental_end_date?->toDateString(),
           ]))->all());
         @endphp
 
@@ -465,6 +467,33 @@
             </div>
           </div>
 
+          <div class="col-12"><hr class="my-1"></div>
+          <div class="col-md-5">
+            <label class="form-label fw-semibold small text-uppercase text-muted">Kendaraan (Plat)</label>
+            <select id="lineVehicle" class="form-select select2-modal">
+              <option value="">-- Bukan untuk kendaraan --</option>
+              @foreach($vehicles as $vehicle)
+                <option value="{{ $vehicle->id }}" data-ownership="{{ $vehicle->ownership }}">{{ $vehicle->plate_number }} · {{ $vehicle->ownership }}{{ $vehicle->brand ? ' · '.trim($vehicle->brand.' '.$vehicle->model) : '' }}</option>
+              @endforeach
+            </select>
+            <div class="form-text">Isi bila item ini sewa, servis atau biaya lain sebuah kendaraan.</div>
+          </div>
+          <div class="col-md-3 line-vehicle-only d-none">
+            <label class="form-label fw-semibold small text-uppercase text-muted">Jenis Biaya <span class="text-danger">*</span></label>
+            <select id="lineVehicleCostType" class="form-select">
+              <option value="">-- Pilih --</option>
+              @foreach(\App\Models\Erp\Vehicle::COST_TYPES as $costType)<option value="{{ $costType }}">{{ $costType }}</option>@endforeach
+            </select>
+          </div>
+          <div class="col-md-2 line-rent-only d-none">
+            <label class="form-label fw-semibold small text-uppercase text-muted">Sewa Mulai <span class="text-danger">*</span></label>
+            <input type="date" id="lineRentalStart" class="form-control">
+          </div>
+          <div class="col-md-2 line-rent-only d-none">
+            <label class="form-label fw-semibold small text-uppercase text-muted">Sewa Selesai <span class="text-danger">*</span></label>
+            <input type="date" id="lineRentalEnd" class="form-control">
+          </div>
+
           <div class="col-12">
             <label class="form-label fw-semibold small text-uppercase text-muted">Remark / Catatan Tambahan Barang</label>
             <textarea id="lineRemark" class="form-control" rows="2" placeholder="Catatan spesifikasi, keperluan, atau detail lainnya..."></textarea>
@@ -508,6 +537,10 @@ document.addEventListener('DOMContentLoaded', function () {
       pic: item.pic ?? '',
       within_budget: (item.within_budget && item.within_budget !== '0') ? '1' : '0',
       remark: item.remark ?? '',
+      vehicle_id: item.vehicle_id ? String(item.vehicle_id) : '',
+      vehicle_cost_type: item.vehicle_cost_type ?? '',
+      rental_start_date: item.rental_start_date ? String(item.rental_start_date).substring(0, 10) : '',
+      rental_end_date: item.rental_end_date ? String(item.rental_end_date).substring(0, 10) : '',
     });
   });
   const body = document.getElementById('lineItemsBody');
@@ -640,7 +673,29 @@ document.addEventListener('DOMContentLoaded', function () {
     $('#linePic').val('').trigger('change');
     fields.within_budget.checked = true;
     fields.remark.value = '';
+    $('#lineVehicle').val('').trigger('change');
+    document.getElementById('lineVehicleCostType').value = '';
+    document.getElementById('lineRentalStart').value = '';
+    document.getElementById('lineRentalEnd').value = '';
+    syncVehicleFields();
   }
+
+  // Vehicle on a line: the cost type shows once a plate is picked, the rent period only for "Sewa",
+  // and "Sewa" only for a rented vehicle.
+  const vehiclePlates = {!! json_encode((object) $vehicles->pluck('plate_number', 'id')->all(), JSON_HEX_TAG) !!};
+  function syncVehicleFields() {
+    const opt = $('#lineVehicle').find(':selected');
+    const hasVehicle = !!$('#lineVehicle').val();
+    const isRent = opt.data('ownership') === 'Rent';
+    const costType = document.getElementById('lineVehicleCostType');
+    const sewa = costType.querySelector('option[value="Sewa"]');
+    if (sewa) sewa.disabled = hasVehicle && !isRent;
+    if (!hasVehicle || (costType.value === 'Sewa' && !isRent)) costType.value = '';
+    document.querySelectorAll('.line-vehicle-only').forEach((el) => el.classList.toggle('d-none', !hasVehicle));
+    document.querySelectorAll('.line-rent-only').forEach((el) => el.classList.toggle('d-none', costType.value !== 'Sewa'));
+  }
+  $('#lineVehicle').on('change', syncVehicleFields);
+  document.getElementById('lineVehicleCostType').addEventListener('change', syncVehicleFields);
 
   function syncOriginalTotal() {
     const qty = Number(fields.qty.value || 0);
@@ -686,6 +741,10 @@ document.addEventListener('DOMContentLoaded', function () {
       pic: picVal.trim(),
       within_budget: fields.within_budget.checked ? '1' : '0',
       remark: fields.remark.value.trim(),
+      vehicle_id: $('#lineVehicle').val() || '',
+      vehicle_cost_type: $('#lineVehicle').val() ? document.getElementById('lineVehicleCostType').value : '',
+      rental_start_date: document.getElementById('lineVehicleCostType').value === 'Sewa' ? document.getElementById('lineRentalStart').value : '',
+      rental_end_date: document.getElementById('lineVehicleCostType').value === 'Sewa' ? document.getElementById('lineRentalEnd').value : '',
     };
   }
 
@@ -709,7 +768,7 @@ document.addEventListener('DOMContentLoaded', function () {
             <i class="bx bx-trash"></i>
           </button>
         </td>
-        <td class="fw-bold text-dark">${escapeHtml(item.product_name)}</td>
+        <td class="fw-bold text-dark">${escapeHtml(item.product_name)}${item.vehicle_id ? `<div class="small fw-normal mt-1"><span class="badge bg-label-dark"><i class="bx bx-car me-1"></i>${escapeHtml(vehiclePlates[item.vehicle_id] || 'Kendaraan')} · ${escapeHtml(item.vehicle_cost_type)}</span>${item.vehicle_cost_type === 'Sewa' ? ` <span class="text-muted">${escapeHtml(item.rental_start_date)} s/d ${escapeHtml(item.rental_end_date)}</span>` : ''}</div>` : ''}</td>
         <td><span class="badge bg-label-primary fw-semibold">${escapeHtml(item.wid || '-')}</span></td>
         <td>${escapeHtml(item.currency)}</td>
         <td class="text-end fw-semibold">${formatNumber(item.qty)}</td>
@@ -774,6 +833,14 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     if (Number(item.qty) <= 0 || Number(item.unit_cost) < 0) {
       Swal.fire({ icon: 'warning', title: 'Qty dan Unit Cost belum valid!' });
+      return;
+    }
+    if (item.vehicle_id && !item.vehicle_cost_type) {
+      Swal.fire({ icon: 'warning', title: 'Jenis biaya kendaraan wajib dipilih!', text: 'Sewa, Servis atau Lainnya.' });
+      return;
+    }
+    if (item.vehicle_cost_type === 'Sewa' && (!item.rental_start_date || !item.rental_end_date || item.rental_end_date < item.rental_start_date)) {
+      Swal.fire({ icon: 'warning', title: 'Periode sewa belum valid!', text: 'Isi tanggal mulai dan selesai sewa (selesai tidak boleh sebelum mulai).' });
       return;
     }
 
@@ -953,6 +1020,13 @@ document.addEventListener('DOMContentLoaded', function () {
         width: '100%'
       });
     }
+    $('#lineVehicle').select2({
+      theme: 'bootstrap-5',
+      dropdownParent: $('#modalLineItem'),
+      placeholder: '-- Bukan untuk kendaraan --',
+      allowClear: true,
+      width: '100%'
+    });
     $('#linePic').select2({
       theme: 'bootstrap-5',
       dropdownParent: $('#modalLineItem'),

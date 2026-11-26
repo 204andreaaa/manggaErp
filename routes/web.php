@@ -193,6 +193,9 @@ Route::middleware(['auth', 'active'])->group(function () {
         // Dedicated ERP Payment Terms
         Route::resource('payment-terms', \App\Http\Controllers\Erp\ErpPaymentTermController::class)->except(['create', 'show', 'edit']);
 
+        // Company vehicles (Own / Rent), GA
+        Route::resource('vehicles', \App\Http\Controllers\Erp\VehicleController::class);
+
         // Customer invoices (tagihan ke customer)
         Route::get('invoices/tax-settings', [\App\Http\Controllers\Erp\InvoiceController::class, 'taxSettings'])->name('invoices.tax-settings');
         Route::put('invoices/tax-settings', [\App\Http\Controllers\Erp\InvoiceController::class, 'updateTaxSettings'])->name('invoices.tax-settings.update');

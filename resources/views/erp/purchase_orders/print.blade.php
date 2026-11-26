@@ -493,7 +493,11 @@
                     @endphp
                     <tr>
                         <td class="text-center">{{ $index + 1 }}.</td>
-                        <td class="text-bold">{{ $item->requestFormItem?->product_name ?: ($item->product_name ?: 'Item ' . ($index+1)) }}</td>
+                        <td class="text-bold">{{ $item->requestFormItem?->product_name ?: ($item->product_name ?: 'Item ' . ($index+1)) }}
+                            @if($item->requestFormItem?->vehicle)
+                                <div style="font-weight:normal">Kendaraan {{ $item->requestFormItem->vehicle->plate_number }}@if($item->requestFormItem->rental_start_date), periode {{ $item->requestFormItem->rental_start_date->format('d/m/Y') }} s/d {{ $item->requestFormItem->rental_end_date?->format('d/m/Y') }}@endif</div>
+                            @endif
+                        </td>
                         <td>{{ $item->requestFormItem?->product_description ?: ($item->remarks ?: ($item->description ?: '-')) }}</td>
                         <td class="text-center text-bold">{{ number_format((float)$item->qty, 2, '.', '') }}</td>
                         <td class="text-center">{{ $uomName }}</td>

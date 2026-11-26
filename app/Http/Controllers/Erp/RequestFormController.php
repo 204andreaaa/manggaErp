@@ -6,6 +6,7 @@ use App\Helpers\NotificationHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Department;
 use App\Models\Erp\RequestForm;
+use App\Models\Erp\Vehicle;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -119,6 +120,7 @@ class RequestFormController extends Controller
             'users' => $users,
             'subProjects' => $subProjects,
             'workItems' => $workItems,
+            'vehicles' => $this->vehicleOptions(),
         ] + $this->departmentFormData());
     }
 
@@ -160,6 +162,10 @@ class RequestFormController extends Controller
             'pic' => $item->pic,
             'within_budget' => $item->within_budget ? '1' : '0',
             'remark' => $item->remark,
+            'vehicle_id' => $item->vehicle_id,
+            'vehicle_cost_type' => $item->vehicle_cost_type,
+            'rental_start_date' => optional($item->rental_start_date)->format('Y-m-d'),
+            'rental_end_date' => optional($item->rental_end_date)->format('Y-m-d'),
         ])->values()->all();
 
         return view('erp.request_form.create', [
@@ -170,6 +176,7 @@ class RequestFormController extends Controller
             'users' => $users,
             'subProjects' => $subProjects,
             'workItems' => $workItems,
+            'vehicles' => $this->vehicleOptions($requestForm),
             'cloneFrom' => $requestForm,
             'cloneItems' => $cloneItems,
         ] + $this->departmentFormData());
@@ -211,13 +218,15 @@ class RequestFormController extends Controller
             'items.*.within_budget' => ['nullable', 'boolean'],
             'items.*.status' => ['required', Rule::in(['Requested', 'Ordered', 'Completed', 'Cancelled'])],
             'items.*.remark' => ['nullable', 'string'],
+        ] + $this->vehicleRules() + [
             'notes' => ['nullable', 'array'],
             'notes.*' => ['nullable', 'string'],
             'attachments' => ['nullable', 'array'],
             'attachments.*' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:10240'],
         ], [
             'items.*.wid.required_if' => 'WID wajib dipilih untuk setiap item pada RF Project.',
-        ]);
+        ] + self::VEHICLE_MESSAGES);
+        $this->assertVehicleLines($data['items'] ?? []);
 
         $department = $this->resolveDepartment($request, $data['record_type']);
 
@@ -248,7 +257,7 @@ class RequestFormController extends Controller
                     'within_budget' => ! empty($item['within_budget']),
                     'status' => $item['status'],
                     'remark' => $item['remark'] ?? null,
-                ];
+                ] + $this->vehicleFields($item);
             });
 
             $rf = RequestForm::create($department + [
@@ -337,6 +346,7 @@ class RequestFormController extends Controller
             'users' => $users,
             'subProjects' => $subProjects,
             'workItems' => $workItems,
+            'vehicles' => $this->vehicleOptions($requestForm),
         ] + $this->departmentFormData());
     }
 
@@ -378,11 +388,13 @@ class RequestFormController extends Controller
             'items.*.within_budget' => ['nullable', 'boolean'],
             'items.*.status' => ['required', Rule::in(['Requested', 'Ordered', 'Completed', 'Cancelled'])],
             'items.*.remark' => ['nullable', 'string'],
+        ] + $this->vehicleRules() + [
             'notes' => ['nullable', 'array'],
             'notes.*' => ['nullable', 'string'],
         ], [
             'items.*.wid.required_if' => 'WID wajib dipilih untuk setiap item pada RF Project.',
-        ]);
+        ] + self::VEHICLE_MESSAGES);
+        $this->assertVehicleLines($data['items'] ?? []);
 
         $department = $this->resolveDepartment($request, $data['record_type'], $requestForm);
 
@@ -405,7 +417,7 @@ class RequestFormController extends Controller
                     'qty' => $qty,
                     'qty_fulfilled' => (float) ($item['qty_fulfilled'] ?? 0),
                     'within_budget' => ! empty($item['within_budget']),
-                ]);
+                ], $this->vehicleFields($item));
             });
 
             $requestForm->update($department + [
@@ -501,7 +513,7 @@ class RequestFormController extends Controller
         }
 
         $requestForm->load([
-            'items',
+            'items.vehicle',
             'notesAttachments.user',
             'purchaseRequests.items',
             'approvals.assignedRole',
@@ -652,6 +664,61 @@ class RequestFormController extends Controller
         }
 
         return ['department_id' => $department->id, 'department_name' => $department->name];
+    }
+
+    /** Active vehicles to pick on a line, plus any (now inactive) vehicle the RF already uses. */
+    private function vehicleOptions(?RequestForm $rf = null)
+    {
+        $used = $rf ? $rf->items()->whereNotNull('vehicle_id')->pluck('vehicle_id')->all() : [];
+
+        return Vehicle::where(fn ($q) => $q->where('is_active', true)->orWhereIn('id', $used))
+            ->orderBy('plate_number')->get(['id', 'plate_number', 'ownership', 'brand', 'model']);
+    }
+
+    private const VEHICLE_MESSAGES = [
+        'items.*.vehicle_cost_type.required_with' => 'Jenis biaya kendaraan (Sewa / Servis / Lainnya) wajib dipilih bila plat diisi.',
+        'items.*.rental_start_date.required_if' => 'Periode sewa (mulai dan selesai) wajib diisi untuk biaya Sewa.',
+        'items.*.rental_end_date.required_if' => 'Periode sewa (mulai dan selesai) wajib diisi untuk biaya Sewa.',
+        'items.*.rental_end_date.after_or_equal' => 'Akhir periode sewa tidak boleh sebelum awalnya.',
+    ];
+
+    /** An RF line may name a vehicle: then it says what kind of cost it is, and a rent says its period. */
+    private function vehicleRules(): array
+    {
+        return [
+            'items.*.vehicle_id' => ['nullable', 'integer', Rule::exists('tenant.erp_vehicles', 'id')->whereNull('deleted_at')],
+            'items.*.vehicle_cost_type' => ['nullable', 'required_with:items.*.vehicle_id', Rule::in(Vehicle::COST_TYPES)],
+            'items.*.rental_start_date' => ['nullable', 'required_if:items.*.vehicle_cost_type,Sewa', 'date'],
+            'items.*.rental_end_date' => ['nullable', 'required_if:items.*.vehicle_cost_type,Sewa', 'date', 'after_or_equal:items.*.rental_start_date'],
+        ];
+    }
+
+    /** A rent can only be paid for a vehicle that is rented. */
+    private function assertVehicleLines(array $items): void
+    {
+        foreach ($items as $index => $item) {
+            if (($item['vehicle_cost_type'] ?? null) === 'Sewa' && !empty($item['vehicle_id'])
+                && Vehicle::whereKey($item['vehicle_id'])->value('ownership') !== 'Rent') {
+                throw ValidationException::withMessages([
+                    "items.{$index}.vehicle_cost_type" => 'Biaya Sewa hanya untuk kendaraan sewa (Rent).',
+                ]);
+            }
+        }
+    }
+
+    /** The vehicle columns of a line; without a vehicle (or for a non-rent cost) they are cleared. */
+    private function vehicleFields(array $item): array
+    {
+        $vehicleId = !empty($item['vehicle_id']) ? (int) $item['vehicle_id'] : null;
+        $type = $vehicleId ? ($item['vehicle_cost_type'] ?? null) : null;
+        $rent = $type === 'Sewa';
+
+        return [
+            'vehicle_id' => $vehicleId,
+            'vehicle_cost_type' => $type,
+            'rental_start_date' => $rent ? $item['rental_start_date'] : null,
+            'rental_end_date' => $rent ? $item['rental_end_date'] : null,
+        ];
     }
 
     private function generateNextCode(): string

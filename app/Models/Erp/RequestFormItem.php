@@ -11,6 +11,10 @@ class RequestFormItem extends Model
         'request_form_id',
         'rf_detail_no',
         'wid',
+        'vehicle_id',
+        'vehicle_cost_type',
+        'rental_start_date',
+        'rental_end_date',
         'product_id_text',
         'product_name',
         'model',
@@ -32,6 +36,8 @@ class RequestFormItem extends Model
         'qty' => 'decimal:2',
         'qty_fulfilled' => 'decimal:2',
         'date_required' => 'date',
+        'rental_start_date' => 'date',
+        'rental_end_date' => 'date',
         'within_budget' => 'boolean',
         'original_total_cost' => 'integer',
         'actual_cost' => 'integer',
@@ -51,6 +57,11 @@ class RequestFormItem extends Model
     public function purchaseOrderItems()
     {
         return $this->hasMany(ErpPurchaseOrderItem::class, 'request_form_item_id');
+    }
+
+    public function vehicle()
+    {
+        return $this->belongsTo(Vehicle::class, 'vehicle_id');
     }
 
     public function erpProduct()

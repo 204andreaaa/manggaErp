@@ -72,9 +72,10 @@ class RolePermissionSeeder extends Seeder
         'purchase_orders.view', 'purchase_orders.print',
         'goods_receipts.view', 'goods_receipts.create', 'goods_receipts.update', 'goods_receipts.verify', 'goods_receipts.print',
         'products.view',
+        'vehicles.view', 'vehicles.create', 'vehicles.update', 'vehicles.delete',
     ];
 
-    private const GA_MENUS = ['purchase_orders', 'goods_receipts', 'products'];
+    private const GA_MENUS = ['purchase_orders', 'goods_receipts', 'products', 'vehicles'];
 
     private const FINANCE_HEAD = [
         'purchase_orders.view', 'purchase_orders.print',
@@ -114,14 +115,14 @@ class RolePermissionSeeder extends Seeder
         'suppliers.view', 'payment_terms.view',
         'payment_advices.view', 'payment_advice_details.view', 'payment_advice_details.approve',
         'payment_advice_details.reject', 'payment_advice_details.mark_paid',
-        'invoices.view', 'stocks.view', 'warehouses.view', 'products.view',
+        'invoices.view', 'stocks.view', 'warehouses.view', 'products.view', 'vehicles.view',
         'departments.view', 'employees.view', 'approval_configs.view',
     ];
 
     private const CEO_MENUS = [
         'budget_parents', 'sub_projects', 'work_items', 'annual_budget_plans', 'department_spending',
         'advance_requests', 'expense_declarations', 'purchase_orders', 'goods_receipts', 'suppliers', 'payment_terms',
-        'invoices', 'payment_advices', 'payment_advice_details', 'stocks', 'warehouses', 'products',
+        'invoices', 'payment_advices', 'payment_advice_details', 'stocks', 'warehouses', 'products', 'vehicles',
         'departments', 'employees', 'approval_configs',
     ];
 

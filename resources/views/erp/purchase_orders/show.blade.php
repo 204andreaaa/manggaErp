@@ -431,6 +431,13 @@
                   </td>
                   <td>
                     <div class="fw-bold text-dark">{{ $item->requestFormItem?->product_name ?: '-' }}</div>
+                    @if($item->requestFormItem?->vehicle)
+                      @php $rfi = $item->requestFormItem; @endphp
+                      <div class="small mt-1">
+                        <a href="{{ auth()->user()->hasPermission('vehicles.view') ? route('erp.vehicles.show', $rfi->vehicle) : '#' }}" class="badge bg-label-dark"><i class="bx bx-car me-1"></i>{{ $rfi->vehicle->plate_number }} · {{ $rfi->vehicle_cost_type }}</a>
+                        @if($rfi->rental_start_date)<span class="text-muted">{{ $rfi->rental_start_date->format('d M Y') }} – {{ $rfi->rental_end_date?->format('d M Y') }}</span>@endif
+                      </div>
+                    @endif
                   </td>
                   <td>
                     <span class="badge bg-label-secondary">{{ $item->requestFormItem?->erpProduct?->product_model ?: '-' }}</span>

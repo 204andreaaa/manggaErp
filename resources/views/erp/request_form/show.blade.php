@@ -335,7 +335,14 @@
                       -
                     @endif
                   </td>
-                  <td class="fw-bold text-dark">{{ $item->product_name }}</td>
+                  <td class="fw-bold text-dark">{{ $item->product_name }}
+                    @if($item->vehicle)
+                      <div class="small fw-normal mt-1">
+                        <a href="{{ auth()->user()->hasPermission('vehicles.view') ? route('erp.vehicles.show', $item->vehicle) : '#' }}" class="badge bg-label-dark"><i class="bx bx-car me-1"></i>{{ $item->vehicle->plate_number }} · {{ $item->vehicle_cost_type }}</a>
+                        @if($item->rental_start_date)<span class="text-muted">{{ $item->rental_start_date->format('d M Y') }} – {{ $item->rental_end_date?->format('d M Y') }}</span>@endif
+                      </div>
+                    @endif
+                  </td>
                   <td>{{ $item->wid ?: '-' }}</td>
                   <td>{{ $item->currency }}</td>
                   <td class="text-end fw-semibold">{{ number_format((float) $item->qty, 2, ',', '.') }}</td>

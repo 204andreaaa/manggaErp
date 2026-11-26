@@ -15,7 +15,7 @@ $isSuperAdmin   = $u?->hasRole('superadmin') || $u?->hasRole('admin');
 // Same grouping as the sidebar: a division menu only for that division's own work.
 $isAdminProject = $isSuperAdmin || $u?->canSeeMenu('work_items') || $u?->canSeeMenu('budget_parents') || $u?->canSeeMenu('sub_projects');
 $isLogistik     = $isSuperAdmin || $u?->canSeeMenu('stocks') || $u?->canSeeMenu('warehouses');
-$isGA           = $isSuperAdmin || $u?->hasRole('general_affair') || ($u?->canSeeMenu('goods_receipts') && !$isLogistik);
+$isGA           = $isSuperAdmin || $u?->hasRole('general_affair') || ($u?->canSeeMenu('goods_receipts') && !$isLogistik) || $u?->canSeeMenu('vehicles');
 $isProcurement  = $isSuperAdmin || $u?->hasPermission('purchase_orders.create') || $u?->canSeeMenu('suppliers') || $u?->canSeeMenu('payment_terms');
 $isFinance      = $isSuperAdmin || $u?->canSeeMenu('payment_advices') || $u?->canSeeMenu('payment_advice_details') || $u?->canSeeMenu('invoices');
 $isHRIS         = $isSuperAdmin || $u?->canSeeMenu('employees') || $u?->canSeeMenu('departments') || $u?->canSeeMenu('hr_attendances') || $u?->canSeeMenu('hr_payroll');
@@ -179,7 +179,7 @@ if ($isGA || $isLogistik) {
             {{-- GA --}}
             @if($isGA)
             <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle {{ request()->routeIs('erp.goods-receipts.*') ? 'active' : '' }}" 
+                <a class="nav-link dropdown-toggle {{ request()->routeIs('erp.goods-receipts.*') || request()->routeIs('erp.vehicles.*') ? 'active' : '' }}" 
                    href="javascript:void(0)" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
                     <i class="bx bx-shield-quarter me-1 text-secondary"></i> GA
                     @if($pendingGrCount > 0)
@@ -187,6 +187,13 @@ if ($isGA || $isLogistik) {
                     @endif
                 </a>
                 <ul class="dropdown-menu shadow-sm">
+                    @if($isSuperAdmin || $u?->canSeeMenu('vehicles'))
+                    <li>
+                        <a class="dropdown-item {{ request()->routeIs('erp.vehicles.*') ? 'active' : '' }}" href="{{ $rl('erp.vehicles.index') }}">
+                            <i class="bx bx-car me-2"></i> Kendaraan
+                        </a>
+                    </li>
+                    @endif
                     <li>
                         <a class="dropdown-item d-flex align-items-center justify-content-between {{ request()->routeIs('erp.goods-receipts.*') ? 'active' : '' }}" href="{{ $rl('erp.goods-receipts.index') }}">
                             <div>

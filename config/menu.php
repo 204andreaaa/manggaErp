@@ -77,6 +77,14 @@ return [
             'icon'        => 'bx bx-credit-card',
             'permissions' => ['payment_terms.view', 'payment_terms.create', 'payment_terms.update', 'payment_terms.delete'],
         ],
+        [
+            'key'         => 'vehicles',
+            'label'       => 'Kendaraan (Own / Rent)',
+            'route'       => 'erp.vehicles.index',
+            'group'       => 'procurement',
+            'icon'        => 'bx bx-car',
+            'permissions' => ['vehicles.view', 'vehicles.create', 'vehicles.update', 'vehicles.delete'],
+        ],
 
         // ================== FINANCE & ACCOUNTING ==================
         [

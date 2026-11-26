@@ -19,7 +19,7 @@ $isSuperAdmin   = $u?->hasRole(['superadmin', 'admin']);
 // only looked at from another division open from links, not from the sidebar.
 $isAdminProject = $isSuperAdmin || $u?->canSeeMenu('work_items') || $u?->canSeeMenu('budget_parents') || $u?->canSeeMenu('sub_projects');
 $isLogistikRole = $u?->canSeeMenu('stocks') || $u?->canSeeMenu('warehouses');
-$isGA           = $isSuperAdmin || $u?->hasRole('general_affair') || ($u?->canSeeMenu('goods_receipts') && !$isLogistikRole);
+$isGA           = $isSuperAdmin || $u?->hasRole('general_affair') || ($u?->canSeeMenu('goods_receipts') && !$isLogistikRole) || $u?->canSeeMenu('vehicles');
 $isProcurement  = $isSuperAdmin || $u?->hasRole('procurement') || $u?->hasPermission('purchase_orders.create') || $u?->canSeeMenu('suppliers') || $u?->canSeeMenu('payment_terms');
 $isFinance      = $isSuperAdmin || $u?->canSeeMenu('payment_advices') || $u?->canSeeMenu('payment_advice_details') || $u?->canSeeMenu('invoices');
 // Budget plans / department spending sit with Admin Project, or with Finance for finance people
@@ -97,7 +97,7 @@ $isProjectOpen = request()->routeIs('erp.budget-parents.*')
     || request()->routeIs('erp.work-items.*')
     || ($isBudgetRoute && !$budgetInFinance);
 
-$isGaOpen = $isGA && request()->routeIs('erp.goods-receipts.*');
+$isGaOpen = $isGA && (request()->routeIs('erp.goods-receipts.*') || request()->routeIs('erp.vehicles.*'));
 
 $isProcurementOpen = request()->routeIs('erp.procurement.dashboard')
     || request()->routeIs('erp.purchase-orders.*')
@@ -339,13 +339,14 @@ $isSystemOpen = request()->routeIs('erp.users.*')
                     </a>
                 </li>
                 @endif
-                <li class="menu-item">
-                    <a href="javascript:void(0);" class="menu-link" onclick="Swal.fire({icon:'info', title:'Rental Kendaraan', text:'Modul Penyewaan Mobil Rental GA sedang dalam pengembangan.', confirmButtonColor: '#4f46e5'})">
+                @if($isSuperAdmin || $u?->canSeeMenu('vehicles'))
+                <li class="menu-item {{ request()->routeIs('erp.vehicles.*') ? 'active' : '' }}">
+                    <a href="{{ $rl('erp.vehicles.index') }}" class="menu-link">
                         <i class="bx bx-car me-2"></i>
-                        <div class="text-truncate">Rental Mobil GA</div>
-                        <span class="badge bg-label-info ms-auto">Soon</span>
+                        <div class="text-truncate">Kendaraan</div>
                     </a>
                 </li>
+                @endif
             </ul>
         </li>
         @endif

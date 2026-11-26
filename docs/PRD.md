@@ -6,8 +6,8 @@
 | **Sistem** | Mangga ERP — ERP multi-project untuk procurement, budget project, kasbon, pembayaran supplier, gudang dan HR |
 | **Repo** | `204andreaaa/manggaErp` (branch utama `master`) |
 | **Versi kode** | Laravel 13, PHP 8.2+ (server: PHP 8.4) |
-| **Versi PRD** | 1.8 |
-| **Terakhir diperbarui** | 2026-11-20 |
+| **Versi PRD** | 1.9 |
+| **Terakhir diperbarui** | 2026-11-26 |
 | **Status** | Belum production (masih tahap uji internal) |
 
 > **Cara dokumen ini dirawat.** PRD ini ditulis dari kode yang berjalan, bukan dari rencana. Setiap perubahan perilaku sistem (function, aturan, field, status, hak akses, halaman) menghasilkan **PRD versi baru**: versi yang lama disalin dulu ke `docs/prd-history/PRD-v<versi>.md`, lalu dokumen ini diperbarui, nomor versinya dinaikkan, dan satu baris ditambahkan di [Changelog](#14-changelog) — semuanya di commit yang sama dengan perubahan kodenya. Di repo ini ada hook Claude Code (`.claude/settings.json` → `.claude/hooks/prd-reminder.cjs`) yang mengingatkan hal ini setiap kali file di `app/`, `routes/`, `database/`, `config/` atau `resources/views/` diubah.
@@ -18,7 +18,7 @@
 2. [Pengguna dan peran](#2-pengguna-dan-peran)
 3. [Arsitektur dan teknologi](#3-arsitektur-dan-teknologi)
 4. [Alur bisnis utama](#4-alur-bisnis-utama)
-5. [Modul Procurement](#5-modul-procurement) — RF, PR, PO, GR, Stok, Pengeluaran Departemen
+5. [Modul Procurement](#5-modul-procurement) — RF, PR, PO, GR, Stok, Pengeluaran Departemen, Kendaraan
 6. [Modul Keuangan](#6-modul-keuangan) — Payment Advice, Payment Terms, Invoice (tagihan ke customer)
 7. [Modul Budget Project dan Kasbon](#7-modul-budget-project-dan-kasbon)
 8. [Mesin Approval](#8-mesin-approval)
@@ -222,6 +222,9 @@ Pinjaman/klaim karyawan di luar project dicatat di halaman karyawan, tanpa appro
 | Total | qty × harga efektif |
 | Tanggal dibutuhkan, PIC, Within budget, Remark | Opsional |
 | Status item | Requested / Ordered / Completed / Cancelled |
+| Kendaraan (plat) | Opsional, dipilih dari kendaraan aktif (lihat [5.7](#57-kendaraan-ga)). Kosongkan untuk item yang bukan urusan kendaraan |
+| Jenis biaya kendaraan | **Wajib bila plat diisi**: Sewa / Servis / Lainnya. **Sewa hanya untuk kendaraan Rent** |
+| Periode sewa (mulai, selesai) | **Wajib untuk Sewa**, selesai tidak boleh sebelum mulai. Untuk jenis lain dikosongkan |
 
 **Status RF**
 | Dari → Ke | Aksi | Siapa | Syarat dan efek |
@@ -304,6 +307,37 @@ Pinjaman/klaim karyawan di luar project dicatat di halaman karyawan, tanpa appro
 - **Ringkasan per departemen:** jumlah dan nilai RF Approved, jumlah PO dan nilai terpakai (PO Approved/Completed, total + pajak), baris total.
 - **Peringatan:** jumlah RF Non Project tanpa departemen (tidak ikut dihitung).
 - **Detail departemen:** semua RF Non Project departemen itu (semua status) dan PO-nya.
+
+### 5.7 Kendaraan (GA)
+**Tujuan:** buku induk mobil/motor kantor, milik sendiri (**Own**) atau sewa (**Rent**), beserta biayanya. Mengikuti objek "Vehicle" di Salesforce.
+
+**Halaman**
+- **Daftar kendaraan:** kotak ringkasan (kendaraan aktif Own/Rent, sewa habis, STNK/pajak yang lewat atau habis ≤ 30 hari; kotak bisa diklik sebagai filter), cari plat/merk/lokasi/PIC, filter Own/Rent dan aktif. Kolom: plat, perusahaan, jenis, merk/model, lokasi, status sewa + akhir sewa, tanggal STNK dan pajak (merah = lewat, kuning = ≤ 30 hari).
+- **Kendaraan baru:** pilih dulu Own atau Rent (tidak bisa diubah setelah disimpan), lalu isi form. Ada **Simpan & Tambah Lagi**.
+- **Detail kendaraan:** kotak ringkasan (Rent: total sewa, total servis, masa sewa; Own: harga beli, total servis, total biaya), **Riwayat Biaya**, **Pengajuan Dalam Proses**, dan data kendaraan.
+
+**Field**
+| Field | Own | Rent |
+|---|---|---|
+| Plat nomor | Wajib, unik, disimpan huruf besar | Wajib, unik |
+| Perusahaan, merk, kondisi, region, lokasi, area sekarang, STNK habis | Opsional | **Wajib** |
+| Jenis (Mobil/Motor), tahun produksi | Wajib | Wajib |
+| Harga beli, tanggal beli | Harga beli **wajib** | Tidak dipakai |
+| Vendor rental (dari master Supplier), harga sewa per bulan, mulai dan akhir sewa | Tidak dipakai | **Wajib**; akhir ≥ mulai |
+| Model, tipe, warna, kilometer, status pemakaian, project (Sub Project), PIC, nama/alamat STNK, nomor rangka/mesin, pajak habis, plat yang digantikan, keterangan | Opsional | Opsional |
+| Aktif | Centang; dihilangkan bila mobil dijual / sewa dikembalikan | Sama |
+
+Merk, model, tipe, warna, kondisi, status pemakaian, region, lokasi dan area menawarkan isian yang pernah dipakai (teks bebas).
+
+**Biaya kendaraan lewat RF (tanpa form terpisah)**
+- Sewa, servis dan biaya lain diajukan lewat **RF biasa**: di item RF pilih plat, jenis biaya dan (untuk Sewa) periode sewa. Item lain di RF yang sama boleh tanpa plat. Plat ikut tampil di detail RF, detail PO dan cetakan PO.
+- Approval-nya **sama dengan RF dan PO lain** (Approval Config yang sudah ada), tidak ada jalur khusus kendaraan.
+- **Riwayat Biaya** = baris PO yang item RF-nya menunjuk kendaraan itu dan PO-nya **Approved/Completed**; nilainya total baris PO termasuk pajak. RF yang belum punya PO approved tampil di **Pengajuan Dalam Proses**. PO yang di-cancel otomatis tidak dihitung lagi.
+- **Akhir sewa yang berlaku** = yang lebih akhir antara akhir sewa yang diisi di kendaraan dan akhir periode Sewa dari PO yang approved. **Status sewa** *Expired* bila tanggal itu sudah lewat, selain itu *Not Yet* (dihitung saat dibuka, tidak disimpan).
+
+**Hapus:** permission `vehicles.delete`, **ditolak bila kendaraan sudah dipakai di RF** (nonaktifkan saja). Penghapusan bersifat soft delete.
+
+**Hak akses:** `vehicles.view/create/update/delete`. General Affair mendapat semuanya dan menu GA → Kendaraan, CEO `vehicles.view` (migrasi master `2026_11_26_000001`). Memilih plat di RF tidak butuh permission kendaraan.
 
 ---
 
@@ -643,6 +677,7 @@ Permission disimpan sebagai daftar di setiap role. `superadmin` dan `admin` sela
 | Goods Receipt | `goods_receipts.view/create/update/delete/verify/print` |
 | Payment | `payment_advices.view/update/delete`; `payment_advice_details.view/update_invoice/submit/approve/reject/mark_paid`; `payment_terms.*`; `invoices.view/create/update/delete` (tagihan ke customer) |
 | Gudang | `stocks.view/adjust`; `warehouses.*` |
+| Kendaraan | `vehicles.view/create/update/delete` |
 | Master | `products.view/create/update/delete/export` (juga berlaku untuk Family, Type, Brand, Model, UOM, Currency); `suppliers.*` |
 | HR | `departments.*`, `employees.*`, `hr_attendances.view/manage`, `hr_payroll.view/manage` |
 | Sistem | `users.view/create/update/delete/bulk_delete/export/export_seeder`, `roles.*`, `projects.*`, `approval_configs.view/create/delete`, `custom_reports.view/create/export/delete` |
@@ -670,7 +705,7 @@ Sumbernya satu: `Database\Seeders\Launch\RolePermissionSeeder` (dipakai `LaunchS
 | head_project, admin_project (staff: project_manager, project_coordinator, staff_project) | Budget Parent / Sub Project / WID penuh; Budget Plan view/create; kasbon dan expense view/create; RF update; lihat PO, GR, invoice, produk | WID, Sub Project, Budget Parent, Budget Plans, Kasbon, Expense, PO, Produk |
 | head_procurement (staff: procurement) | RF update/approve/reject; PO penuh; GR view/print; supplier dan payment terms penuh; produk penuh + export; stocks.view | PO, Supplier, Payment Terms, Produk dan atributnya |
 | head_logistic (staff: logistik) | Buat/hapus PR; PO view/print; GR penuh; stok view/adjust; gudang penuh; lihat supplier dan produk | PO, GR, Stok, Gudang, Produk, UOM |
-| general_affair | RF update; PO view/print; GR view/create/update/verify/print; products.view | PO, GR, Produk |
+| general_affair | RF update; PO view/print; GR view/create/update/verify/print; products.view; kendaraan penuh | PO, GR, Produk, Kendaraan |
 | head_finance (staff: finance) | PO view/print; PA view/update/delete; semua permission termin; invoice penuh; kasbon view/approve/pay; expense view/approve; Budget Plan view; Pengeluaran Departemen; lihat GR, supplier, payment terms, budget project | PO, Invoice, PA, Kasbon, Expense, Budget Plans, Pengeluaran Departemen |
 | head_hr (staff: hrd) | Departemen, karyawan, absensi, payroll penuh | Departemen, Karyawan, Absensi, Payroll |
 | ceo | Lihat semua modul bisnis; approve/reject RF, PO, termin, kasbon, expense; tandai termin lunas; approval_configs.view | Semua modul bisnis (tanpa absensi, payroll, sistem selain Approval Config) |
@@ -703,7 +738,7 @@ Nomor dokumen yang sudah dihapus tidak dipakai ulang.
 
 ### 13.2 Tabel utama
 - **Master:** users, roles, role_user, projects, project_user, companies, departments, employees, notifications, custom_reports, activity_logs, app_settings.
-- **Tenant:** request_forms, request_form_items, erp_notes_attachments, erp_purchase_requests (+items), erp_purchase_orders (+items), erp_goods_receipts (+items), erp_stocks, erp_payment_advices, erp_payment_advice_details, erp_payment_terms, erp_approvals, erp_approval_configs, erp_budget_parents, erp_sub_projects, erp_work_items, erp_annual_budget_plans, erp_monthly_budget_plans, erp_budget_plan_details, erp_advance_requests, erp_expense_declarations, erp_employee_advances, erp_invoices, erp_invoice_details, erp_invoice_payments, erp_products, product_families, product_types, brands, product_models, uoms, currencies, erp_suppliers (+contacts, attachments), erp_warehouses.
+- **Tenant:** request_forms, request_form_items, erp_notes_attachments, erp_purchase_requests (+items), erp_purchase_orders (+items), erp_goods_receipts (+items), erp_stocks, erp_payment_advices, erp_payment_advice_details, erp_payment_terms, erp_approvals, erp_approval_configs, erp_budget_parents, erp_sub_projects, erp_work_items, erp_annual_budget_plans, erp_monthly_budget_plans, erp_budget_plan_details, erp_advance_requests, erp_expense_declarations, erp_employee_advances, erp_invoices, erp_invoice_details, erp_invoice_payments, erp_vehicles, erp_products, product_families, product_types, brands, product_models, uoms, currencies, erp_suppliers (+contacts, attachments), erp_warehouses.
 
 ### 13.3 Perintah operasional
 | Perintah | Fungsi |
@@ -742,6 +777,7 @@ Riwayat versi lengkap ada di `docs/prd-history/`.
 
 | Tanggal | Versi | Perubahan |
 |---|---|---|
+| 2026-11-26 | 1.9 | Modul baru **Kendaraan** (GA): kendaraan Own / Rent dengan field wajib mengikuti Salesforce, status sewa (Expired / Not Yet) dan peringatan STNK/pajak. Item RF bisa memilih plat, jenis biaya (Sewa / Servis / Lainnya) dan periode sewa; biaya kendaraan diambil dari PO yang approved, dan PO sewa yang approved memajukan akhir sewa. Approval memakai jalur RF/PO yang ada. Permission `vehicles.*` (GA penuh, CEO lihat). Menu "Rental Mobil GA (Soon)" diganti halaman Kendaraan. |
 | 2026-11-20 | 1.8 | Centang "Update WID" di form rincian invoice dihapus karena artinya tidak diketahui dan tidak berpengaruh apa pun ke WID (sebelumnya hanya disimpan sebagai tanda). Kolom lamanya di database dibiarkan, tidak dipakai lagi. |
 | 2026-11-19 | 1.7 | Pajak di invoice customer: PPN % dan PPh % per invoice (default diatur admin di halaman Tarif Pajak Default, awal 11% dan 2%), keduanya dihitung dari Nilai Invoice. Nilai Invoice tetap sebelum pajak; yang harus dibayar customer = Nilai Invoice + PPN − PPh, dan PPh langsung dianggap terbayar. Detail invoice menampilkan Nilai Invoice, Nilai Invoice + PPN, Harus Dibayar Customer (Nilai Invoice + PPN − PPh), Sudah Dibayar, Belum Dibayar. Tabel master baru `app_settings`. |
 | 2026-11-19 | 1.6 | Hak akses per divisi disamakan (`RolePermissionSeeder`): pekerjaan sendiri penuh, modul divisi lain hanya lihat tanpa menu, staff tanpa approve/reject/hapus/verify. Aksi tulis dicek dari permission saja, bukan nama role (sebelumnya mis. Finance bisa ubah/hapus Payment Terms walau hanya punya izin lihat). Tombol aksi disembunyikan bila tidak punya izin. Sidebar per divisi: Kasbon dan Expense pindah ke Pengajuan Umum, Budget Plans ikut Finance untuk orang Finance, GR ikut Logistik untuk orang Logistik. Approve/reject kasbon dan expense cukup ditunjuk di Approval Config (sebelumnya macet karena tidak ada role selain superadmin yang punya `advance_requests.approve`); approver dan pemohon bisa membuka detailnya. Tim project dan Finance kini mendapat akses kasbon/expense. |
@@ -775,6 +811,15 @@ Celah dari versi 1.0 yang sudah diputuskan atau diperbaiki di versi 1.1 sudah di
 - Bukti potong PPh dari customer belum bisa di-upload (PPh langsung dianggap terbayar).
 - Status selain New / Partial Paid / Paid (mis. Cancelled).
 - Siapa yang membuat dan boleh melihat invoice selain Finance.
+
+**Kendaraan — perlu dikonfirmasi ke GA**
+- Form servis khusus (KM, jenis servis, checklist komponen, bengkel, biaya aktual) yang otomatis membuat RF belum dibuat; servis sementara diajukan lewat RF dengan plat + jenis Servis.
+- Servis dibayar lewat PO ke bengkel, atau kadang lewat kasbon/expense? Servis mobil sewa ditanggung vendor atau perusahaan?
+- Siapa yang approve servis dan sewa (sementara jalur RF/PO biasa).
+- Biaya kendaraan dibebankan ke project (WID) bila mobilnya dipakai project, atau selalu Non Project?
+- Vehicle Usage Request dan Vehicle Return belum dibuat; isinya belum diketahui.
+- Impor 218 kendaraan dari Salesforce (menunggu file export). Field Work Type Salesforce belum dibuat karena pilihannya belum diketahui.
+- Pengingat STNK/pajak/sewa baru berupa tanda di halaman, belum notifikasi.
 
 **Hak akses**
 - Masih ada halaman yang tidak mengecek permission di server: submit PO, halaman cetak PO/GR, dashboard, daftar WID per project.
