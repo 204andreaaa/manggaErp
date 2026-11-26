@@ -22,6 +22,8 @@ class Vehicle extends Model
     public const OWNERSHIPS = ['Own', 'Rent'];
     public const KINDS = ['Mobil', 'Motor'];
     public const COST_TYPES = ['Sewa', 'Servis', 'Lainnya'];
+    /** What the rent price of a rented vehicle is for. */
+    public const RENT_PERIODS = ['Bulan', 'Tahun'];
     /** PO statuses whose lines count as a real cost of the vehicle. */
     public const COUNTED_PO_STATUSES = ['Approved', 'Completed'];
     /** STNK / pajak due within this many days is flagged. */
@@ -32,7 +34,7 @@ class Vehicle extends Model
         'production_year', 'color', 'condition', 'usage_status', 'region', 'location', 'current_area',
         'sub_project_id', 'pic', 'stnk_name', 'stnk_address', 'chassis_number', 'engine_number',
         'stnk_expiry_date', 'tax_expiry_date', 'purchase_date', 'purchase_price', 'rental_supplier_id',
-        'monthly_rent', 'rental_start_date', 'rental_end_date', 'replacement_plate', 'mileage', 'is_active',
+        'rent_price', 'rent_period', 'rental_start_date', 'rental_end_date', 'replacement_plate', 'mileage', 'is_active',
         'description', 'created_by_id', 'updated_by_id',
     ];
 
@@ -43,7 +45,7 @@ class Vehicle extends Model
         'rental_start_date' => 'date',
         'rental_end_date' => 'date',
         'purchase_price' => 'decimal:2',
-        'monthly_rent' => 'decimal:2',
+        'rent_price' => 'decimal:2',
         'is_active' => 'boolean',
         'production_year' => 'integer',
         'mileage' => 'integer',

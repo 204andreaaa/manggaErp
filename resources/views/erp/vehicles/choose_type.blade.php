@@ -19,7 +19,7 @@
   <div class="row g-4" style="max-width:820px">
     @foreach([
       ['Own', 'bx-key', 'primary', 'Milik Sendiri (Own)', 'Dibeli perusahaan. Yang dicatat harga beli; biaya berikutnya dari servis.'],
-      ['Rent', 'bx-transfer', 'info', 'Sewa (Rent)', 'Disewa dari vendor rental. Yang dicatat vendor, harga sewa per bulan dan masa sewa.'],
+      ['Rent', 'bx-transfer', 'info', 'Sewa (Rent)', 'Disewa dari vendor rental. Yang dicatat vendor, harga sewa (per bulan atau per tahun) dan masa sewa.'],
     ] as [$type, $icon, $color, $title, $text])
       <div class="col-md-6">
         <a href="{{ route('erp.vehicles.create', ['ownership' => $type]) }}" class="text-reset">

@@ -369,6 +369,13 @@ if ($isGA || $isLogistik) {
                             <i class="bx bx-buildings me-2"></i> Projects (Tenants)
                         </a>
                     </li>
+                    @if($isSuperAdmin)
+                    <li>
+                        <a class="dropdown-item {{ request()->routeIs('erp.companies.*') ? 'active' : '' }}" href="{{ $rl('erp.companies.index') }}">
+                            <i class="bx bx-building me-2"></i> Perusahaan
+                        </a>
+                    </li>
+                    @endif
                     <li>
                         <a class="dropdown-item {{ request()->routeIs('erp.approval-configs.*') ? 'active' : '' }}" href="{{ $rl('erp.approval-configs.index') }}">
                             <i class="bx bx-check-shield me-2"></i> Approval Configs

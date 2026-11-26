@@ -44,7 +44,8 @@ return new class extends Migration
             $table->date('purchase_date')->nullable();              // Own
             $table->decimal('purchase_price', 18, 2)->nullable();   // Own
             $table->unsignedBigInteger('rental_supplier_id')->nullable()->index(); // Rent
-            $table->decimal('monthly_rent', 18, 2)->nullable();     // Rent
+            $table->decimal('rent_price', 18, 2)->nullable();       // Rent, per rent_period
+            $table->string('rent_period', 10)->nullable();          // Rent: Bulan / Tahun
             $table->date('rental_start_date')->nullable();          // Rent
             $table->date('rental_end_date')->nullable();            // Rent, as typed in
             $table->string('replacement_plate', 20)->nullable();    // the plate this one replaced

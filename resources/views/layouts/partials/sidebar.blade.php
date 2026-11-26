@@ -656,6 +656,16 @@ $isSystemOpen = request()->routeIs('erp.users.*')
         </li>
         @endif
 
+        {{-- Companies (admins) --}}
+        @if($isSuperAdmin)
+        <li id="menu-item-erp-companies" class="menu-item {{ request()->routeIs('erp.companies.*') ? 'active' : '' }}">
+            <a href="{{ $rl('erp.companies.index') }}" class="menu-link d-flex align-items-center">
+                <i class="menu-icon tf-icons bx bx-building"></i>
+                <div class="text-truncate">Perusahaan</div>
+            </a>
+        </li>
+        @endif
+
         {{-- Approval Configs --}}
         @if($canSeeApprovalConfigs)
         <li id="menu-item-erp-approval-configs" class="menu-item {{ request()->routeIs('erp.approval-configs.*') ? 'active' : '' }}">

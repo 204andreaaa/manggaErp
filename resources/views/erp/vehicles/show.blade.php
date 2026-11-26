@@ -16,7 +16,7 @@
   $costTotal = $totals->sum();
   $cards = $v->isRent()
     ? [
-        ['bx-transfer', 'info', 'Total Sewa', $money($totals['Sewa']), $money($v->monthly_rent).' / bulan'],
+        ['bx-transfer', 'info', 'Total Sewa', $money($totals['Sewa']), $money($v->rent_price).' / '.strtolower($v->rent_period ?? 'bulan')],
         ['bx-wrench', 'warning', 'Total Servis', $money($totals['Servis']), 'Biaya lain '.$money($totals['Lainnya'])],
         ['bx-time-five', $rentStatus === 'Expired' ? 'danger' : 'success', 'Masa Sewa', $rentStatus,
           $rentEnd ? 's/d '.$date($rentEnd).' · '.($days < 0 ? 'lewat '.abs($days).' hari' : 'sisa '.$days.' hari') : '-'],
@@ -44,7 +44,7 @@
   ];
   if ($v->isRent()) {
     $info['Sewa'] = [
-      'Vendor Rental' => $v->rentalSupplier?->name, 'Harga Sewa / Bulan' => $money($v->monthly_rent),
+      'Vendor Rental' => $v->rentalSupplier?->name, 'Harga Sewa' => $money($v->rent_price).' / '.strtolower($v->rent_period ?? 'bulan'),
       'Mulai Sewa' => $date($v->rental_start_date), 'Akhir Sewa (diisi)' => $date($v->rental_end_date),
       'Akhir Sewa (berlaku)' => $date($rentEnd),
     ];

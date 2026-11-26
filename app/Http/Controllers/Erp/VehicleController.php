@@ -76,7 +76,7 @@ class VehicleController extends Controller
         }
 
         return view('erp.vehicles.form', $this->formData(new Vehicle([
-            'ownership' => $ownership, 'kind' => 'Mobil', 'is_active' => true,
+            'ownership' => $ownership, 'kind' => 'Mobil', 'is_active' => true, 'rent_period' => $ownership === 'Rent' ? 'Bulan' : null,
             'purchase_date' => $ownership === 'Own' ? now() : null,
             'rental_start_date' => $ownership === 'Rent' ? now() : null,
         ])));
@@ -191,7 +191,8 @@ class VehicleController extends Controller
             'purchase_date' => ['nullable', 'date'],
             'purchase_price' => [$rent ? 'nullable' : 'required', 'numeric', 'min:0', 'max:999999999999'],
             'rental_supplier_id' => [$requiredIfRent, 'nullable', 'integer', Rule::exists('tenant.erp_suppliers', 'id')],
-            'monthly_rent' => [$requiredIfRent, 'nullable', 'numeric', 'min:0', 'max:999999999999'],
+            'rent_price' => [$requiredIfRent, 'nullable', 'numeric', 'min:0', 'max:999999999999'],
+            'rent_period' => [$requiredIfRent, 'nullable', Rule::in(Vehicle::RENT_PERIODS)],
             'rental_start_date' => [$requiredIfRent, 'nullable', 'date'],
             'rental_end_date' => [$requiredIfRent, 'nullable', 'date', 'after_or_equal:rental_start_date'],
             'replacement_plate' => ['nullable', 'string', 'max:20'],
@@ -214,7 +215,7 @@ class VehicleController extends Controller
             $data['purchase_date'] = null;
             $data['purchase_price'] = null;
         } else {
-            $data = array_merge($data, ['rental_supplier_id' => null, 'monthly_rent' => null, 'rental_start_date' => null, 'rental_end_date' => null]);
+            $data = array_merge($data, ['rental_supplier_id' => null, 'rent_price' => null, 'rent_period' => null, 'rental_start_date' => null, 'rental_end_date' => null]);
         }
 
         return $data;

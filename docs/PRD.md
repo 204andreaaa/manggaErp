@@ -323,7 +323,7 @@ Pinjaman/klaim karyawan di luar project dicatat di halaman karyawan, tanpa appro
 | Perusahaan, merk, kondisi, region, lokasi, area sekarang, STNK habis | Opsional | **Wajib** |
 | Jenis (Mobil/Motor), tahun produksi | Wajib | Wajib |
 | Harga beli, tanggal beli | Harga beli **wajib** | Tidak dipakai |
-| Vendor rental (dari master Supplier), harga sewa per bulan, mulai dan akhir sewa | Tidak dipakai | **Wajib**; akhir ≥ mulai |
+| Vendor rental (dari master Supplier), harga sewa per **Bulan / Tahun** (harga kontrak, biaya tetap dihitung dari PO), mulai dan akhir sewa | Tidak dipakai | **Wajib**; akhir ≥ mulai |
 | Model, tipe, warna, kilometer, status pemakaian, project (Sub Project), PIC, nama/alamat STNK, nomor rangka/mesin, pajak habis, plat yang digantikan, keterangan | Opsional | Opsional |
 | Aktif | Centang; dihilangkan bila mobil dijual / sewa dikembalikan | Sama |
 
@@ -624,6 +624,12 @@ Semua master data di bawah ini **per project**.
 
 - Produk **fisik** menambah stok saat GR; produk **jasa** tidak.
 
+**Perusahaan** (database master, **berlaku untuk semua project**; menu System & Security → Perusahaan, hanya superadmin/admin)
+- Perusahaan kita sendiri (MANDAU, IMPRIMA, …) yang dipilih di Invoice dan Kendaraan.
+- Field: kode (wajib, unik, huruf besar tanpa spasi), nama (wajib), nama singkat (yang tampil di pilihan), nama legal, alamat, kota, provinsi, telepon, email, website, NPWP, aktif, default.
+- **Tidak bisa dihapus** karena data invoice dan kendaraan menunjuk ke sana; yang sudah tidak dipakai dinonaktifkan, lalu tidak muncul lagi di pilihan (data lama tetap). Hanya satu perusahaan default (muncul paling atas); perusahaan nonaktif tidak bisa jadi default.
+- Invoice dan kendaraan menyimpan nama singkat saat disimpan; mengganti nama perusahaan tidak mengubah data lama.
+
 ---
 
 ## 11. Fitur pendukung
@@ -689,6 +695,7 @@ Permission disimpan sebagai daftar di setiap role. `superadmin` dan `admin` sela
 | Edit dan submit RF | pembuat RF, admin, superadmin |
 | Kelola project dan konfigurasi approval | superadmin |
 | Atur tarif pajak default invoice customer | superadmin, admin |
+| Kelola perusahaan (tambah, ubah, nonaktifkan) | superadmin, admin |
 | Tandai kasbon dibayar, settle kasbon | `advance_requests.pay` |
 | Kelola termin PA (tambah/hapus termin, input invoice, ajukan, tandai lunas) | `payment_advices.update`, `payment_advice_details.update_invoice` / `.submit` / `.mark_paid` |
 | Buat PR / hapus PR | `request_forms.create_pr` / `request_forms.delete_pr` (pembuat PR boleh menghapus PR-nya sendiri) |
@@ -777,7 +784,7 @@ Riwayat versi lengkap ada di `docs/prd-history/`.
 
 | Tanggal | Versi | Perubahan |
 |---|---|---|
-| 2026-11-26 | 1.9 | Modul baru **Kendaraan** (GA): kendaraan Own / Rent dengan field wajib mengikuti Salesforce, status sewa (Expired / Not Yet) dan peringatan STNK/pajak. Item RF bisa memilih plat, jenis biaya (Sewa / Servis / Lainnya) dan periode sewa; biaya kendaraan diambil dari PO yang approved, dan PO sewa yang approved memajukan akhir sewa. Approval memakai jalur RF/PO yang ada. Permission `vehicles.*` (GA penuh, CEO lihat). Menu "Rental Mobil GA (Soon)" diganti halaman Kendaraan. |
+| 2026-11-26 | 1.9 | Modul baru **Kendaraan** (GA): kendaraan Own / Rent dengan field wajib mengikuti Salesforce, status sewa (Expired / Not Yet) dan peringatan STNK/pajak. Item RF bisa memilih plat, jenis biaya (Sewa / Servis / Lainnya) dan periode sewa; biaya kendaraan diambil dari PO yang approved, dan PO sewa yang approved memajukan akhir sewa. Harga sewa kontrak per Bulan atau per Tahun. Approval memakai jalur RF/PO yang ada. Permission `vehicles.*` (GA penuh, CEO lihat). Menu "Rental Mobil GA (Soon)" diganti halaman Kendaraan. Halaman baru **Perusahaan** (superadmin/admin) untuk menambah, mengubah dan menonaktifkan perusahaan yang dipilih di Invoice dan Kendaraan (sebelumnya hanya lewat seeder). |
 | 2026-11-20 | 1.8 | Centang "Update WID" di form rincian invoice dihapus karena artinya tidak diketahui dan tidak berpengaruh apa pun ke WID (sebelumnya hanya disimpan sebagai tanda). Kolom lamanya di database dibiarkan, tidak dipakai lagi. |
 | 2026-11-19 | 1.7 | Pajak di invoice customer: PPN % dan PPh % per invoice (default diatur admin di halaman Tarif Pajak Default, awal 11% dan 2%), keduanya dihitung dari Nilai Invoice. Nilai Invoice tetap sebelum pajak; yang harus dibayar customer = Nilai Invoice + PPN − PPh, dan PPh langsung dianggap terbayar. Detail invoice menampilkan Nilai Invoice, Nilai Invoice + PPN, Harus Dibayar Customer (Nilai Invoice + PPN − PPh), Sudah Dibayar, Belum Dibayar. Tabel master baru `app_settings`. |
 | 2026-11-19 | 1.6 | Hak akses per divisi disamakan (`RolePermissionSeeder`): pekerjaan sendiri penuh, modul divisi lain hanya lihat tanpa menu, staff tanpa approve/reject/hapus/verify. Aksi tulis dicek dari permission saja, bukan nama role (sebelumnya mis. Finance bisa ubah/hapus Payment Terms walau hanya punya izin lihat). Tombol aksi disembunyikan bila tidak punya izin. Sidebar per divisi: Kasbon dan Expense pindah ke Pengajuan Umum, Budget Plans ikut Finance untuk orang Finance, GR ikut Logistik untuk orang Logistik. Approve/reject kasbon dan expense cukup ditunjuk di Approval Config (sebelumnya macet karena tidak ada role selain superadmin yang punya `advance_requests.approve`); approver dan pemohon bisa membuka detailnya. Tim project dan Finance kini mendapat akses kasbon/expense. |
@@ -804,7 +811,7 @@ Celah dari versi 1.0 yang sudah diputuskan atau diperbaiki di versi 1.1 sudah di
 
 **Invoice customer — perlu dikonfirmasi ke Finance**
 - Perlu master Customer, atau cukup teks bebas?
-- Daftar perusahaan penagih (MANDAU, MIG, …). Master perusahaan saat ini berisi Mandau dan IOH.
+- Daftar perusahaan penagih (MANDAU, MIG, …). Admin bisa menambahkannya di halaman Perusahaan; isi awalnya Mandau dan IOH (IOH sepertinya customer, bukan perusahaan kita — perlu dicek lalu dinonaktifkan).
 - Daftar pilihan Terms yang sebenarnya (baru diketahui "Final Payment" dan "DP I").
 - Rincian USD: dibayar dalam USD atau dikonversi ke IDR? Saat ini total USD hanya ditampilkan, tidak ikut status pembayaran.
 - Isi Payment Detail yang sebenarnya (bukti transfer, rekening penerima, potongan).

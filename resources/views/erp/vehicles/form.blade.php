@@ -187,9 +187,15 @@
                 <div class="form-text">Diambil dari master Supplier.</div>
               </div>
               <div class="col-12">
-                <label class="form-label">Harga Sewa per Bulan {!! $req !!}</label>
+                <label class="form-label">Harga Sewa {!! $req !!}</label>
                 <div class="input-group"><span class="input-group-text">Rp</span>
-                  <input type="number" name="monthly_rent" class="form-control" min="0" step="1" required value="{{ $val('monthly_rent') !== null ? (float) $val('monthly_rent') : '' }}"></div>
+                  <input type="number" name="rent_price" class="form-control" min="0" step="1" required value="{{ $val('rent_price') !== null ? (float) $val('rent_price') : '' }}">
+                  <span class="input-group-text">per</span>
+                  <select name="rent_period" class="form-select" style="max-width:110px" required>
+                    @foreach(\App\Models\Erp\Vehicle::RENT_PERIODS as $period)<option value="{{ $period }}" @selected($val('rent_period') === $period)>{{ $period }}</option>@endforeach
+                  </select>
+                </div>
+                <div class="form-text">Harga di kontrak sewa. Biaya yang dihitung tetap dari PO sewa.</div>
               </div>
               <div class="col-6">
                 <label class="form-label">Mulai Sewa {!! $req !!}</label>

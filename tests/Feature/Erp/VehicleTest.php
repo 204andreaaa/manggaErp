@@ -53,7 +53,7 @@ class VehicleTest extends PurchaseOrderTestCase
             'brand' => 'Daihatsu', 'model' => 'Grand Max', 'production_year' => 2012, 'condition' => 'Good',
             'region' => 'Kalimantan Timur', 'location' => 'Balikpapan', 'current_area' => 'Kalimantan Timur',
             'stnk_expiry_date' => now()->addYear()->toDateString(), 'rental_supplier_id' => $this->supplier->id,
-            'monthly_rent' => 3_000_000, 'rental_start_date' => now()->subMonths(2)->toDateString(),
+            'rent_price' => 3_000_000, 'rent_period' => 'Bulan', 'rental_start_date' => now()->subMonths(2)->toDateString(),
             'rental_end_date' => now()->subDay()->toDateString(), 'is_active' => 1,
         ], $overrides);
     }
@@ -73,7 +73,7 @@ class VehicleTest extends PurchaseOrderTestCase
 
         // a rented car needs its vendor, rent and period; an own car its purchase price
         $this->post(route('erp.vehicles.store'), ['ownership' => 'Rent', 'plate_number' => 'B 1 X', 'kind' => 'Mobil', 'production_year' => 2020])
-            ->assertSessionHasErrors(['rental_supplier_id', 'monthly_rent', 'rental_start_date', 'rental_end_date', 'company_id', 'location', 'stnk_expiry_date']);
+            ->assertSessionHasErrors(['rental_supplier_id', 'rent_price', 'rent_period', 'rental_start_date', 'rental_end_date', 'company_id', 'location', 'stnk_expiry_date']);
         $this->post(route('erp.vehicles.store'), $this->ownPayload(['purchase_price' => null]))->assertSessionHasErrors('purchase_price');
 
         $own = $this->makeVehicle('Own');
@@ -86,6 +86,12 @@ class VehicleTest extends PurchaseOrderTestCase
         $rent = $this->makeVehicle('Rent');
         $this->assertSame('MANDAU', $rent->company_name);
         $this->assertNull($rent->purchase_price);
+        $this->get(route('erp.vehicles.show', $rent))->assertSee('Rp 3.000.000 / bulan');
+
+        // a yearly rent
+        $yearly = $this->makeVehicle('Rent', ['plate_number' => 'B 2361 SOW', 'rent_price' => 36_000_000, 'rent_period' => 'Tahun']);
+        $this->get(route('erp.vehicles.show', $yearly))->assertSee('Rp 36.000.000 / tahun');
+        $this->post(route('erp.vehicles.store'), $this->rentPayload(['plate_number' => 'B 7 Q', 'rent_period' => 'Minggu']))->assertSessionHasErrors('rent_period');
 
         // its rent ended yesterday: Expired
         $this->get(route('erp.vehicles.index'))->assertOk()->assertSee('B 2601 PFR')->assertSee('Expired');
