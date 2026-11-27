@@ -435,13 +435,15 @@ Tombol **Simpan & Tambah Lagi** (seperti "Save & New") langsung membuka form rin
 
 ### 7.1 Hirarki budget
 ```
-Budget Parent (Account)          total_budget
- └─ Sub Project (Project)
-     └─ Work Item / WID          allocated_budget, remaining_budget
-         └─ Annual Budget Plan   per tahun + area + jenis pekerjaan
-             └─ Monthly Plan     per bulan (qty, revenue plan)
-                 └─ Budget Plan Detail   per jenis biaya (direct/indirect)
+Perusahaan (tenant = satu PT, database sendiri; mis. Mandau, Imprima)   ← kop surat
+ └─ Budget Parent (Account)      total_budget; pos budget PT per tahun, mis. "Mandau" MANDAU-2026
+     └─ Sub Project (Project)    proyek kerja, mis. Apjatel, JSI
+         └─ Work Item / WID      allocated_budget, remaining_budget
+             └─ Annual Budget Plan   per tahun + area + jenis pekerjaan
+                 └─ Monthly Plan     per bulan (qty, revenue plan)
+                     └─ Budget Plan Detail   per jenis biaya (direct/indirect)
 ```
+- "Project" di layar budget (mis. kotak Projects di detail Account) = **Sub Project**, bukan perusahaan/tenant.
 - **PO** memotong **WID**.
 - **Kasbon dan Expense Declaration** memotong **Budget Plan Detail**.
 
