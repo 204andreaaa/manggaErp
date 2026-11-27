@@ -72,7 +72,7 @@ $hasMasterData   = $canSeeProducts || $hasAnyAttribute;
 
 // Reports & System Checks
 $canSeeCustomReports   = $isSuperAdmin || $u?->canSeeMenu('custom_reports');
-$canSeeProjects        = $isSuperAdmin || $u?->canSeeMenu('projects');
+$canSeeProjects        = $u?->hasRole('superadmin'); // tenant admin is superadmin only (not admin)
 $canSeeApprovalConfigs = $isSuperAdmin || $u?->canSeeMenu('approval_configs');
 $canSeeUsers           = $isSuperAdmin || $u?->canSeeMenu('users');
 $canSeeRoles           = $isSuperAdmin || $u?->canSeeMenu('roles');

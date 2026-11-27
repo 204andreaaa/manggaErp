@@ -241,7 +241,7 @@ return [
         ],
         [
             'key'         => 'projects',
-            'label'       => 'Projects (Tenants)',
+            'label'       => 'Perusahaan (Tenant) — hanya superadmin',
             'route'       => 'erp.projects.index',
             'group'       => 'master',
             'icon'        => 'bx bx-buildings',

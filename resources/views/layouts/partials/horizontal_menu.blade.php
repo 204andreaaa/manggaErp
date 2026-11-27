@@ -27,7 +27,7 @@ $canSeeExpense = $isSuperAdmin || $u?->canSeeMenu('expense_declarations');
 $isCEO          = $isSuperAdmin || $u?->hasRole('ceo');
 $isMaster       = $isSuperAdmin || $u?->hasRole('procurement') || $u?->canSeeMenu('products') || $u?->canSeeMenu('uoms');
 $canSeeCustomReports = $isSuperAdmin || $u?->canSeeMenu('custom_reports');
-$isSystem       = $isSuperAdmin || $u?->canSeeMenu('users') || $u?->canSeeMenu('roles') || $u?->canSeeMenu('projects') || $u?->canSeeMenu('approval_configs');
+$isSystem       = $isSuperAdmin || $u?->canSeeMenu('users') || $u?->canSeeMenu('roles') || $u?->canSeeMenu('approval_configs');
 
 // Hitung total PO Request yang belum dibuatkan PO (Pending PO)
 $pendingPoCount = 0;
@@ -364,11 +364,13 @@ if ($isGA || $isLogistik) {
                             <i class="bx bx-shield-quarter me-2"></i> Roles & Permissions
                         </a>
                     </li>
+                    @if($u?->hasRole('superadmin'))
                     <li>
                         <a class="dropdown-item {{ request()->routeIs('erp.projects.*') ? 'active' : '' }}" href="{{ $rl('erp.projects.index') }}">
                             <i class="bx bx-buildings me-2"></i> Perusahaan (Tenant)
                         </a>
                     </li>
+                    @endif
                     <li>
                         <a class="dropdown-item {{ request()->routeIs('erp.approval-configs.*') ? 'active' : '' }}" href="{{ $rl('erp.approval-configs.index') }}">
                             <i class="bx bx-check-shield me-2"></i> Approval Configs

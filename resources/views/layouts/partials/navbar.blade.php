@@ -3,6 +3,12 @@
     $user        = auth()->user();
     $userName    = $user?->name ?? 'Guest';
     $userJabatan = $user?->position ?: ($user?->roles?->first()?->name ?? ($user?->role ? ucwords(str_replace('_', ' ', $user->role)) : 'Staff'));
+
+    // The company (tenant = one PT) being worked in, and the others this user may switch to
+    $currentCompany = $user ? \App\Models\Project::find(session('project_id')) : null;
+    $myCompanies = !$user ? collect() : ($user->hasRole('superadmin')
+        ? \App\Models\Project::where('is_active', true)->orderBy('id')->get()
+        : $user->projects()->where('is_active', true)->orderBy('projects.id')->get());
 @endphp
 
 <nav class="layout-navbar container-xxl navbar navbar-expand-xl navbar-detached align-items-center bg-navbar-theme" id="layout-navbar">
@@ -33,6 +39,44 @@
     </div>
 
     <ul class="navbar-nav flex-row align-items-center ms-auto gap-2">
+
+      {{-- 0. ACTIVE COMPANY + SWITCH --}}
+      @if($currentCompany)
+      <li class="nav-item dropdown" id="navCompanySwitcher">
+        <a class="nav-link d-flex align-items-center gap-1 px-2 py-1 rounded-pill border {{ $myCompanies->count() > 1 ? 'dropdown-toggle' : '' }}"
+           href="javascript:void(0);" @if($myCompanies->count() > 1) data-bs-toggle="dropdown" @endif
+           title="Perusahaan yang sedang dibuka: {{ $currentCompany->letterheadName() }}">
+          <i class="bx bx-buildings"></i>
+          <span class="fw-semibold small d-none d-md-inline text-truncate" style="max-width: 180px;">{{ $currentCompany->name }}</span>
+        </a>
+        @if($myCompanies->count() > 1)
+        <ul class="dropdown-menu dropdown-menu-end" style="min-width: 260px;">
+          <li><h6 class="dropdown-header">Pindah Perusahaan</h6></li>
+          @foreach($myCompanies as $company)
+            <li>
+              @if($company->id === $currentCompany->id)
+                <span class="dropdown-item active d-flex align-items-center">
+                  <i class="bx bx-check me-2"></i>
+                  <span><span class="d-block">{{ $company->name }}</span><small class="opacity-75">{{ $company->legal_name }}</small></span>
+                </span>
+              @else
+                <form method="POST" action="{{ route('projects.switch.process') }}" class="m-0">
+                  @csrf
+                  <input type="hidden" name="project_id" value="{{ $company->id }}">
+                  <button type="submit" class="dropdown-item d-flex align-items-center">
+                    <i class="bx bx-transfer-alt me-2"></i>
+                    <span class="text-start"><span class="d-block">{{ $company->name }}</span><small class="text-muted">{{ $company->legal_name }}</small></span>
+                  </button>
+                </form>
+              @endif
+            </li>
+          @endforeach
+          <li><div class="dropdown-divider"></div></li>
+          <li><a class="dropdown-item" href="{{ route('projects.switch', ['select' => 1]) }}"><i class="bx bx-grid-alt me-2"></i>Lihat semua perusahaan</a></li>
+        </ul>
+        @endif
+      </li>
+      @endif
 
       {{-- 1. SWITCHER NAV LAYOUT: SIDEBAR VS HEADER BAR --}}
       <li class="nav-item">
@@ -177,6 +221,16 @@
           </li>
 
           <li><div class="dropdown-divider"></div></li>
+
+          @if($myCompanies->count() > 1)
+            <li>
+              <a class="dropdown-item" href="{{ route('projects.switch', ['select' => 1]) }}">
+                <i class="bx bx-buildings me-2"></i>
+                <span>Ganti Perusahaan</span>
+              </a>
+            </li>
+            <li><div class="dropdown-divider"></div></li>
+          @endif
 
           @if($myEmployee = auth()->user()?->employee)
             <li>

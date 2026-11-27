@@ -44,6 +44,36 @@ class TenantIdentityTest extends PurchaseOrderTestCase
             ->assertSee('Perusahaan (Tenant)')->assertSee('PT Mandiri Daya Utama Nusantara');
     }
 
+    public function test_the_navbar_shows_the_open_company_and_switches_to_another_one(): void
+    {
+        $this->project->update(['name' => 'Mandau', 'legal_name' => 'PT Mandiri Daya Utama Nusantara']);
+        $imprima = \App\Models\Project::create(['name' => 'Imprima', 'legal_name' => 'PT Intertel Media Prima',
+            'db_name' => 'mangga_test_imprima_unused', 'is_active' => true]);
+        $staff = $this->makeUser('staff');
+
+        // one company: the badge shows it, nothing to switch to
+        $this->actingInProject($staff)->get(route('erp.request-form.index'))->assertOk()
+            ->assertSee('navCompanySwitcher', false)->assertDontSee('Pindah Perusahaan');
+
+        // two companies: a switch list in the badge and "Ganti Perusahaan" in the user menu
+        $imprima->users()->attach($staff->id);
+        $this->get(route('erp.request-form.index'))->assertOk()
+            ->assertSee('Pindah Perusahaan')->assertSee('PT Intertel Media Prima')->assertSee('Ganti Perusahaan');
+
+        $this->post(route('projects.switch.process'), ['project_id' => $imprima->id])
+            ->assertRedirect(route('dashboard'))->assertSessionHas('project_id', $imprima->id);
+    }
+
+    public function test_the_tenant_admin_menu_is_for_the_superadmin_only(): void
+    {
+        $url = route('erp.projects.index');
+
+        $this->actingInProject($this->makeUser('admin'))->get(route('erp.request-form.index'))->assertOk()->assertDontSee($url);
+        $this->get($url)->assertForbidden();
+
+        $this->actingInProject($this->makeUser('superadmin'))->get(route('erp.request-form.index'))->assertOk()->assertSee($url);
+    }
+
     public function test_only_the_superadmin_changes_the_pt_identity(): void
     {
         $this->actingInProject($this->makeUser('admin'))->put(route('erp.projects.update', $this->project), [
